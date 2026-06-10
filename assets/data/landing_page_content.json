@@ -90,11 +90,11 @@
     },
     {
       "id": "sport-national-racing",
-      "name": "CTR Indian National Car Racing Championship",
+      "name": "Indian National Car Racing Championship",
       "team_name": "National Circuit Program",
       "description": "A professional national ladder connecting karting graduates to full circuit competition under one unified banner.",
       "website_url": "#",
-      "logo_image": "/media/ctr-national-racing.png",
+      "logo_image": "/media/f4.png",
       "visit_label": "Visit"
     }
   ]
