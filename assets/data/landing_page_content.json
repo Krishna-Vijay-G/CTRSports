@@ -1,0 +1,101 @@
+{
+  "splash": {
+    "title": "CTR UNIFIED",
+    "aria_label": "Loading CTR Unified",
+    "logo_image": "/media/ctr-logo.png",
+    "fade_in_ms": 1300,
+    "hide_ms": 2000
+  },
+  "brand": {
+    "name": "CTR UNIFIED",
+    "subtitle": "SPORTS COLLECTIVE",
+    "logo_image": "/media/ctr-logo.png",
+    "home_aria_label": "CTR Unified home"
+  },
+  "hero": {
+    "kicker": "CTR SPORTS COLLECTIVE",
+    "title": "CTR UNIFIED",
+    "subtitle": "One Team. Multiple Sports.\nUnlimited Possibilities.",
+    "about_title": "One Unified Platform",
+    "about_body": "CTR Unified is a multi-sport organization that brings together athletes, teams, and sporting communities under one unified platform. From cricket and volleyball to Formula 4 racing and emerging sports, CTR Unified promotes excellence, teamwork, innovation, and competitive spirit across all disciplines.",
+    "background_image": "/media/background.jpeg"
+  },
+  "sports_section": {
+    "kicker": "SPORTS IN CTR UNIFIED",
+    "title": "Unified Sports Programs"
+  },
+  "sports": [
+    {
+      "id": "sport-pickleball",
+      "name": "Pickleball",
+      "team_name": "Chennai Super Warriors",
+      "description": "Explosive hand-speed, compact court strategy, and doubles chemistry define CTR's pickleball identity.",
+      "website_url": "#",
+      "logo_image": "/media/pickle.png",
+      "visit_label": "Visit"
+    },
+    {
+      "id": "sport-volleyball",
+      "name": "Volleyball",
+      "team_name": "Kasi Warriors",
+      "description": "Vertical athleticism and controlled transition play power our volleyball program across elite competitions.",
+      "website_url": "#",
+      "logo_image": "/media/volley.png",
+      "visit_label": "Visit"
+    },
+    {
+      "id": "sport-cricket",
+      "name": "Cricket",
+      "team_name": "Accord Warriors",
+      "description": "Structured batting depth, precision bowling plans, and relentless fielding standards anchor this unit.",
+      "website_url": "#",
+      "logo_image": "/media/cricket.png",
+      "visit_label": "Visit"
+    },
+    {
+      "id": "sport-hockey",
+      "name": "Field Hockey",
+      "team_name": "Accord Tamil Nadu Dragons",
+      "description": "Pace-driven pressing and disciplined circle execution make our hockey program sharp and competitive.",
+      "website_url": "https://www.tamilnadudragons.in",
+      "logo_image": "/media/hockey.png",
+      "visit_label": "Visit"
+    },
+    {
+      "id": "sport-f4",
+      "name": "Formula 4 Racing",
+      "team_name": "CTR Racing Development",
+      "description": "From telemetry to racecraft, the F4 pathway develops next-generation circuit talent with measurable rigor.",
+      "website_url": "https://www.chennaiturboriders.in",
+      "logo_image": "/media/f4.png",
+      "visit_label": "Visit"
+    },
+    {
+      "id": "sport-academy",
+      "name": "CTR Academy",
+      "team_name": "Performance & Motorsport Division",
+      "description": "Academy programs blend motorsport science, athlete conditioning, and team discipline into one track-ready system.",
+      "website_url": "https://chennaiturboriders.in",
+      "logo_image": "/media/ctr-mark.png",
+      "visit_label": "Visit"
+    },
+    {
+      "id": "sport-karting",
+      "name": "CTR Karting League",
+      "team_name": "Grassroots Racing Series",
+      "description": "The karting league identifies young drivers early and builds race intelligence through structured progression.",
+      "website_url": "#",
+      "logo_image": "/media/ctr-mark.png",
+      "visit_label": "Visit"
+    },
+    {
+      "id": "sport-national-racing",
+      "name": "CTR Indian National Car Racing Championship",
+      "team_name": "National Circuit Program",
+      "description": "A professional national ladder connecting karting graduates to full circuit competition under one unified banner.",
+      "website_url": "#",
+      "logo_image": "/media/ctr-national-racing.png",
+      "visit_label": "Visit"
+    }
+  ]
+}

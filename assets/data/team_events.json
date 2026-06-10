@@ -1,0 +1,109 @@
+{
+  "team_events": [
+    {
+      "team_id": "team_01",
+      "events": [
+        {
+          "id": "evt_01_01",
+          "title": "HIL Match Day 8",
+          "opponent": "Tamil Nadu Dragons vs Soorma HC",
+          "venue": "Mayor Radhakrishnan Stadium, Chennai",
+          "date": "January 2026",
+          "banner_image": "https://images.unsplash.com/photo-1486286701208-1d58e9338013?auto=format&fit=crop&w=800&q=80"
+        },
+        {
+          "id": "evt_01_02",
+          "title": "HIL Match Day 10",
+          "opponent": "Tamil Nadu Dragons vs Kalinga Lancers",
+          "venue": "Mayor Radhakrishnan Stadium, Chennai",
+          "date": "February 2026",
+          "banner_image": "https://images.unsplash.com/photo-1544216717-3bbf52512659?auto=format&fit=crop&w=800&q=80"
+        }
+      ]
+    },
+    {
+      "team_id": "team_02",
+      "events": [
+        {
+          "id": "evt_02_01",
+          "title": "PPL India Match Day 5",
+          "opponent": "Super Warriors vs Mumbai Aces",
+          "venue": "Nehru Indoor Stadium, Chennai",
+          "date": "March 2026",
+          "banner_image": "https://cdn.prod.website-files.com/6390c2d9fbb8357ffc404b63/6612f97cff3fd2e80bcb5b1c_What%20is%20Pickleball.png?auto=format&fit=crop&w=1400&q=80"
+        },
+        {
+          "id": "evt_02_02",
+          "title": "PPL India Quarter Final",
+          "opponent": "Super Warriors vs Delhi Smashers",
+          "venue": "Jawaharlal Nehru Indoor Stadium, Chennai",
+          "date": "April 2026",
+          "banner_image": "https://images.unsplash.com/photo-1560272564-c83b66b1ad12?auto=format&fit=crop&w=800&q=80"
+        }
+      ]
+    },
+    {
+      "team_id": "team_03",
+      "events": [
+        {
+          "id": "evt_03_01",
+          "title": "PVL Match Day 7",
+          "opponent": "Kashi Warriors vs Hyderabad Black Hawks",
+          "venue": "Indoor Sports Complex, Varanasi",
+          "date": "February 2026",
+          "banner_image": "https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?auto=format&fit=crop&w=800&q=80"
+        },
+        {
+          "id": "evt_03_02",
+          "title": "PVL Semifinal",
+          "opponent": "Kashi Warriors vs Ahmedabad Defenders",
+          "venue": "Indoor Sports Complex, Varanasi",
+          "date": "March 2026",
+          "banner_image": "https://images.unsplash.com/photo-1574279606130-09958dc756f7?auto=format&fit=crop&w=800&q=80"
+        }
+      ]
+    },
+    {
+      "team_id": "team_04",
+      "events": [
+        {
+          "id": "evt_04_01",
+          "title": "TNPL Match Day 9",
+          "opponent": "Ossudu Warriors vs Lyca Kovai Kings",
+          "venue": "NPR College Ground, Dindigul",
+          "date": "June 2026",
+          "banner_image": "https://images.unsplash.com/photo-1531415074968-036ba1b575da?auto=format&fit=crop&w=800&q=80"
+        },
+        {
+          "id": "evt_04_02",
+          "title": "TNPL Quarterfinal",
+          "opponent": "Ossudu Warriors vs Salem Spartans",
+          "venue": "MA Chidambaram Stadium, Chennai",
+          "date": "July 2026",
+          "banner_image": "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&w=800&q=80"
+        }
+      ]
+    },
+    {
+      "team_id": "team_05",
+      "events": [
+        {
+          "id": "evt_05_01",
+          "title": "MRF F4 Round 4",
+          "opponent": "Chennai Turbo Riders vs Vatsal Sheth Racing",
+          "venue": "Madras Motor Race Track, Chennai",
+          "date": "April 2026",
+          "banner_image": "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=800&q=80"
+        },
+        {
+          "id": "evt_05_02",
+          "title": "MRF F4 Season Finale",
+          "opponent": "Championship Decider - All Teams",
+          "venue": "Madras Motor Race Track, Chennai",
+          "date": "May 2026",
+          "banner_image": "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80"
+        }
+      ]
+    }
+  ]
+}

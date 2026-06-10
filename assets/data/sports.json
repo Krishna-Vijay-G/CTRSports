@@ -1,0 +1,172 @@
+{
+  "sports": [
+    {
+      "id": "sport_01",
+      "name": "Pickleball",
+      "slug": "pickleball",
+      "tagline": "The Fastest Growing Sport in the World",
+      "description": "Pickleball is a paddleball sport that combines elements of tennis, badminton, and ping-pong. Played on a badminton-sized court with a slightly modified tennis net, players use solid paddles to hit a perforated polymer ball. Its accessibility and social nature have made it the fastest-growing sport across all age groups.",
+      "cover_image": "https://cdn.prod.website-files.com/6390c2d9fbb8357ffc404b63/6612f97cff3fd2e80bcb5b1c_What%20is%20Pickleball.png?auto=format&fit=crop&w=1400&q=80",
+      "thumbnail_image": "https://cdn.prod.website-files.com/6390c2d9fbb8357ffc404b63/6612f97cff3fd2e80bcb5b1c_What%20is%20Pickleball.png?auto=format&fit=crop&w=1400&q=80",
+      "accent_color_hex": "#1565C0",
+      "category": "Racket Sports",
+      "founded_year": 1965,
+      "origin_country": "United States",
+      "is_featured": true,
+      "total_players": 5,
+      "total_gallery": 10,
+      "stats": {
+        "global_players_million": 36,
+        "countries": 70,
+        "professional_leagues": 14
+      }
+    },
+    {
+      "id": "sport_02",
+      "name": "Volleyball",
+      "slug": "volleyball",
+      "tagline": "Where Team Spirit Meets Athletic Excellence",
+      "description": "Volleyball is a team sport in which two teams of six players are separated by a net. Each team tries to score points by grounding a ball on the other team's court. Beach volleyball and indoor volleyball are both Olympic sports with millions of dedicated players worldwide.",
+      "cover_image": "https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?auto=format&fit=crop&w=1400&q=80",
+      "thumbnail_image": "https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?auto=format&fit=crop&w=700&q=80",
+      "accent_color_hex": "#E53935",
+      "category": "Ball Sports",
+      "founded_year": 1895,
+      "origin_country": "United States",
+      "is_featured": true,
+      "total_players": 5,
+      "total_gallery": 12,
+      "stats": {
+        "global_players_million": 800,
+        "countries": 220,
+        "professional_leagues": 35
+      }
+    },
+    {
+      "id": "sport_03",
+      "name": "Cricket",
+      "slug": "cricket",
+      "tagline": "A Gentleman's Game of Strategy and Skill",
+      "description": "Cricket is a bat-and-ball game played between two teams of eleven players each on a field. It is one of the world's most popular sports, particularly in South Asia, Australia, England, and the Caribbean. With formats ranging from Test matches to explosive T20 games, cricket captivates billions of fans.",
+      "cover_image": "https://images.unsplash.com/photo-1531415074968-036ba1b575da?auto=format&fit=crop&w=1400&q=80",
+      "thumbnail_image": "https://images.unsplash.com/photo-1531415074968-036ba1b575da?auto=format&fit=crop&w=700&q=80",
+      "accent_color_hex": "#2E7D32",
+      "category": "Bat & Ball",
+      "founded_year": 1550,
+      "origin_country": "England",
+      "is_featured": true,
+      "total_players": 5,
+      "total_gallery": 14,
+      "stats": {
+        "global_players_million": 2500,
+        "countries": 105,
+        "professional_leagues": 20
+      }
+    },
+    {
+      "id": "sport_04",
+      "name": "Formula 4 Racing",
+      "slug": "formula4",
+      "tagline": "Push the Limit. Break the Record.",
+      "description": "Formula 4 Racing is the entry-level open-wheel single-seater formula motorsport class, providing young drivers a pathway to the pinnacle of motorsport. In India, the MRF F4 Championship is contested at world-class venues and produces the next generation of Indian racing stars.",
+      "cover_image": "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=1400&q=80",
+      "thumbnail_image": "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=700&q=80",
+      "accent_color_hex": "#E65100",
+      "category": "Motor Racing",
+      "founded_year": 2014,
+      "origin_country": "Germany",
+      "is_featured": true,
+      "total_players": 4,
+      "total_gallery": 6,
+      "stats": {
+        "global_players_million": 1,
+        "countries": 28,
+        "professional_leagues": 15
+      }
+    },
+    {
+      "id": "sport_05",
+      "name": "Field Hockey",
+      "slug": "hockey",
+      "tagline": "The Fastest Team Sport on Turf.",
+      "description": "Field hockey is one of the world's oldest and most celebrated team sports, played on a grass or turf field between two teams of eleven players each. India has a legendary hockey tradition with multiple Olympic gold medals. The Hockey India League brings elite international talent and passionate fans together for world-class hockey.",
+      "cover_image": "https://images.unsplash.com/photo-1486286701208-1d58e9338013?auto=format&fit=crop&w=1400&q=80",
+      "thumbnail_image": "https://images.unsplash.com/photo-1486286701208-1d58e9338013?auto=format&fit=crop&w=700&q=80",
+      "accent_color_hex": "#C62828",
+      "category": "Team Sports",
+      "founded_year": 1875,
+      "origin_country": "England",
+      "is_featured": true,
+      "total_players": 8,
+      "total_gallery": 6,
+      "stats": {
+        "global_players_million": 30,
+        "countries": 137,
+        "professional_leagues": 22
+      }
+    }
+    ,{
+      "id": "sport_06",
+      "name": "CTR Academy",
+      "slug": "ctr-academy",
+      "tagline": "Professional motorsport education for the next generation of racers.",
+      "description": "CTR Academy is a professional motorsport academy for aspiring racers and motorsport professionals. The program covers driving, engineering, race operations, fitness, and motorsport management, with structured collaboration across colleges and institutions to create real racing exposure, internship opportunities, and long-term career development in motorsport.",
+      "cover_image": "https://images.unsplash.com/photo-1502937406920-b6b27c0cbf35?auto=format&fit=crop&w=1400&q=80",
+      "thumbnail_image": "https://images.unsplash.com/photo-1502937406920-b6b27c0cbf35?auto=format&fit=crop&w=700&q=80",
+      "accent_color_hex": "#8D6E63",
+      "category": "Motorsport Education",
+      "founded_year": 2024,
+      "origin_country": "India",
+      "is_featured": true,
+      "total_players": 5,
+      "total_gallery": 8,
+      "stats": {
+        "global_players_million": 1,
+        "countries": 12,
+        "professional_leagues": 3
+      }
+    },
+    {
+      "id": "sport_07",
+      "name": "CTR Karting League",
+      "slug": "ctr-karting-league",
+      "tagline": "Grassroots karting that finds and develops young Indian racing talent.",
+      "description": "CTR Karting League is a grassroots karting platform built to identify young racing talent across India. Focused on talent identification, professional coaching, racing discipline, and competitive championships, the league is designed to build the next generation of Indian racers through repeatable, merit-based development.",
+      "cover_image": "https://images.unsplash.com/photo-1520975922284-9b2b8d2d3e7b?auto=format&fit=crop&w=1400&q=80",
+      "thumbnail_image": "https://images.unsplash.com/photo-1520975922284-9b2b8d2d3e7b?auto=format&fit=crop&w=700&q=80",
+      "accent_color_hex": "#D32F2F",
+      "category": "Karting",
+      "founded_year": 2025,
+      "origin_country": "India",
+      "is_featured": true,
+      "total_players": 8,
+      "total_gallery": 8,
+      "stats": {
+        "global_players_million": 1,
+        "countries": 18,
+        "professional_leagues": 5
+      }
+    },
+    {
+      "id": "sport_08",
+      "name": "CTR Indian National Car Racing Championship",
+      "slug": "ctr-indian-national-car-racing-championship",
+      "tagline": "A structured national racing ladder for the transition from karting to circuit racing.",
+      "description": "CTR Indian National Car Racing Championship is a structured national racing championship platform designed to help drivers transition from karting to professional circuit racing. Built with national-level racing standards, driver development systems, safe and fair competition, and professional race management, it creates a direct pathway into Indian circuit racing.",
+      "cover_image": "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1400&q=80",
+      "thumbnail_image": "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=700&q=80",
+      "accent_color_hex": "#1B5E20",
+      "category": "Motorsport Championship",
+      "founded_year": 2026,
+      "origin_country": "India",
+      "is_featured": true,
+      "total_players": 12,
+      "total_gallery": 8,
+      "stats": {
+        "global_players_million": 1,
+        "countries": 10,
+        "professional_leagues": 2
+      }
+    }
+  ]
+}

@@ -1,0 +1,154 @@
+{
+  "team_timeline": [
+    {
+      "team_id": "team_01",
+      "timeline": [
+        {
+          "year": "January 2026",
+          "title": "Top of HIL Points Table",
+          "description": "Led the Hockey India League standings after strong back-to-back victories."
+        },
+        {
+          "year": "January 2026",
+          "title": "Victory against JSW Soorma HC (3-2)",
+          "description": "A thrilling come-from-behind win that set the tone for the Dragons' season."
+        },
+        {
+          "year": "January 2026",
+          "title": "Reached HIL Top 4",
+          "description": "Secured a playoff berth in the debut HIL season."
+        },
+        {
+          "year": "2025",
+          "title": "Hockey India League Debut",
+          "description": "Entered the national stage competing against established franchises."
+        },
+        {
+          "year": "2024",
+          "title": "Team Founded",
+          "description": "Accord Tamil Nadu Dragons established as a CTR Unified franchise."
+        }
+      ]
+    },
+    {
+      "team_id": "team_02",
+      "timeline": [
+        {
+          "year": "2026",
+          "title": "PPL India Season Favorites",
+          "description": "Entering the 2026 season as top contenders with a fully loaded squad."
+        },
+        {
+          "year": "2025",
+          "title": "PPL India Champions",
+          "description": "Claimed the Premier Pickleball League India title with a thrilling final victory."
+        },
+        {
+          "year": "2024",
+          "title": "PPL India Semifinal Finish",
+          "description": "Reached the last four in just their debut season, announcing themselves on the national stage."
+        },
+        {
+          "year": "2024",
+          "title": "PPL India Debut",
+          "description": "Made a stunning debut season in the Premier Pickleball League India."
+        },
+        {
+          "year": "2023",
+          "title": "Team Founded",
+          "description": "Chennai Super Warriors established as a CTR Unified franchise."
+        }
+      ]
+    },
+    {
+      "team_id": "team_03",
+      "timeline": [
+        {
+          "year": "2026",
+          "title": "PVL Season Contenders",
+          "description": "Favored to challenge for the PVL title in the upcoming season."
+        },
+        {
+          "year": "2025",
+          "title": "PVL Semifinal Finish",
+          "description": "Reached the final four in their third consecutive PVL campaign."
+        },
+        {
+          "year": "2024",
+          "title": "PVL Quarterfinal",
+          "description": "Made the quarterfinals for the first time, defeating Bengaluru Torpedoes."
+        },
+        {
+          "year": "2023",
+          "title": "PVL Debut Season",
+          "description": "A competitive debut in the Prime Volleyball League showcasing raw talent."
+        },
+        {
+          "year": "2022",
+          "title": "Team Founded",
+          "description": "Kashi Warriors established as a CTR Unified franchise."
+        }
+      ]
+    },
+    {
+      "team_id": "team_04",
+      "timeline": [
+        {
+          "year": "2025",
+          "title": "TNPL Quarter Finals",
+          "description": "Strong quarter-final performance with standout batting from Baba Aparajith."
+        },
+        {
+          "year": "2024",
+          "title": "Best New Team Award",
+          "description": "Recognized for outstanding performance and fan engagement during the season."
+        },
+        {
+          "year": "2022",
+          "title": "TNPL Top 4 Finish",
+          "description": "Secured a playoff berth with dominant performances in the group stage."
+        },
+        {
+          "year": "2019",
+          "title": "TNPL Semifinal",
+          "description": "Reached the last four for the first time, narrowly losing to defending champions."
+        },
+        {
+          "year": "2016",
+          "title": "TNPL Debut",
+          "description": "Ossudu Accord Warriors enter the Tamil Nadu Premier League as a founding franchise."
+        }
+      ]
+    },
+    {
+      "team_id": "team_05",
+      "timeline": [
+        {
+          "year": "2026",
+          "title": "Championship Season Favorites",
+          "description": "Entering 2026 as one of the top championship contenders after a dominant 2025."
+        },
+        {
+          "year": "2025",
+          "title": "F4 Championship Contenders",
+          "description": "Finished in the top 3 of the MRF F4 standings with multiple podiums."
+        },
+        {
+          "year": "2024",
+          "title": "First Podium Finish",
+          "description": "Arjun Balu claimed the team's inaugural podium at the Madras Motor Race Track."
+        },
+        {
+          "year": "2024",
+          "title": "MRF F4 Debut",
+          "description": "Competed in their first MRF F4 Championship season with a strong rookie showing."
+        },
+        {
+          "year": "2023",
+          "title": "Team Founded",
+          "description": "Chennai Turbo Riders established as a CTR Unified motorsport franchise."
+        }
+      ]
+    }
+  ]
+}

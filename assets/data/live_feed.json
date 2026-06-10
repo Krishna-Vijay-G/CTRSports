@@ -1,0 +1,44 @@
+{
+  "items": [
+    {
+      "id": "feed_01",
+      "title": "HIL Match Day 8",
+      "subtext": "Accord Tamil Nadu Dragons vs Soorma HC",
+      "date": "2026-01-20",
+      "banner_image": "https://images.unsplash.com/photo-1486286701208-1d58e9338013?auto=format&fit=crop&w=1200&q=80",
+      "team_id": "team_01",
+      "sport_id": "sport_05",
+      "active": true
+    },
+    {
+      "id": "feed_02",
+      "title": "PPL Quarter Final",
+      "subtext": "Chennai Super Warriors vs Delhi Smashers",
+      "date": "2026-04-02",
+      "banner_image": "https://images.unsplash.com/photo-1560272564-c83b66b1ad12?auto=format&fit=crop&w=1200&q=80",
+      "team_id": "team_02",
+      "sport_id": "sport_01",
+      "active": true
+    },
+    {
+      "id": "feed_03",
+      "title": "Kasi Warriors Playoff",
+      "subtext": "Kasi Warriors close out semifinal berth",
+      "date": "2026-03-15",
+      "banner_image": "https://images.unsplash.com/photo-1574279606130-09958dc756f7?auto=format&fit=crop&w=1200&q=80",
+      "team_id": "team_03",
+      "sport_id": "sport_02",
+      "active": true
+    },
+    {
+      "id": "feed_04",
+      "title": "Cricket Super Over Thriller",
+      "subtext": "Accord Warriors seal dramatic finish",
+      "date": "2026-02-11",
+      "banner_image": "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&w=1200&q=80",
+      "team_id": "team_04",
+      "sport_id": "sport_03",
+      "active": false
+    }
+  ]
+}

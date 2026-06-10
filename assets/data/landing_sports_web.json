@@ -1,0 +1,68 @@
+{
+  "sports": [
+    {
+      "id": "sport-pickleball",
+      "name": "Pickleball",
+      "team_name": "Chennai Super Warriors",
+      "description": "Explosive hand-speed, compact court strategy, and doubles chemistry define CTR's pickleball identity.",
+      "website_url": "https://www.ippatour.com",
+      "logo_image": "/media/pickle.png"
+    },
+    {
+      "id": "sport-volleyball",
+      "name": "Volleyball",
+      "team_name": "Kasi Warriors",
+      "description": "Vertical athleticism and controlled transition play power our volleyball program across elite competitions.",
+      "website_url": "https://www.fivb.com",
+      "logo_image": "/media/volley.png"
+    },
+    {
+      "id": "sport-cricket",
+      "name": "Cricket",
+      "team_name": "Accord Warriors",
+      "description": "Structured batting depth, precision bowling plans, and relentless fielding standards anchor this unit.",
+      "website_url": "https://www.icc-cricket.com",
+      "logo_image": "/media/cricket.png"
+    },
+    {
+      "id": "sport-hockey",
+      "name": "Field Hockey",
+      "team_name": "Accord Tamil Nadu Dragons",
+      "description": "Pace-driven pressing and disciplined circle execution make our hockey program sharp and competitive.",
+      "website_url": "https://www.fih.hockey",
+      "logo_image": "/media/hockey.png"
+    },
+    {
+      "id": "sport-f4",
+      "name": "Formula 4 Racing",
+      "team_name": "CTR Racing Development",
+      "description": "From telemetry to racecraft, the F4 pathway develops next-generation circuit talent with measurable rigor.",
+      "website_url": "https://www.fiaformula4.com",
+      "logo_image": "/media/f4.png"
+    },
+    {
+      "id": "sport-academy",
+      "name": "CTR Academy",
+      "team_name": "Performance & Motorsport Division",
+      "description": "Academy programs blend motorsport science, athlete conditioning, and team discipline into one track-ready system.",
+      "website_url": "https://chennaiturboriders.in",
+      "logo_image": "/media/ctr-mark.png"
+    },
+    {
+      "id": "sport-karting",
+      "name": "CTR Karting League",
+      "team_name": "Grassroots Racing Series",
+      "description": "The karting league identifies young drivers early and builds race intelligence through structured progression.",
+      "website_url": "https://www.fiakarting.com",
+      "logo_image": "/media/ctr-mark.png"
+    },
+    {
+      "id": "sport-national-racing",
+      "name": "CTR Indian National Car Racing Championship",
+      "team_name": "National Circuit Program",
+      "description": "A professional national ladder connecting karting graduates to full circuit competition under one unified banner.",
+      "website_url": "https://www.fmsci.co.in",
+      "logo_image": "/media/ctr-national-racing.png"
+    }
+  ]
+}

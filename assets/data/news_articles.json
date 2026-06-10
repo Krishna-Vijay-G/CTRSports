@@ -1,0 +1,44 @@
+{
+  "articles": [
+    {
+      "id": "news_01",
+      "title": "Dragons Hold Top Four in Late Rally",
+      "subtext": "Tamil Nadu close a two-goal deficit and take crucial points in Chennai.",
+      "date": "2026-01-21",
+      "image": "https://images.unsplash.com/photo-1486286701208-1d58e9338013?auto=format&fit=crop&w=1200&q=80",
+      "sport_id": "sport_05",
+      "active": true,
+      "article_md": "# Dragons Hold Top Four\\n\\nAccord Tamil Nadu Dragons produced a late comeback in front of a packed home crowd.\\n\\n## Match Turning Point\\n\\n- Pressure increased after halftime\\n- Midfield press forced turnovers\\n- Final quarter delivered two clean finishes\\n\\n### Coach Notes\\n\\nThe staff credited discipline and bench impact for the turnaround."
+    },
+    {
+      "id": "news_02",
+      "title": "Super Warriors Extend Win Streak",
+      "subtext": "Pickleball leaders continue dominant form ahead of quarter finals.",
+      "date": "2026-04-03",
+      "image": "https://images.unsplash.com/photo-1560272564-c83b66b1ad12?auto=format&fit=crop&w=1200&q=80",
+      "sport_id": "sport_01",
+      "active": true,
+      "article_md": "# Super Warriors Extend Win Streak\\n\\nThe Chennai side registered another controlled victory to remain title favorites.\\n\\n## What Worked\\n\\n- Fast starts in every set\\n- Smart rotation under pressure\\n- Clinical finishing at key points\\n\\n### Next Up\\n\\nThe team now prepares for a high-intensity quarter final weekend."
+    },
+    {
+      "id": "news_03",
+      "title": "Kasi Warriors Lock Semifinal Spot",
+      "subtext": "Volleyball unit secures top seeding with one fixture to spare.",
+      "date": "2026-03-16",
+      "image": "https://images.unsplash.com/photo-1574279606130-09958dc756f7?auto=format&fit=crop&w=1200&q=80",
+      "sport_id": "sport_02",
+      "active": true,
+      "article_md": "# Kasi Warriors Lock Semifinal Spot\\n\\nKasi Warriors sealed qualification with balanced offense and strong serving phases.\\n\\n## Performance Snapshot\\n\\n- Service pressure created 12 direct points\\n- Back-row defense held opponents below target\\n- Closing sets were managed with composure"
+    },
+    {
+      "id": "news_04",
+      "title": "Accord Warriors Final Over Masterclass",
+      "subtext": "Cricket squad closes a tense chase with two balls remaining.",
+      "date": "2026-02-11",
+      "image": "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&w=1200&q=80",
+      "sport_id": "sport_03",
+      "active": false,
+      "article_md": "# Accord Warriors Final Over Masterclass\\n\\nA composed final-over partnership took the match away from the opposition in style."
+    }
+  ]
+}

@@ -1,0 +1,116 @@
+{
+  "home": {
+    "hero": {
+      "kicker": "CTR SPORTS COLLECTIVE",
+      "title": "CTR UNIFIED",
+      "subtitle": "One Team. Multiple Sports.\nUnlimited Possibilities.",
+      "cta": "DISCOVER SPORTS",
+      "secondary_cta": "EXPLORE TEAMS"
+    },
+    "sections": {
+      "sports_world": "THE SPORTS WORLD",
+      "featured_title": "LIVE SPORTS CIRCUIT",
+      "about_badge": "ABOUT CTR UNIFIED",
+      "about_title": "One Unified Platform",
+      "about_body": "CTR Unified is a multi-sport organization that brings together athletes, teams, and sporting communities under one unified platform. From cricket and volleyball to Formula 4 racing and emerging sports, CTR Unified promotes excellence, teamwork, innovation, and competitive spirit across all disciplines.",
+      "explore_sports": "EXPLORE OUR SPORTS",
+      "sport_list_title": "SPORTS INDEX",
+      "stats_label": "BY THE NUMBERS",
+      "cta_title": "JOIN THE CTR UNIFIED MOVEMENT",
+      "cta_body": "Be part of a growing sports community spanning multiple disciplines.",
+      "cta_button": "EXPLORE TEAMS"
+    },
+    "actions": {
+      "open": "OPEN",
+      "team_label": "TEAM",
+      "countries_label": "countries"
+    },
+    "errors": {
+      "title": "Could not load data",
+      "fallback_message": "Please check your connection.",
+      "retry": "RETRY"
+    },
+    "stats": {
+      "sports": "Sports",
+      "athletes": "Athletes",
+      "events": "Events",
+      "wins": "Wins"
+    }
+  },
+  "sport_detail": {
+    "not_found": "Sport not found",
+    "back_button": "Back",
+    "sections": {
+      "about": "About",
+      "quick_facts": "Quick Facts",
+      "top_players": "TOP PLAYERS"
+    },
+    "stats_labels": {
+      "countries": "States",
+      "players": "Players",
+      "leagues": "Leagues",
+      "gallery": "Gallery"
+    },
+    "facts": {
+      "founded": "Founded",
+      "origin_country": "Origin Region",
+      "category": "Category",
+      "registered_players": "Registered Players"
+    }
+  },
+  "player_detail": {
+    "not_found": "Player not found",
+    "back_button": "Back",
+    "sections": {
+      "about": "ABOUT THE PLAYER",
+      "achievements": "CAREER HIGHLIGHTS",
+      "team": "CURRENT TEAM",
+      "gallery": "PLAYER GALLERY",
+      "related_players": "OTHER PLAYERS"
+    },
+    "labels": {
+      "nickname": "Nickname",
+      "age": "Age",
+      "ranking": "Ranking",
+      "state": "From",
+      "sport": "Sport",
+      "open_team": "OPEN TEAM",
+      "open_player": "OPEN PLAYER"
+    }
+  },
+  "team_detail": {
+    "not_found": "Team not found",
+    "back_button": "Back",
+    "sections": {
+      "about_team": "ABOUT THE TEAM",
+      "team_stats": "TEAM STATS",
+      "upcoming_events": "UPCOMING EVENTS",
+      "achievements_timeline": "ACHIEVEMENTS TIMELINE",
+      "meet_players": "MEET THE PLAYERS",
+      "gallery": "GALLERY",
+      "join_team": "JOIN THE TEAM",
+      "join_subtitle": "Register your interest and be part of this incredible journey."
+    },
+    "details_labels": {
+      "location": "Location",
+      "league": "League",
+      "founded": "Founded",
+      "captain": "Captain",
+      "coach": "Coach",
+      "position": "Position"
+    },
+    "stat_labels": {
+      "players": "Players",
+      "matches": "Matches",
+      "wins": "Wins",
+      "position": "Position"
+    },
+    "social_labels": {
+      "instagram": "Instagram",
+      "youtube": "YouTube",
+      "twitter": "Twitter",
+      "website": "Website"
+    },
+    "register_button": "REGISTER NOW"
+  }
+}

@@ -1,0 +1,1050 @@
+{
+  "players": [
+    {
+      "id": "player_01",
+      "sport_id": "sport_01",
+      "name": "Mitchell Hargreaves",
+      "nickname": "",
+      "Role": "Super Star Male International",
+      "nationality": "Australian",
+      "nationality_flag": "🇦🇺",
+      "state": "New South Wales",
+      "profile_image": "https://ipblofficial.com/wp-content/uploads/2025/11/chennai_1_2x-1.webp",
+      "cover_image": "https://cdn.prod.website-files.com/6390c2d9fbb8357ffc404b63/6612f97cff3fd2e80bcb5b1c_What%20is%20Pickleball.png",
+      "Date of Birth": "N/A",
+      "ranking": 0,
+      "bio": "An elite professional pickleball athlete known for an aggressive, high-intensity playing style that combines explosive drives with exceptionally quick hands at the kitchen line.",
+      "achievements": [
+        "PPA Tour Asia Competitor",
+        "Signature limited-edition Facolos paddle release",
+        "Maintains a DUPR rating above 5.5 in singles and near 6.0 in doubles",
+        ""
+      ],
+      "is_featured": true,
+      "gallery_images": [
+        "https://ipblofficial.com/wp-content/uploads/2025/11/chennai_1_2x-1.webp"
+      ]
+    },
+    {
+      "id": "player_02",
+      "sport_id": "sport_01",
+      "name": "Roos van Reek",
+      "nickname": "",
+      "Role": "Super Star Female International",
+      "nationality": "Dutch",
+      "nationality_flag": "🇳🇱",
+      "state": "Oostvoorne, South Holland",
+      "profile_image": "https://ipblofficial.com/wp-content/uploads/2025/11/chennai_2_2x-1.webp",
+      "cover_image": "https://cdn.prod.website-files.com/6390c2d9fbb8357ffc404b63/6612f97cff3fd2e80bcb5b1c_What%20is%20Pickleball.png",
+      "Date of Birth": "N/A",
+      "ranking": 1,
+      "bio": "An elite global competitor from the Netherlands who has rapidly scaled the pro circuit, recognized for her baseline precision, adaptable team play, and an impressively high career win rate.",
+      "achievements": [
+        "Ranked #1 on the PPA Australia Women's Pro Circuit",
+        "Gold Medalist in Mixed Doubles at the English Open",
+        "Captured Women's Singles Bronze at the PPA Tour Australia Brisbane Cup",
+        "Maintains a high career win rate nearing 70% across global tours"
+      ],
+      "is_featured": true,
+      "gallery_images": [
+        "https://ipblofficial.com/wp-content/uploads/2025/11/chennai_2_2x-1.webp"
+      ]
+    },
+    {
+      "id": "player_03",
+      "sport_id": "sport_01",
+      "name": "Harsh Mehta",
+      "nickname": "",
+      "Role": "Super Star Male Indian",
+      "nationality": "Indian",
+      "nationality_flag": "🇮🇳",
+      "state": "Mumbai, Maharashtra",
+      "profile_image": "https://ipblofficial.com/wp-content/uploads/2025/11/chennai_3_2x-1.webp",
+      "cover_image": "https://cdn.prod.website-files.com/6390c2d9fbb8357ffc404b63/6612f97cff3fd2e80bcb5b1c_What%20is%20Pickleball.png",
+      "Date of Birth": "31 May 1998",
+      "ranking": 0,
+      "bio": "A premier Indian pro athlete and former national-level table tennis player who transitioned his lightning-fast reflexes into becoming a dominant force on the global pickleball stage.",
+      "achievements": [
+        "Silver Medalist in Mixed Doubles at the PPA Tour Asia Vietnam Open",
+        "Open Men's Singles Finalist at the 4th IPA Pickleball Nationals",
+        "Selected as a featured international competitor for the AO Pickleball Slam at the Australian Open",
+        "Men's Doubles Champion at the Indian Open in Pune"
+      ],
+      "is_featured": true,
+      "gallery_images": [
+        "https://ipblofficial.com/wp-content/uploads/2025/11/chennai_3_2x-1.webp"
+      ]
+    },
+    {
+      "id": "player_04",
+      "sport_id": "sport_01",
+      "name": "Aaliya Ebrahim",
+      "nickname": "",
+      "Role": "Super Star Female Indian",
+      "nationality": "Indian",
+      "nationality_flag": "🇮🇳",
+      "state": "Tamil Nadu",
+      "profile_image": "https://ipblofficial.com/wp-content/uploads/2025/11/chennai_4_2x.webp",
+      "cover_image": "https://cdn.prod.website-files.com/6390c2d9fbb8357ffc404b63/6612f97cff3fd2e80bcb5b1c_What%20is%20Pickleball.png",
+      "Date of Birth": "29 May 2001",
+      "ranking": 0,
+      "bio": "An elite crossover athlete who transitioned from the professional tennis circuit into professional pickleball, bringing deep baseline consistency, strategic court coverage, and phenomenal racquet control to the court.",
+      "achievements": [
+        "Former Internationally Ranked ITF Professional Tennis Competitor",
+        "Competed in the Indian Pickleball Grand Slam circuit",
+        "Maintained a career-high junior/pro development track starting from age 6"
+      ],
+      "is_featured": true,
+      "gallery_images": [
+        "https://ipblofficial.com/wp-content/uploads/2025/11/chennai_2_2x-1.webp"
+      ]
+    },
+    {
+      "id": "player_05",
+      "sport_id": "sport_01",
+      "name": "Aman Patel",
+      "nickname": "",
+      "Role": "Rising Star Male",
+      "nationality": "Indian",
+      "nationality_flag": "🇮🇳",
+      "state": "Gujarat",
+      "profile_image": "https://ipblofficial.com/wp-content/uploads/2025/11/chennai_5_2x-1.webp",
+      "cover_image": "https://cdn.prod.website-files.com/6390c2d9fbb8357ffc404b63/6612f97cff3fd2e80bcb5b1c_What%20is%20Pickleball.png",
+      "Date of Birth": "N/A",
+      "ranking": 0,
+      "bio": "A historic talent in Indian pickleball who transitioned from an accidental start in the sport to a dominant force on the global stage, revered for his immense composure, deep-court baseline control, and clutch reflexes.",
+      "achievements": [
+        "Gold Medalist at the Pickleball World Championships (Men's Singles Open 5.0 in Texas)",
+        "Men's Singles Champion at the Rise Up Championship × PWR 1000",
+        "Made history by securing India's first-ever singles world title"
+      ],
+      "is_featured": false,
+      "gallery_images": [
+        "https://ipblofficial.com/wp-content/uploads/2025/11/chennai_5_2x-1.webp"
+      ]
+    },
+    {
+      "id": "player_06",
+      "sport_id": "sport_01",
+      "name": "Priyanka Mehta",
+      "nickname": "",
+      "Role": "Rising Star Female",
+      "nationality": "Indian",
+      "nationality_flag": "🇮🇳",
+      "state": "Maharashtra",
+      "profile_image": "https://ipblofficial.com/wp-content/uploads/2025/11/chennai_6_2x-1.webp",
+      "cover_image": "https://cdn.prod.website-files.com/6390c2d9fbb8357ffc404b63/6612f97cff3fd2e80bcb5b1c_What%20is%20Pickleball.png",
+      "Date of Birth": "N/A",
+      "ranking": 0,
+      "bio": "An extraordinary Chartered Accountant turned professional athlete who staged a massive comeback after 20 years away from competitive sports, leveraging an elite veteran tennis foundation to rapidly dominate the national pickleball circuit.",
+      "achievements": [
+        "Won 4 titles at the prestigious PWR DUPR India Masters",
+        "35+ Women's Singles Champion at the 4th IPA Pickleball Nationals",
+        "Amassed over 35 career titles since returning to professional competitive racquet sports",
+        "Previously achieved the No. 1 ranking in the 35+ and 40+ veteran tennis divisions"
+      ],
+      "is_featured": false,
+      "gallery_images": [
+        "https://ipblofficial.com/wp-content/uploads/2025/11/chennai_6_2x-1.webp"
+      ]
+    },
+    {
+      "id": "player_07",
+      "sport_id": "sport_02",
+      "name": "Arjun Suresh",
+      "nickname": "Sky Hammer",
+      "Role": "Outside Hitter | Kashi Warriors",
+      "nationality": "Indian",
+      "nationality_flag": "🇮🇳",
+      "state": "Kerala",
+      "profile_image": "https://images.unsplash.com/photo-1542178243-bc20204b769f?auto=format&fit=crop&w=400&q=80",
+      "cover_image": "https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?auto=format&fit=crop&w=1200&q=80",
+      "Date of Birth": "18 February 1999",
+      "age": 27,
+      "ranking": 2,
+      "bio": "A high-flying outside hitter in the Kashi Warriors system, Arjun brings a powerful serve, quick transition offense, and reliable back-row defense to the court.",
+      "achievements": [
+        "Kashi Warriors starting outside hitter",
+        "Match-high scorer in multiple PVL fixtures",
+        "Known for clutch service pressure and fast-transition attacks"
+      ],
+      "is_featured": true,
+      "gallery_images": [
+        "https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?auto=format&fit=crop&w=800&q=80"
+      ]
+    },
+    {
+      "id": "player_08",
+      "sport_id": "sport_02",
+      "name": "Rohan Mehta",
+      "nickname": "The Setter",
+      "Role": "Setter | Kashi Warriors",
+      "nationality": "Indian",
+      "nationality_flag": "🇮🇳",
+      "state": "Delhi",
+      "profile_image": "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=400&q=80",
+      "cover_image": "https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?auto=format&fit=crop&w=1200&q=80",
+      "Date of Birth": "04 November 2000",
+      "age": 25,
+      "ranking": 3,
+      "bio": "Rohan runs the Kashi Warriors offense with pace and precision, connecting blockers and hitters while keeping the team calm under pressure.",
+      "achievements": [
+        "Primary playmaker for Kashi Warriors",
+        "Delivered multiple set-assist runs in tough away fixtures",
+        "Praised for court vision and tempo control"
+      ],
+      "is_featured": true,
+      "gallery_images": [
+        "https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?auto=format&fit=crop&w=800&q=80"
+      ]
+    },
+    {
+      "id": "player_09",
+      "sport_id": "sport_02",
+      "name": "Sahil Prakash",
+      "nickname": "The Wall",
+      "Role": "Middle Blocker | Kashi Warriors",
+      "nationality": "Indian",
+      "nationality_flag": "🇮🇳",
+      "state": "Uttar Pradesh",
+      "profile_image": "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=400&q=80",
+      "cover_image": "https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?auto=format&fit=crop&w=1200&q=80",
+      "Date of Birth": "22 June 1998",
+      "age": 27,
+      "ranking": 4,
+      "bio": "Sahil is the Kashi Warriors middle blocker who turns first-tempo sets into points and keeps the net protected with disciplined blocking patterns.",
+      "achievements": [
+        "Key blocker in Kashi Warriors rotations",
+        "Consistent net presence in PVL matchups",
+        "Recognized for timing and first-ball transition pressure"
+      ],
+      "is_featured": false,
+      "gallery_images": [
+        "https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?auto=format&fit=crop&w=800&q=80"
+      ]
+    },
+    {
+      "id": "player_10",
+      "sport_id": "sport_02",
+      "name": "Imran Ali",
+      "nickname": "Libero Flash",
+      "Role": "Libero | Kashi Warriors",
+      "nationality": "Indian",
+      "nationality_flag": "🇮🇳",
+      "state": "Maharashtra",
+      "profile_image": "https://images.unsplash.com/photo-1607746882042-944635dfe10e?auto=format&fit=crop&w=400&q=80",
+      "cover_image": "https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?auto=format&fit=crop&w=1200&q=80",
+      "Date of Birth": "09 September 2001",
+      "age": 24,
+      "ranking": 5,
+      "bio": "Imran is the defensive anchor for Kashi Warriors, reading opponents early, covering the court with speed, and turning broken plays into clean passes.",
+      "achievements": [
+        "Top defensive specialist for Kashi Warriors",
+        "Reliable first-contact passer under pressure",
+        "Known for quick floor coverage and emergency digs"
+      ],
+      "is_featured": false,
+      "gallery_images": [
+        "https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?auto=format&fit=crop&w=800&q=80"
+      ]
+    },
+    {
+      "id": "player_11",
+      "sport_id": "sport_03",
+      "name": "Virat Kohli",
+      "nickname": "King Kohli",
+      "nationality": "Indian",
+      "nationality_flag": "🇮🇳",
+      "profile_image": "https://images.unsplash.com/photo-1557862921-37829c790f19?auto=format&fit=crop&w=400&q=80",
+      "cover_image": "https://images.unsplash.com/photo-1531415074968-036ba1b575da?auto=format&fit=crop&w=1200&q=80",
+      "age": 35,
+      "ranking": 1,
+      "bio": "Virat Kohli is one of the greatest batsmen in cricket history, known for his extraordinary run-chasing ability, fierce competitiveness, and unmatched consistency across all formats of the game.",
+      "achievements": [
+        "ICC T20 World Cup Winner (2024)",
+        "8,000+ ODI Runs",
+        "100 International Centuries",
+        "ICC Player of the Decade (2011–2020)"
+      ],
+      "is_featured": true
+    },
+    {
+      "id": "player_12",
+      "sport_id": "sport_03",
+      "name": "Pat Cummins",
+      "nickname": "Cummo",
+      "nationality": "Australian",
+      "nationality_flag": "🇦🇺",
+      "profile_image": "https://images.unsplash.com/photo-1544723795-3fb6469f5b39?auto=format&fit=crop&w=400&q=80",
+      "cover_image": "https://images.unsplash.com/photo-1531415074968-036ba1b575da?auto=format&fit=crop&w=1200&q=80",
+      "age": 31,
+      "ranking": 1,
+      "bio": "Pat Cummins is the world's top-ranked Test bowler and captain of the Australian cricket team. His combination of express pace, late swing, and tactical acumen makes him the most complete fast bowler in the modern era.",
+      "achievements": [
+        "ODI World Cup Winner (2023)",
+        "World Test Championship Winner",
+        "ICC Test Cricketer of the Year",
+        "Ashes Series Winner"
+      ],
+      "is_featured": true
+    },
+    {
+      "id": "player_13",
+      "sport_id": "sport_03",
+      "name": "Ellyse Perry",
+      "nickname": "EP",
+      "nationality": "Australian",
+      "nationality_flag": "🇦🇺",
+      "profile_image": "https://images.unsplash.com/photo-1601412436967-905d5dd7ca5e?auto=format&fit=crop&w=400&q=80",
+      "cover_image": "https://images.unsplash.com/photo-1531415074968-036ba1b575da?auto=format&fit=crop&w=1200&q=80",
+      "age": 33,
+      "ranking": 2,
+      "bio": "Ellyse Perry is a dual international cricketer and footballer who is widely regarded as the greatest female cricketer of all time. Her batting elegance and fast-medium bowling have set records across all formats.",
+      "achievements": [
+        "ICC Women's Cricketer of the Year",
+        "T20 World Cup Winner",
+        "Belinda Clark Award (x5)",
+        "10,000+ International Runs"
+      ],
+      "is_featured": true
+    },
+    {
+      "id": "player_14",
+      "sport_id": "sport_03",
+      "name": "Jasprit Bumrah",
+      "nickname": "Jassi",
+      "nationality": "Indian",
+      "nationality_flag": "🇮🇳",
+      "profile_image": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80",
+      "cover_image": "https://images.unsplash.com/photo-1531415074968-036ba1b575da?auto=format&fit=crop&w=1200&q=80",
+      "age": 30,
+      "ranking": 3,
+      "bio": "Jasprit Bumrah is India's premier fast bowler, known for his unique slinging action, unplayable yorkers, and ability to take wickets in all conditions. He is considered the most dangerous bowler in world cricket.",
+      "achievements": [
+        "ICC Men's Cricketer of the Year (2023)",
+        "T20 World Cup Winner (2024)",
+        "Australia Test Series Player of the Series",
+        "IPL Champion with Mumbai Indians"
+      ],
+      "is_featured": false
+    },
+    {
+      "id": "player_15",
+      "sport_id": "sport_03",
+      "name": "Steve Smith",
+      "nickname": "Smudge",
+      "nationality": "Australian",
+      "nationality_flag": "🇦🇺",
+      "profile_image": "https://images.unsplash.com/photo-1547425260-76bcadfb4f2c?auto=format&fit=crop&w=400&q=80",
+      "cover_image": "https://images.unsplash.com/photo-1531415074968-036ba1b575da?auto=format&fit=crop&w=1200&q=80",
+      "age": 35,
+      "ranking": 2,
+      "bio": "Steve Smith is arguably the best Test batsman of his generation, renowned for his unorthodox technique, extraordinary hand-eye coordination, and the ability to score big in the toughest conditions against the best attacks.",
+      "achievements": [
+        "ICC Test Cricketer of the Year (x3)",
+        "World Test Championship Winner",
+        "Ashes 2019 Player of the Series",
+        "9,000+ Test Runs"
+      ],
+      "is_featured": false
+    },
+    {
+      "id": "player_16",
+      "sport_id": "sport_04",
+      "name": "Max Verstappen",
+      "nickname": "Mad Max",
+      "nationality": "Dutch",
+      "nationality_flag": "🇳🇱",
+      "profile_image": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80",
+      "cover_image": "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=1200&q=80",
+      "age": 27,
+      "ranking": 1,
+      "bio": "Max Verstappen is the reigning Formula 1 World Champion, having dominated the sport with Red Bull Racing. Known for his aggressive overtaking maneuvers, exceptional wet-weather pace, and mechanical sympathy.",
+      "achievements": [
+        "4x Formula 1 World Champion (2021–2024)",
+        "55+ Grand Prix Victories",
+        "Most wins in a single season record",
+        "Youngest F1 race winner"
+      ],
+      "is_featured": true
+    },
+    {
+      "id": "player_17",
+      "sport_id": "sport_04",
+      "name": "Lewis Hamilton",
+      "nickname": "The Hammer",
+      "nationality": "British",
+      "nationality_flag": "🇬🇧",
+      "profile_image": "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=400&q=80",
+      "cover_image": "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=1200&q=80",
+      "age": 39,
+      "ranking": 3,
+      "bio": "Sir Lewis Hamilton is the most successful Formula 1 driver in history with 7 World Championship titles. A trailblazer both on and off the track, Hamilton has redefined what is possible in the sport.",
+      "achievements": [
+        "7x Formula 1 World Champion",
+        "103 Grand Prix Victories",
+        "Knighthood for Services to Motorsport",
+        "Equal record for most pole positions"
+      ],
+      "is_featured": true
+    },
+    {
+      "id": "player_18",
+      "sport_id": "sport_04",
+      "name": "Carlos Sainz Sr.",
+      "nickname": "El Matador",
+      "nationality": "Spanish",
+      "nationality_flag": "🇪🇸",
+      "profile_image": "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?auto=format&fit=crop&w=400&q=80",
+      "cover_image": "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=1200&q=80",
+      "age": 62,
+      "ranking": 1,
+      "bio": "Carlos Sainz Sr. is one of the greatest rally drivers of all time, a two-time World Rally Championship winner known for his smooth driving style and extraordinary car control. His record-setting Dakar Rally victories cement his legend.",
+      "achievements": [
+        "2x WRC World Rally Champion",
+        "3x Dakar Rally Winner",
+        "Paris-Dakar Winner",
+        "Rally Legend Award"
+      ],
+      "is_featured": true
+    },
+    {
+      "id": "player_19",
+      "sport_id": "sport_04",
+      "name": "Lando Norris",
+      "nickname": "NorrisLand",
+      "nationality": "British",
+      "nationality_flag": "🇬🇧",
+      "profile_image": "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=400&q=80",
+      "cover_image": "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=1200&q=80",
+      "age": 25,
+      "ranking": 2,
+      "bio": "Lando Norris is the rising star of Formula 1, known for his blistering qualifying pace, entertaining personality, and growing race craft. Driving for McLaren, he secured his maiden Grand Prix victory in Miami 2024.",
+      "achievements": [
+        "1x Grand Prix Winner (Miami 2024)",
+        "Multiple Pole Positions",
+        "F2 Vice Champion",
+        "Youngest McLaren Driver"
+      ],
+      "is_featured": false
+    },
+    {
+      "id": "player_20",
+      "sport_id": "sport_04",
+      "name": "Charles Leclerc",
+      "nickname": "Il Predestinato",
+      "nationality": "Monégasque",
+      "nationality_flag": "🇲🇨",
+      "profile_image": "https://images.unsplash.com/photo-1463453091185-61582044d556?auto=format&fit=crop&w=400&q=80",
+      "cover_image": "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=1200&q=80",
+      "age": 27,
+      "ranking": 4,
+      "bio": "Charles Leclerc is Ferrari's standard-bearer, a driver of extraordinary natural talent with one of the most exceptional qualifying laps in the sport's history. His Monaco Grand Prix victory in 2024 was a moment of pure emotion.",
+      "achievements": [
+        "Monaco Grand Prix Winner (2024)",
+        "Formula 2 Champion (2017)",
+        "Multiple race victories with Ferrari",
+        "GP3 Champion (2016)"
+      ],
+      "is_featured": false
+    },
+    {
+      "id": "player_21",
+      "sport_id": "sport_05",
+      "name": "David Harte",
+      "nickname": "Goalkeeper",
+      "Role": "",
+      "nationality": "Irish",
+      "nationality_flag": "🇮🇪",
+      "state": "Cork, Munster",
+      "profile_image": "https://tamilnadudragons.in/assets/images/tamilnadudragons_player/David%20Harte.png?auto=format&fit=crop&w=400&q=80",
+      "cover_image": "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q=80",
+      "Date of Birth": "03 April 1988",
+      "ranking": 0,
+      "bio": "A highly experienced international field hockey goalkeeper known for commanding his circle and earning elite global recognition.",
+      "achievements": [
+        "FIH Goalkeeper of the Year (2015, 2016)",
+        "European Championship Bronze (2015)",
+        "Olympian (2016)",
+        ""
+      ],
+      "is_featured": false,
+      "gallery_images": [
+        "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q=80",
+        "https://images.unsplash.com/photo-1486286701208-1d58e9338013?auto=format&fit=crop&w=900&q=80"
+      ]
+    },
+    {
+      "id": "player_22",
+      "sport_id": "sport_05",
+      "name": "S Senthamizh Arasu",
+      "nickname": "",
+      "Role": "Goalkeeper",
+      "nationality": "Indian",
+      "nationality_flag": "🇮🇳",
+      "state": "Kovilpatti, Tamil Nadu",
+      "profile_image": "https://tamilnadudragons.in/assets/images/tamilnadudragons_player/Senthamizh%20Arasu.png?auto=format&fit=crop&w=400&q=80",
+      "cover_image": "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q=80",
+      "Date of Birth": "10 November 1999",
+      "ranking": 0,
+      "bio": "An agile domestic goalkeeper showcasing impressive reflexes and representing the home state talent in national tournaments.",
+      "achievements": [
+        "Senior National Championship Gold",
+        "All India Inter-University Champion",
+        "",
+        ""
+      ],
+      "is_featured": false,
+      "gallery_images": [
+        "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q=80",
+        "https://images.unsplash.com/photo-1486286701208-1d58e9338013?auto=format&fit=crop&w=900&q=80"
+      ]
+    },
+    {
+      "id": "player_23",
+      "sport_id": "sport_05",
+      "name": "Prince Deep Singh",
+      "nickname": "",
+      "Role": "Goalkeeper",
+      "nationality": "Indian",
+      "nationality_flag": "🇮🇳",
+      "state": "Amritsar, Punjab",
+      "profile_image": "https://tamilnadudragons.in/assets/images/tamilnadudragons_player/Prince%20Deep%20Singh.png?auto=format&fit=crop&w=400&q=80",
+      "cover_image": "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q=80",
+      "Date of Birth": "22 January 2003",
+      "ranking": 0,
+      "bio": "A rising young talent in the goaltending circuit, recognized for sharp defensive instincts and youth international caps.",
+      "achievements": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "is_featured": false,
+      "gallery_images": [
+        "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q=80",
+        "https://images.unsplash.com/photo-1486286701208-1d58e9338013?auto=format&fit=crop&w=900&q=80"
+      ]
+    },
+    {
+      "id": "player_24",
+      "sport_id": "sport_05",
+      "name": "Jip Janssen",
+      "nickname": "",
+      "Role": "Defender",
+      "nationality": "Dutch",
+      "nationality_flag": "🇳🇱",
+      "state": "Zeist, Utrecht",
+      "profile_image": "https://tamilnadudragons.in/assets/images/tamilnadudragons_player/Jip%20Janssen.png?auto=format&fit=crop&w=400&q=80",
+      "cover_image": "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q=80",
+      "Date of Birth": "14 October 1997",
+      "ranking": 0,
+      "bio": "A world-class penalty corner specialist and robust defender with exceptional drag-flicking accuracy on the international stage.",
+      "achievements": [
+        "EuroHockey Championship Gold (2021, 2023)",
+        "World Cup Bronze (2023)",
+        "Olympic Gold (2024)",
+        ""
+      ],
+      "is_featured": false,
+      "gallery_images": [
+        "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q=80",
+        "https://images.unsplash.com/photo-1486286701208-1d58e9338013?auto=format&fit=crop&w=900&q=80"
+      ]
+    },
+    {
+      "id": "player_25",
+      "sport_id": "sport_05",
+      "name": "Moritz Ludwig",
+      "nickname": "",
+      "Role": "Defender",
+      "nationality": "German",
+      "nationality_flag": "🇩🇪",
+      "state": "Mülheim, North Rhine-Westphalia",
+      "profile_image": "https://tamilnadudragons.in/assets/images/tamilnadudragons_player/Moritz%20Ludwig.png?auto=format&fit=crop&w=400&q=80",
+      "cover_image": "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q= 80",
+      "Date of Birth": "14 September 2001",
+      "ranking": 0,
+      "bio": "A disciplined and tactically aware defender providing solid backline support and composure during high-pressure transitions.",
+      "achievements": [
+        "FIH World Cup Gold (2023)",
+        "EuroHockey Championship Silver (2021)",
+        "",
+        ""
+      ],
+      "is_featured": false,
+      "gallery_images": [
+        "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q= 80",
+        "https://images.unsplash.com/photo-1486286701208-1d58e9338013?auto=format&fit=crop&w=900&q=80"
+      ]
+    },
+    {
+      "id": "player_26",
+      "sport_id": "sport_05",
+      "name": "Amit Rohidas",
+      "nickname": "",
+      "Role": "Defender",
+      "nationality": "Indian",
+      "nationality_flag": "🇮🇳",
+      "state": "Sundergarh, Odisha",
+      "profile_image": "https://tamilnadudragons.in/assets/images/tamilnadudragons_player/Amit%20Rohidas.png?auto=format&fit=crop&w=400&q=80",
+      "cover_image": "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q=80",
+      "Date of Birth": "",
+      "ranking": 0,
+      "bio": "A vital pillar of the national backline, celebrated for fearless first-rusher penalty corner defending and deep tactical experience.",
+      "achievements": [
+        "Olympic Bronze (2020, 2024), ",
+        " Asian Games Gold (2022),",
+        "Arjuna Award (2021)",
+        ""
+      ],
+      "is_featured": false,
+      "gallery_images": [
+        "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q=80",
+        "https://images.unsplash.com/photo-1486286701208-1d58e9338013?auto=format&fit=crop&w=900&q=80"
+      ]
+    },
+    {
+      "id": "player_27",
+      "sport_id": "sport_05",
+      "name": "Kothajit Singh",
+      "nickname": "",
+      "Role": "Defender",
+      "nationality": "Indian",
+      "nationality_flag": "🇮🇳",
+      "state": "Imphal, Manipur",
+      "profile_image": "https://tamilnadudragons.in/assets/images/tamilnadudragons_player/Kothajit%20Singh.png?auto=format&fit=crop&w=400&q=80",
+      "cover_image": "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q=80",
+      "Date of Birth": "17 August 1992",
+      "ranking": 0,
+      "bio": "A veteran utility defender and midfielder possessing excellent vision, interception skills, and over two hundred international appearances.",
+      "achievements": [
+        "Asian Games Gold (2014),  ",
+        "Asia Cup Gold (2017),",
+        "Commonwealth Games Silver (2014),",
+        ""
+      ],
+      "is_featured": false,
+      "gallery_images": [
+        "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q=80",
+        "https://images.unsplash.com/photo-1486286701208-1d58e9338013?auto=format&fit=crop&w=900&q=80"
+      ]
+    },
+    {
+      "id": "player_28",
+      "sport_id": "sport_05",
+      "name": "Anand Y",
+      "nickname": "",
+      "Role": "Defender",
+      "nationality": "Indian",
+      "nationality_flag": "🇮🇳",
+      "state": "Tiruchirappalli, Tamil Nadu",
+      "profile_image": "https://tamilnadudragons.in/assets/images/tamilnadudragons_player/Anand%20Y.png?auto=format&fit=crop&w=400&q=80",
+      "cover_image": "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q=80",
+      "Date of Birth": "15 December 1998",
+      "ranking": 0,
+      "bio": "A quick-footed domestic defender proving crucial in regional setups with strong stickwork and clean tackling abilities.",
+      "achievements": [
+        "Chief Minister’s Trophy Winner, ",
+        "Senior National Championship Medalist",
+        "",
+        ""
+      ],
+      "is_featured": false,
+      "gallery_images": [
+        "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q=80",
+        "https://images.unsplash.com/photo-1486286701208-1d58e9338013?auto=format&fit=crop&w=900&q=80"
+      ]
+    },
+    {
+      "id": "player_29",
+      "sport_id": "sport_05",
+      "name": "Anand Lakra",
+      "nickname": "",
+      "Role": "Defender",
+      "nationality": "Indian",
+      "nationality_flag": "🇮🇳",
+      "state": "Sundergarh, Odisha",
+      "profile_image": "https://tamilnadudragons.in/assets/images/tamilnadudragons_player/Anand%20Lakra.png?auto=format&fit=crop&w=400&q=80",
+      "cover_image": "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q=80",
+      "Date of Birth": "24 February 2002",
+      "ranking": 0,
+      "bio": "An emerging youth international talent exhibiting composure under pressure and specialized skills in circle clearance.",
+      "achievements": [
+        "Junior World Cup Selection (2021), ",
+        "Khelo India Youth Games Gold",
+        "",
+        ""
+      ],
+      "is_featured": false,
+      "gallery_images": [
+        "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q=80",
+        "https://images.unsplash.com/photo-1486286701208-1d58e9338013?auto=format&fit=crop&w=900&q=80"
+      ]
+    },
+    {
+      "id": "player_30",
+      "sport_id": "sport_05",
+      "name": "Pruthvi GM",
+      "nickname": "",
+      "Role": "Defender",
+      "nationality": "Indian",
+      "nationality_flag": "🇮🇳",
+      "state": "Bengaluru, Karnataka",
+      "profile_image": "https://tamilnadudragons.in/assets/images/tamilnadudragons_player/Pruthvi%20GM.png?auto=format&fit=crop&w=400&q=80",
+      "cover_image": "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q=80",
+      "Date of Birth": "05 March 1997",
+      "ranking": 0,
+      "bio": "A reliable and physically commanding defender providing stability, physical presence, and aerial ball distributions from the backline.",
+      "achievements": [
+        "National Ranking Tournament MVP, ",
+        "Bengaluru Hockey League Champion",
+        "",
+        ""
+      ],
+      "is_featured": false,
+      "gallery_images": [
+        "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q=80",
+        "https://images.unsplash.com/photo-1486286701208-1d58e9338013?auto=format&fit=crop&w=900&q=80"
+      ]
+    },
+    {
+      "id": "player_31",
+      "sport_id": "sport_05",
+      "name": "Thomas Sorsby",
+      "nickname": "",
+      "Role": "Midfielder",
+      "nationality": "British",
+      "nationality_flag": "🇬🇧",
+      "state": "Sheffield, Yorkshire",
+      "profile_image": "https://tamilnadudragons.in/assets/images/tamilnadudragons_player/Thomas%20Sorsby.png?auto=format&fit=crop&w=400&q=80",
+      "cover_image": "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q=80",
+      "Date of Birth": "28 October 1996",
+      "ranking": 0,
+      "bio": "A reliable holding midfielder who orchestrates transitions and provides defensive stability under high pressure.",
+      "achievements": [
+        "FIH Pro League Caps, ",
+        "European Championship Appearances",
+        "",
+        ""
+      ],
+      "is_featured": false,
+      "gallery_images": [
+        "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q=80",
+        "https://images.unsplash.com/photo-1486286701208-1d58e9338013?auto=format&fit=crop&w=900&q=80"
+      ]
+    },
+    {
+      "id": "player_32",
+      "sport_id": "sport_05",
+      "name": "Tom Craig",
+      "nickname": "",
+      "Role": "Midfielder",
+      "nationality": "Australian",
+      "nationality_flag": "🇦🇺",
+      "state": "Lane Cove, New South Wales",
+      "profile_image": "https://tamilnadudragons.in/assets/images/tamilnadudragons_player/Tom%20Craig.png?auto=format&fit=crop&w=400&q=80",
+      "cover_image": "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q=80",
+      "Date of Birth": "03 September 1995",
+      "ranking": 0,
+      "bio": "A highly skilled international midfielder celebrated for his exceptional field vision, distribution, and agility.",
+      "achievements": [
+        "Olympic Silver (2020),  ",
+        "World Cup Bronze (2018),",
+        "Commonwealth Games Gold (2018)",
+        ""
+      ],
+      "is_featured": false,
+      "gallery_images": [
+        "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q=80",
+        "https://images.unsplash.com/photo-1486286701208-1d58e9338013?auto=format&fit=crop&w=900&q=80"
+      ]
+    },
+    {
+      "id": "player_33",
+      "sport_id": "sport_05",
+      "name": "Blake Govers",
+      "nickname": "",
+      "Role": "Midfielder",
+      "nationality": "Australian",
+      "nationality_flag": "🇦🇺",
+      "state": "Wollongong, New South Wales",
+      "profile_image": "https://tamilnadudragons.in/assets/images/tamilnadudragons_player/Blake%20Govers.png?auto=format&fit=crop&w=400&q=80",
+      "cover_image": "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q=80",
+      "Date of Birth": "06 July 1996",
+      "ranking": 0,
+      "bio": "An aggressive attacking midfielder and forward recognized for one-on-one dominance and powerful tomahawk strikes.",
+      "achievements": [
+        "Olympic Silver (2020),  ",
+        "Champions Trophy Gold (2016, 2018),",
+        "Commonwealth Games Gold (2022)",
+        ""
+      ],
+      "is_featured": false,
+      "gallery_images": [
+        "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q=80",
+        "https://images.unsplash.com/photo-1486286701208-1d58e9338013?auto=format&fit=crop&w=900&q=80"
+      ]
+    },
+    {
+      "id": "player_34",
+      "sport_id": "sport_05",
+      "name": "Mohammed Raheel Mouseen",
+      "nickname": "",
+      "Role": "Midfielder",
+      "nationality": "Indian",
+      "nationality_flag": "🇮🇳",
+      "state": "Bengaluru, Karnataka",
+      "profile_image": "https://tamilnadudragons.in/assets/images/tamilnadudragons_player/Mohammed%20Raheel%20Mouseen.png?auto=format&fit=crop&w=400&q=80",
+      "cover_image": "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q=80",
+      "Date of Birth": "20 December 1996",
+      "ranking": 0,
+      "bio": "A dynamic and creative international playmaker known for exceptional stickwork, pace, and circle penetrations.",
+      "achievements": [
+        "Asian Champions Trophy Gold (2024), ",
+        "Hockey 5s Championship Gold (2022)",
+        "FIH Pro League Caps",
+        ""
+      ],
+      "is_featured": false,
+      "gallery_images": [
+        "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q=80",
+        "https://images.unsplash.com/photo-1486286701208-1d58e9338013?auto=format&fit=crop&w=900&q=80"
+      ]
+    },
+    {
+      "id": "player_35",
+      "sport_id": "sport_05",
+      "name": "Chandan Yadav",
+      "nickname": "",
+      "Role": "Midfielder",
+      "nationality": "Indian",
+      "nationality_flag": "🇮🇳",
+      "state": "Varanasi, Uttar Pradesh",
+      "profile_image": "https://tamilnadudragons.in/assets/images/tamilnadudragons_player/Chandan%20Yadav.png?auto=format&fit=crop&w=400&q=80",
+      "cover_image": "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q=80",
+      "Date of Birth": "04 May 2005",
+      "ranking": 0,
+      "bio": "A rising youth prospect displaying impressive operational awareness, interception skills, and tactical maturity.",
+      "achievements": [
+        "Junior National Coaching Camp Selection, ",
+        "Khelo India Athlete",
+        "",
+        ""
+      ],
+      "is_featured": false,
+      "gallery_images": [
+        "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q=80",
+        "https://images.unsplash.com/photo-1486286701208-1d58e9338013?auto=format&fit=crop&w=900&q=80"
+      ]
+    },
+    {
+      "id": "player_36",
+      "sport_id": "sport_05",
+      "name": "Shesha Gowda",
+      "nickname": "Midfielder",
+      "Role": "",
+      "nationality": "Indian",
+      "nationality_flag": "🇮🇳",
+      "state": "Bengaluru, Karnataka",
+      "profile_image": "https://tamilnadudragons.in/assets/images/tamilnadudragons_player/Shesha%20Gowda.png?auto=format&fit=crop&w=400&q=80",
+      "cover_image": "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q=80",
+      "Date of Birth": "14 February 1999",
+      "ranking": 0,
+      "bio": "A clever interior midfielder with strong off-the-ball positioning and structural discipline in central areas.",
+      "achievements": [
+        "Senior National Tournament Regular",
+        "All India Inter-University Medalis",
+        "",
+        ""
+      ],
+      "is_featured": false,
+      "gallery_images": [
+        "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q=80",
+        "https://images.unsplash.com/photo-1486286701208-1d58e9338013?auto=format&fit=crop&w=900&q=80"
+      ]
+    },
+    {
+      "id": "player_37",
+      "sport_id": "sport_05",
+      "name": "Arun J",
+      "nickname": "",
+      "Role": "Midfielder",
+      "nationality": "Indian",
+      "nationality_flag": "🇮🇳",
+      "state": "Trichy, Tamil Nadu",
+      "profile_image": "https://tamilnadudragons.in/assets/images/tamilnadudragons_player/Arun.png?auto=format&fit=crop&w=400&q=80",
+      "cover_image": "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q=80",
+      "Date of Birth": "21 June 2001",
+      "ranking": 0,
+      "bio": "A regional talent offering solid physical presence and quick transitional capabilities from deep midfield roles.",
+      "achievements": [
+        "Chief Minister’s Trophy Gold, ",
+        "Senior National Championship Selection",
+        "",
+        ""
+      ],
+      "is_featured": true,
+      "gallery_images": [
+        "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q=80",
+        "https://images.unsplash.com/photo-1486286701208-1d58e9338013?auto=format&fit=crop&w=900&q=80"
+      ]
+    },
+    {
+      "id": "player_38",
+      "sport_id": "sport_05",
+      "name": "Dhilipan M",
+      "nickname": "",
+      "Role": "Midfielder",
+      "nationality": "Indian",
+      "nationality_flag": "🇮🇳",
+      "state": "Madurai, Tamil Nadu",
+      "profile_image": "https://tamilnadudragons.in/assets/images/tamilnadudragons_player/Dhilipan.png?auto=format&fit=crop&w=400&q=80",
+      "cover_image": "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q=80",
+      "Date of Birth": "11 September 2003",
+      "ranking": 0,
+      "bio": "A tactically sound prodigy recognized for intelligent off-the-ball interceptions and deep ball-carrying runs.",
+      "achievements": [
+        "Junior National Championship Standout (2024), ",
+        "State Level MVP",
+        "",
+        ""
+      ],
+      "is_featured": false,
+      "gallery_images": [
+        "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q=80",
+        "https://images.unsplash.com/photo-1486286701208-1d58e9338013?auto=format&fit=crop&w=900&q=80"
+      ]
+    },
+    {
+      "id": "player_39",
+      "sport_id": "sport_05",
+      "name": "Martin Detlef Zwicker",
+      "nickname": "",
+      "Role": "Midfielder",
+      "nationality": "German",
+      "nationality_flag": "🇩🇪",
+      "state": "Köthen, Saxony-Anhalt",
+      "profile_image": "https://tamilnadudragons.in/assets/images/tamilnadudragons_player/Martin%20Zwicker.png?auto=format&fit=crop&w=400&q=80",
+      "cover_image": "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q=80",
+      "Date of Birth": "27 February 1987",
+      "ranking": 0,
+      "bio": "A highly decorated veteran controller providing supreme structural intelligence and international experience.",
+      "achievements": [
+        "FIH World Cup Gold (2023), ",
+        "EuroHockey Championship Gold (2013), ",
+        "Olympic Bronze (2016)",
+        ""
+      ],
+      "is_featured": true,
+      "gallery_images": [
+        "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q=80",
+        "https://images.unsplash.com/photo-1486286701208-1d58e9338013?auto=format&fit=crop&w=900&q=80"
+      ]
+    },
+    {
+      "id": "player_40",
+      "sport_id": "sport_05",
+      "name": "Karthi S",
+      "nickname": "",
+      "Role": "Forward",
+      "nationality": "Indian",
+      "nationality_flag": "🇮🇳",
+      "state": "Ariyalur, Tamil Nadu",
+      "profile_image": "https://tamilnadudragons.in/assets/images/tamilnadudragons_player/Karthi%20Selvam.png?auto=format&fit=crop&w=400&q=80",
+      "cover_image": "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q=80",
+      "Date of Birth": "01 September 2001",
+      "ranking": 0,
+      "bio": "A speedy, lethal forward serving as a major domestic striking asset with supreme instincts inside the shooting circle.",
+      "achievements": [
+        "Asia Cup Bronze (2022), ",
+        "Asian Champions Trophy Gold (2023)",
+        "National Games Captain",
+        ""
+      ],
+      "is_featured": true,
+      "gallery_images": [
+        "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q=80",
+        "https://images.unsplash.com/photo-1486286701208-1d58e9338013?auto=format&fit=crop&w=900&q=80"
+      ]
+    },
+    {
+      "id": "player_41",
+      "sport_id": "sport_05",
+      "name": "Majji Ganesh",
+      "nickname": "",
+      "Role": "Forward",
+      "nationality": "Indian",
+      "nationality_flag": "🇮🇳",
+      "state": "Coorg, Karnataka",
+      "profile_image": "https://tamilnadudragons.in/assets/images/tamilnadudragons_player/Majji%20Ganesh.png?auto=format&fit=crop&w=400&q=80",
+      "cover_image": "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q=80",
+      "Date of Birth": "20 May 2003",
+      "ranking": 0,
+      "bio": "A quick-footed attacking threat specializing in capitalizing on half-chances and creating numerical circle advantages.",
+      "achievements": [
+        "Khelo India University Games Medalist, ",
+        "National Inter-Department Championship Gold",
+        "",
+        ""
+      ],
+      "is_featured": false,
+      "gallery_images": [
+        "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q=80",
+        "https://images.unsplash.com/photo-1486286701208-1d58e9338013?auto=format&fit=crop&w=900&q=80"
+      ]
+    },
+    {
+      "id": "player_42",
+      "sport_id": "sport_05",
+      "name": "Uttam Singh",
+      "nickname": "",
+      "Role": "Forward",
+      "nationality": "Indian",
+      "nationality_flag": "🇮🇳",
+      "state": "Karampur, Uttar Pradesh",
+      "profile_image": "https://tamilnadudragons.in/assets/images/tamilnadudragons_player/Uttam%20Singh.png?auto=format&fit=crop&w=400&q=80",
+      "cover_image": "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q=80",
+      "Date of Birth": "12 October 2002",
+      "ranking": 0,
+      "bio": "A powerful center forward displaying great physicality, circle dominance, and lethal penalty corner strikin",
+      "achievements": [
+        "Junior Asia Cup Gold (Captain - 2023),",
+        "Asia Cup Bronze (2022)",
+        "Sultan of Johor Cup Gold",
+        ""
+      ],
+      "is_featured": false,
+      "gallery_images": [
+        "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q=80",
+        "https://images.unsplash.com/photo-1486286701208-1d58e9338013?auto=format&fit=crop&w=900&q=80"
+      ]
+    },
+    {
+      "id": "player_43",
+      "sport_id": "sport_05",
+      "name": "Abharan Sudev",
+      "nickname": "",
+      "Role": "Forward",
+      "nationality": "Indian",
+      "nationality_flag": "🇮🇳",
+      "state": "Bengaluru, Karnataka",
+      "profile_image": "https://tamilnadudragons.in/assets/images/tamilnadudragons_player/Abharan%20Sudev.png?auto=format&fit=crop&w=400&q=80",
+      "cover_image": "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q=80",
+      "Date of Birth": "",
+      "ranking": 0,
+      "bio": "An expert frontline poacher who excels at deep physical baseline runs and executing tactical field cutbacks.",
+      "achievements": [
+        "Commonwealth Games Squad (2022), ",
+        "Senior National Championship Silver, Bengaluru League MVP",
+        "",
+        ""
+      ],
+      "is_featured": false,
+      "gallery_images": [
+        "https://tamilnadudragons.in/assets/images/Banner2.jpg?auto=format&fit=crop&w=1200&q=80",
+        "https://images.unsplash.com/photo-1486286701208-1d58e9338013?auto=format&fit=crop&w=900&q=80"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "banners": [
+    {
+      "id": "banner_01",
+      "title": "HIL Match Day 8",
+      "subtitle": "Accord Tamil Nadu Dragons",
+      "image": "https://images.unsplash.com/photo-1486286701208-1d58e9338013?auto=format&fit=crop&w=1600&q=80",
+      "team_id": "team_01",
+      "active": true
+    },
+    {
+      "id": "banner_02",
+      "title": "PPL India Quarter Final",
+      "subtitle": "Chennai Super Warriors",
+      "image": "https://images.unsplash.com/photo-1560272564-c83b66b1ad12?auto=format&fit=crop&w=1600&q=80",
+      "team_id": "team_02",
+      "active": true
+    },
+    {
+      "id": "banner_03",
+      "title": "National League Clash",
+      "subtitle": "Accord Warriors",
+      "image": "https://images.unsplash.com/photo-1574279606130-09958dc756f7?auto=format&fit=crop&w=1600&q=80",
+      "team_id": "team_03",
+      "active": false
+    }
+  ]
+}

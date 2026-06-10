@@ -1,0 +1,456 @@
+{
+  "teams": [
+    {
+      "id": "team_01",
+      "sport_id": "sport_05",
+      "name": "Accord Tamil Nadu Dragons",
+      "sport": "Field Hockey",
+      "tagline": "Fear the Fire. Rule the Turf.",
+      "location": "Chennai, Tamil Nadu",
+      "league": "Hockey India League",
+      "founded_year": 2024,
+      "captain": "Amit Rohidas",
+      "coach": "Tim White",
+      "summary": "Accord Tamil Nadu Dragons is a professional field hockey franchise based in Chennai, Tamil Nadu. Competing in the Hockey India League, the team represents the sporting spirit of Tamil Nadu and brings together leading players from hockey programs across Indian states. The Dragons have quickly become one of the most exciting teams in the league through aggressive gameplay, passionate fan support, and strong performances on home and away turf.",
+      "logo_image": "",
+      "hero_image": "https://images.unsplash.com/photo-1486286701208-1d58e9338013?auto=format&fit=crop&w=1400&q=80",
+      "accent_color_hex": "#C62828",
+      "total_players": 22,
+      "total_matches": 12,
+      "total_wins": 4,
+      "league_position": "Top 4",
+      "events": [
+        {
+          "id": "evt_01_01",
+          "title": "HIL Match Day 8",
+          "opponent": "Tamil Nadu Dragons vs Soorma HC",
+          "venue": "Mayor Radhakrishnan Stadium, Chennai",
+          "date": "January 2026",
+          "banner_image": "https://images.unsplash.com/photo-1486286701208-1d58e9338013?auto=format&fit=crop&w=800&q=80"
+        },
+        {
+          "id": "evt_01_02",
+          "title": "HIL Match Day 10",
+          "opponent": "Tamil Nadu Dragons vs Kalinga Lancers",
+          "venue": "Mayor Radhakrishnan Stadium, Chennai",
+          "date": "February 2026",
+          "banner_image": "https://images.unsplash.com/photo-1544216717-3bbf52512659?auto=format&fit=crop&w=800&q=80"
+        }
+      ],
+      "achievements": [
+        {
+          "year": "January 2026",
+          "title": "Top of HIL Points Table",
+          "description": "Led the Hockey India League standings after strong back-to-back victories."
+        },
+        {
+          "year": "January 2026",
+          "title": "Victory against JSW Soorma HC (3-2)",
+          "description": "A thrilling come-from-behind win that set the tone for the Dragons' season."
+        },
+        {
+          "year": "January 2026",
+          "title": "Reached HIL Top 4",
+          "description": "Secured a playoff berth in the debut HIL season."
+        },
+        {
+          "year": "2025",
+          "title": "Hockey India League Debut",
+          "description": "Entered the national stage competing against established franchises."
+        },
+        {
+          "year": "2024",
+          "title": "Team Founded",
+          "description": "Accord Tamil Nadu Dragons established as a CTR Unified franchise."
+        }
+      ],
+      "gallery_images": [
+        "https://images.unsplash.com/photo-1486286701208-1d58e9338013?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1544216717-3bbf52512659?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1560272564-c83b66b1ad12?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1519861531473-9200262188bf?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1574279606130-09958dc756f7?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1531415074968-036ba1b575da?auto=format&fit=crop&w=800&q=80"
+      ],
+      "register_link": "https://ctrunified.com/register",
+      "instagram": "https://instagram.com/ctrunified",
+      "youtube": "https://youtube.com/ctrunified",
+      "twitter": "https://twitter.com/ctrunified",
+      "website": "https://tamilnadudragons.in/"
+    },
+    {
+      "id": "team_02",
+      "sport_id": "sport_01",
+      "name": "Chennai Super Warriors",
+      "sport": "Pickleball",
+      "tagline": "Warriors Never Back Down.",
+      "location": "Chennai, Tamil Nadu",
+      "league": "Premier Pickleball League India",
+      "founded_year": 2023,
+      "captain": "Annamalai Raj",
+      "coach": "Vikram Srinivas",
+      "summary": "Chennai Super Warriors is a professional pickleball franchise based in Chennai, Tamil Nadu, competing in the Premier Pickleball League India. The team blends top national talent with internationally trained athletes to deliver explosive, fast-paced pickleball. Their aggressive court strategy, relentless energy, and passionate home support make them one of the most entertaining and fearsome teams in the entire league.",
+      "logo_image": "",
+      "hero_image": "https://cdn.prod.website-files.com/6390c2d9fbb8357ffc404b63/6612f97cff3fd2e80bcb5b1c_What%20is%20Pickleball.png?auto=format&fit=crop&w=1400&q=80",
+      "accent_color_hex": "#1565C0",
+      "total_players": 12,
+      "total_matches": 10,
+      "total_wins": 5,
+      "league_position": "Top 3",
+      "events": [
+        {
+          "id": "evt_02_01",
+          "title": "PPL India Match Day 5",
+          "opponent": "Super Warriors vs Mumbai Aces",
+          "venue": "Nehru Indoor Stadium, Chennai",
+          "date": "March 2026",
+          "banner_image": "https://cdn.prod.website-files.com/6390c2d9fbb8357ffc404b63/6612f97cff3fd2e80bcb5b1c_What%20is%20Pickleball.png?auto=format&fit=crop&w=1400&q=80"
+        },
+        {
+          "id": "evt_02_02",
+          "title": "PPL India Quarter Final",
+          "opponent": "Super Warriors vs Delhi Smashers",
+          "venue": "Jawaharlal Nehru Indoor Stadium, Chennai",
+          "date": "April 2026",
+          "banner_image": "https://images.unsplash.com/photo-1560272564-c83b66b1ad12?auto=format&fit=crop&w=800&q=80"
+        }
+      ],
+      "achievements": [
+        {
+          "year": "2026",
+          "title": "PPL India Season Favorites",
+          "description": "Entering the 2026 season as top contenders with a fully loaded squad."
+        },
+        {
+          "year": "2025",
+          "title": "PPL India Champions",
+          "description": "Claimed the Premier Pickleball League India title with a thrilling final victory."
+        },
+        {
+          "year": "2024",
+          "title": "PPL India Semifinal Finish",
+          "description": "Reached the last four in just their debut season, announcing themselves on the national stage."
+        },
+        {
+          "year": "2024",
+          "title": "PPL India Debut",
+          "description": "Made a stunning debut season in the Premier Pickleball League India."
+        },
+        {
+          "year": "2023",
+          "title": "Team Founded",
+          "description": "Chennai Super Warriors established as a CTR Unified franchise."
+        }
+      ],
+      "gallery_images": [
+        "https://images.unsplash.com/photo-1647015363518-c06c0b82c0a3?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1560272564-c83b66b1ad12?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1519861531473-9200262188bf?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1544216717-3bbf52512659?auto=format&fit=crop&w=800&q=80"
+      ],
+      "register_link": "https://ctrunified.com/register",
+      "instagram": "https://instagram.com/ctrunified",
+      "youtube": "https://youtube.com/ctrunified",
+      "twitter": "https://twitter.com/ctrunified",
+      "website": "https://ctrunified.com"
+    },
+    {
+      "id": "team_03",
+      "sport_id": "sport_02",
+      "name": "Kashi Warriors",
+      "sport": "Volleyball",
+      "tagline": "The Spirit of Kashi. The Power of Warriors.",
+      "location": "Varanasi, Uttar Pradesh",
+      "league": "Prime Volleyball League",
+      "founded_year": 2022,
+      "captain": "Naveen Raja Jacob",
+      "coach": "Alain Fabiano",
+      "summary": "Kashi Warriors is a professional volleyball franchise representing the ancient city of Varanasi, competing in the Prime Volleyball League. The team embodies the timeless spirit of Kashi with a modern, athletic edge. With a blend of seasoned professionals and rising Indian talent, the Warriors have established themselves as a formidable force in the Indian volleyball landscape, known for their towering blocks and explosive attacks.",
+      "logo_image": "",
+      "hero_image": "https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?auto=format&fit=crop&w=1400&q=80",
+      "accent_color_hex": "#E53935",
+      "total_players": 14,
+      "total_matches": 15,
+      "total_wins": 8,
+      "league_position": "Top 3",
+      "events": [
+        {
+          "id": "evt_03_01",
+          "title": "PVL Match Day 7",
+          "opponent": "Kashi Warriors vs Hyderabad Black Hawks",
+          "venue": "Indoor Sports Complex, Varanasi",
+          "date": "February 2026",
+          "banner_image": "https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?auto=format&fit=crop&w=800&q=80"
+        },
+        {
+          "id": "evt_03_02",
+          "title": "PVL Semifinal",
+          "opponent": "Kashi Warriors vs Ahmedabad Defenders",
+          "venue": "Indoor Sports Complex, Varanasi",
+          "date": "March 2026",
+          "banner_image": "https://images.unsplash.com/photo-1574279606130-09958dc756f7?auto=format&fit=crop&w=800&q=80"
+        }
+      ],
+      "achievements": [
+        {
+          "year": "2026",
+          "title": "PVL Season Contenders",
+          "description": "Favored to challenge for the PVL title in the upcoming season."
+        },
+        {
+          "year": "2025",
+          "title": "PVL Semifinal Finish",
+          "description": "Reached the final four in their third consecutive PVL campaign."
+        },
+        {
+          "year": "2024",
+          "title": "PVL Quarterfinal",
+          "description": "Made the quarterfinals for the first time, defeating Bengaluru Torpedoes."
+        },
+        {
+          "year": "2023",
+          "title": "PVL Debut Season",
+          "description": "A competitive debut in the Prime Volleyball League showcasing raw talent."
+        },
+        {
+          "year": "2022",
+          "title": "Team Founded",
+          "description": "Kashi Warriors established as a CTR Unified franchise."
+        }
+      ],
+      "gallery_images": [
+        "https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1574279606130-09958dc756f7?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1560272564-c83b66b1ad12?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1544216717-3bbf52512659?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1519861531473-9200262188bf?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1486286701208-1d58e9338013?auto=format&fit=crop&w=800&q=80"
+      ],
+      "register_link": "https://ctrunified.com/register",
+      "instagram": "https://instagram.com/ctrunified",
+      "youtube": "https://youtube.com/ctrunified",
+      "twitter": "https://twitter.com/ctrunified",
+      "website": "https://ctrunified.com"
+    },
+    {
+      "id": "team_04",
+      "sport_id": "sport_03",
+      "name": "Ossudu Accord Warriors",
+      "sport": "Cricket",
+      "tagline": "Warriors from the Lakes. Champions of the Game.",
+      "location": "Chennai, Tamil Nadu",
+      "league": "Tamil Nadu Premier League",
+      "founded_year": 2016,
+      "captain": "Baba Aparajith",
+      "coach": "David Johnson",
+      "summary": "Ossudu Accord Warriors is a professional cricket franchise competing in the Tamil Nadu Premier League. Drawing inspiration from the historic Ossudu Lake in Chennai, the team represents the rich cricketing heritage of Tamil Nadu. With a squad featuring seasoned TNPL veterans and exciting newcomers, the Warriors deliver thrilling performances across the shortest formats of the game, and their loyal fanbase makes every home game an unforgettable occasion.",
+      "logo_image": "",
+      "hero_image": "https://images.unsplash.com/photo-1531415074968-036ba1b575da?auto=format&fit=crop&w=1400&q=80",
+      "accent_color_hex": "#2E7D32",
+      "total_players": 18,
+      "total_matches": 20,
+      "total_wins": 10,
+      "league_position": "Top 4",
+      "events": [
+        {
+          "id": "evt_04_01",
+          "title": "TNPL Match Day 9",
+          "opponent": "Ossudu Warriors vs Lyca Kovai Kings",
+          "venue": "NPR College Ground, Dindigul",
+          "date": "June 2026",
+          "banner_image": "https://images.unsplash.com/photo-1531415074968-036ba1b575da?auto=format&fit=crop&w=800&q=80"
+        },
+        {
+          "id": "evt_04_02",
+          "title": "TNPL Quarterfinal",
+          "opponent": "Ossudu Warriors vs Salem Spartans",
+          "venue": "MA Chidambaram Stadium, Chennai",
+          "date": "July 2026",
+          "banner_image": "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&w=800&q=80"
+        }
+      ],
+      "achievements": [
+        {
+          "year": "2025",
+          "title": "TNPL Quarter Finals",
+          "description": "Strong quarter-final performance with standout batting from Baba Aparajith."
+        },
+        {
+          "year": "2024",
+          "title": "Best New Team Award",
+          "description": "Recognized for outstanding performance and fan engagement during the season."
+        },
+        {
+          "year": "2022",
+          "title": "TNPL Top 4 Finish",
+          "description": "Secured a playoff berth with dominant performances in the group stage."
+        },
+        {
+          "year": "2019",
+          "title": "TNPL Semifinal",
+          "description": "Reached the last four for the first time, narrowly losing to defending champions."
+        },
+        {
+          "year": "2016",
+          "title": "TNPL Debut",
+          "description": "Ossudu Accord Warriors enter the Tamil Nadu Premier League as a founding franchise."
+        }
+      ],
+      "gallery_images": [
+        "https://images.unsplash.com/photo-1531415074968-036ba1b575da?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1560272564-c83b66b1ad12?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1544216717-3bbf52512659?auto=format&fit=crop&w=800&q=80"
+      ],
+      "register_link": "https://ctrunified.com/register",
+      "instagram": "https://instagram.com/ctrunified",
+      "youtube": "https://youtube.com/ctrunified",
+      "twitter": "https://twitter.com/ctrunified",
+      "website": "https://ctrunified.com"
+    },
+    {
+      "id": "team_05",
+      "sport_id": "sport_04",
+      "name": "Chennai Turbo Riders",
+      "sport": "Formula 4 Racing",
+      "tagline": "Push the Limit. Break the Record.",
+      "location": "Chennai, Tamil Nadu",
+      "league": "MRF F4 Championship India",
+      "founded_year": 2023,
+      "captain": "Arjun Balu",
+      "coach": "Carlos Mendes",
+      "summary": "Chennai Turbo Riders is a professional Formula 4 racing team based in Chennai, competing in the MRF F4 Championship India. Representing the city's growing motorsport culture, the team combines cutting-edge engineering with young, hungry drivers who dream of reaching the pinnacle of motorsport. The Turbo Riders are known for their aggressive race strategy, relentless pursuit of speed, and a team culture that pushes every boundary on and off the track.",
+      "logo_image": "",
+      "hero_image": "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=1400&q=80",
+      "accent_color_hex": "#E65100",
+      "total_players": 4,
+      "total_matches": 8,
+      "total_wins": 3,
+      "league_position": "Top 3",
+      "events": [
+        {
+          "id": "evt_05_01",
+          "title": "MRF F4 Round 4",
+          "opponent": "Chennai Turbo Riders vs Vatsal Sheth Racing",
+          "venue": "Madras Motor Race Track, Chennai",
+          "date": "April 2026",
+          "banner_image": "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=800&q=80"
+        },
+        {
+          "id": "evt_05_02",
+          "title": "MRF F4 Season Finale",
+          "opponent": "Championship Decider - All Teams",
+          "venue": "Madras Motor Race Track, Chennai",
+          "date": "May 2026",
+          "banner_image": "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80"
+        }
+      ],
+      "achievements": [
+        {
+          "year": "2026",
+          "title": "Championship Season Favorites",
+          "description": "Entering 2026 as one of the top championship contenders after a dominant 2025."
+        },
+        {
+          "year": "2025",
+          "title": "F4 Championship Contenders",
+          "description": "Finished in the top 3 of the MRF F4 standings with multiple podiums."
+        },
+        {
+          "year": "2024",
+          "title": "First Podium Finish",
+          "description": "Arjun Balu claimed the team's inaugural podium at the Madras Motor Race Track."
+        },
+        {
+          "year": "2024",
+          "title": "MRF F4 Debut",
+          "description": "Competed in their first MRF F4 Championship season with a strong rookie showing."
+        },
+        {
+          "year": "2023",
+          "title": "Team Founded",
+          "description": "Chennai Turbo Riders established as a CTR Unified motorsport franchise."
+        }
+      ],
+      "gallery_images": [
+        "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1568702846914-96b305d2aaeb?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1605299990190-36b19095a05d?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1544216717-3bbf52512659?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1560272564-c83b66b1ad12?auto=format&fit=crop&w=800&q=80"
+      ],
+      "register_link": "https://ctrunified.com/register",
+      "instagram": "https://instagram.com/ctrunified",
+      "youtube": "https://youtube.com/ctrunified",
+      "twitter": "https://twitter.com/ctrunified",
+      "website": "https://ctrunified.com"
+    },
+    {
+      "id": "team_06",
+      "sport_id": "sport_08",
+      "name": "CTR Velocity Racing",
+      "sport": "CTR Indian National Car Racing Championship",
+      "tagline": "Built for speed. Engineered for the championship.",
+      "location": "Bengaluru, Karnataka",
+      "league": "CTR Indian National Car Racing Championship",
+      "founded_year": 2026,
+      "captain": "Kabir Malhotra",
+      "coach": "Sergio Almeida",
+      "summary": "CTR Velocity Racing is a fictional national-level racing team created for the CTR Indian National Car Racing Championship. The team blends junior driver development, race engineering, and disciplined operations to simulate a modern circuit racing program. It serves as a temporary placeholder franchise for the new motorsport championship content and is styled to match the academy-led progression model used across CTR Unified.",
+      "logo_image": "",
+      "hero_image": "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1400&q=80",
+      "accent_color_hex": "#F5C542",
+      "total_players": 16,
+      "total_matches": 6,
+      "total_wins": 2,
+      "league_position": "Rising Team",
+      "events": [
+        {
+          "id": "evt_06_01",
+          "title": "CTR Nationals Round 1",
+          "opponent": "CTR Velocity Racing vs Apex Motorsport",
+          "venue": "Madras Motor Race Track, Chennai",
+          "date": "July 2026",
+          "banner_image": "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80"
+        },
+        {
+          "id": "evt_06_02",
+          "title": "Driver Development Test Day",
+          "opponent": "Private Testing Session",
+          "venue": "Kari Motor Speedway, Coimbatore",
+          "date": "August 2026",
+          "banner_image": "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=800&q=80"
+        }
+      ],
+      "achievements": [
+        {
+          "year": "2026",
+          "title": "Championship Entry",
+          "description": "Entered the inaugural CTR Indian National Car Racing Championship as a development-focused team."
+        },
+        {
+          "year": "2026",
+          "title": "Junior Driver Pipeline",
+          "description": "Built a training-first lineup centered on karting graduates moving into circuit racing."
+        },
+        {
+          "year": "2026",
+          "title": "Operations Launch",
+          "description": "Completed the first shakedown and operational test program for the fictional team." 
+        }
+      ],
+      "gallery_images": [
+        "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1568702846914-96b305d2aaeb?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1605299990190-36b19095a05d?auto=format&fit=crop&w=800&q=80"
+      ],
+      "register_link": "https://ctrunified.com/register",
+      "instagram": "https://instagram.com/ctrunified",
+      "youtube": "https://youtube.com/ctrunified",
+      "twitter": "https://twitter.com/ctrunified",
+      "website": "https://ctrunified.com"
+    }
+  ]
+}
