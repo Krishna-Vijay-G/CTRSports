@@ -1,0 +1,142 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Oswald:wght@400;500;600;700&family=Rajdhani:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Base ─── */
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    scroll-padding-top: 5rem;
+  }
+
+  body {
+    @apply bg-ctr-paper text-ctr-body font-body;
+    overflow-x: hidden;
+  }
+
+  ::selection {
+    background: rgba(244, 180, 0, 0.35);
+    color: #1b2a63;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #eaedf3;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #f4b400;
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #e29a00;
+  }
+
+  :focus-visible {
+    outline: 3px solid #f4b400;
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+}
+
+/* ─── Components ─── */
+@layer components {
+  .section-container {
+    @apply max-w-7xl mx-auto px-5 sm:px-6 lg:px-8;
+  }
+
+  /* Heavy condensed display heading, deck-style */
+  .display-title {
+    @apply font-display font-bold uppercase tracking-tight leading-[0.95] text-ctr-navy;
+  }
+
+  /* Gold vertical rule that sits immediately left of every chapter title */
+  .gold-bar {
+    @apply inline-block w-[6px] self-stretch rounded-full bg-gold-gradient;
+  }
+
+  /* Yellow marker highlight bar behind key phrases (deck motif) */
+  .marker {
+    @apply box-decoration-clone bg-ctr-yellow text-ctr-navy px-1.5 py-0.5 font-semibold;
+  }
+
+  .kicker {
+    @apply font-display font-semibold text-xs sm:text-sm uppercase tracking-[0.28em] text-ctr-gold-deep;
+  }
+
+  .body-copy {
+    @apply font-body text-base md:text-lg text-ctr-body leading-relaxed;
+  }
+
+  /* Buttons */
+  .btn-gold {
+    @apply inline-flex items-center justify-center gap-2 px-7 py-3 rounded-full bg-gold-gradient text-ctr-navy
+      font-display font-semibold uppercase tracking-wider text-sm transition-all duration-300
+      hover:shadow-gold hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98];
+  }
+
+  .btn-navy {
+    @apply inline-flex items-center justify-center gap-2 px-7 py-3 rounded-full bg-ctr-navy text-white
+      font-display font-semibold uppercase tracking-wider text-sm transition-all duration-300
+      hover:bg-ctr-navy-deep hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98];
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 px-7 py-3 rounded-full border-2 border-ctr-navy/25 text-ctr-navy
+      font-display font-semibold uppercase tracking-wider text-sm transition-all duration-300
+      hover:border-ctr-gold hover:text-ctr-gold-deep active:scale-[0.98];
+  }
+
+  .btn-ghost-light {
+    @apply inline-flex items-center justify-center gap-2 px-7 py-3 rounded-full border-2 border-white/40 text-white
+      font-display font-semibold uppercase tracking-wider text-sm transition-all duration-300
+      hover:border-ctr-gold hover:text-ctr-gold active:scale-[0.98];
+  }
+
+  /* Rounded card */
+  .story-card {
+    @apply relative rounded-2xl bg-white border border-ctr-navy/10 shadow-card transition-all duration-300;
+  }
+
+  /* Diagonal photo cut — ~12° speed wedge */
+  .clip-diagonal-l {
+    clip-path: polygon(12% 0, 100% 0, 100% 100%, 0 100%);
+  }
+  .clip-diagonal-r {
+    clip-path: polygon(0 0, 100% 0, 88% 100%, 0 100%);
+  }
+}
+
+/* ─── Utilities ─── */
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  .text-pretty {
+    text-wrap: pretty;
+  }
+}
+
+/* Respect reduced motion — disable large transforms & looping motifs */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .animate-marquee,
+  .animate-chevron-run,
+  .animate-shimmer-x,
+  .animate-float {
+    animation: none !important;
+  }
+}
