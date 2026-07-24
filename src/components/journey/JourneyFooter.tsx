@@ -4,7 +4,7 @@ import { TripleChevron } from "./Motifs";
 const MAIN_SITE = "https://chennaiturboriders.in";
 
 const quickLinks = [
-  { label: "Home", href: `${MAIN_SITE}/` },
+  { label: "Home", href: `/` },
   { label: "Our Story", href: "#hero" },
   { label: "Team", href: `${MAIN_SITE}/team` },
   { label: "Schedule", href: `${MAIN_SITE}/schedule` },

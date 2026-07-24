@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 const MAIN_SITE = "https://chennaiturboriders.in";
 
 const primaryLinks = [
-  { label: "Home", href: `${MAIN_SITE}/`, external: true },
+  { label: "Home", href: `/`, external: true },
   { label: "Our Story", href: "#hero", external: false },
   { label: "Team", href: `${MAIN_SITE}/team`, external: true },
   { label: "Contact", href: "#contact", external: false },
