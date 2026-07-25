@@ -6,7 +6,7 @@ import { TripleChevron } from "./Motifs";
 export default function JourneyMarquee({ text }: { text: string }) {
   return (
     <div
-      className="fixed top-0 left-0 right-0 z-[65] h-9 flex items-center overflow-hidden bg-gold-gradient"
+      className="fixed top-0 left-0 right-0 z-[65] h-9 flex items-center overflow-hidden bg-ctr-yellow"
       aria-label={text}
     >
       <div className="flex whitespace-nowrap animate-marquee">

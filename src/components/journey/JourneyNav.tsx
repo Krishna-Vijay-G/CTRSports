@@ -54,7 +54,7 @@ export default function JourneyNav({ chapters }: { chapters: Chapter[] }) {
           <a href="#hero" className="flex items-center gap-3 group">
             <span className="relative">
               <img
-                src="/images/journey/logo-eagle-gold.png"
+                src="/images/journey/CTR_yellow.png"
                 alt="Chennai Turbo Riders"
                 className="h-10 w-auto transition-transform duration-300 group-hover:scale-105 drop-shadow-[0_3px_8px_rgba(244,180,0,0.35)]"
               />

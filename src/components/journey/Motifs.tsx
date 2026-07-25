@@ -193,7 +193,7 @@ export function EagleWatermark({
 }) {
   return (
     <motion.img
-      src="/images/journey/logo-eagle-gold.png"
+      src="/images/journey/CTR_yellow.png"
       alt=""
       aria-hidden
       initial={drift ? { y: -6, opacity: 0 } : false}

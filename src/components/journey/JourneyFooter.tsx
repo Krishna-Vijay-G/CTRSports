@@ -52,7 +52,7 @@ export default function JourneyFooter() {
           <div>
             <div className="flex items-center gap-3 mb-5">
               <img
-                src="/images/journey/logo-eagle-gold.png"
+                src="/images/journey/CTR_yellow.png"
                 alt="Chennai Turbo Riders"
                 className="h-12 w-auto"
               />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import type { Chapter } from "@/data/biographyData";
 import { ChevronRun } from "../Motifs";
@@ -47,7 +47,7 @@ export default function JourneyHero({ chapter }: { chapter: Chapter }) {
 
       {/* Eagle watermark top-right */}
       <img
-        src="/images/journey/logo-eagle-gold.png"
+        src="/images/journey/CTR_yellow.png"
         alt=""
         aria-hidden
         className="pointer-events-none absolute top-24 right-5 sm:right-10 w-28 sm:w-40 lg:w-52 opacity-95 drop-shadow-[0_10px_30px_rgba(244,180,0,0.4)] animate-float"

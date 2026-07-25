@@ -185,7 +185,7 @@ export const socials: Social[] = [
   { label: "YouTube", handle: "@chennaiturboriders", href: "https://www.youtube.com/@chennaiturboriders" },
 ];
 
-export const EAGLE = "/images/journey/logo-eagle-gold.png";
+export const EAGLE = "/images/journey/CTR_yellow.png";
 
 export const chapters: Chapter[] = [
   // 00 — HERO ────────────────────────────────────────────────
