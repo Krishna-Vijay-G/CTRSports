@@ -1,15 +1,15 @@
 import { contact, socials } from "@/data/biographyData";
 import { TripleChevron } from "./Motifs";
 
-const MAIN_SITE = "https://chennaiturboriders.in";
+const F4_SITE = "https://chennaiturboriders.in";
 
 const quickLinks = [
   { label: "Home", href: `/` },
   { label: "Our Story", href: "#hero" },
-  { label: "Team", href: `${MAIN_SITE}/team` },
-  { label: "Schedule", href: `${MAIN_SITE}/schedule` },
-  { label: "News", href: `${MAIN_SITE}/news` },
-  { label: "Sponsors", href: `${MAIN_SITE}/sponsors` },
+  { label: "Team", href: `${F4_SITE}/team` },
+  { label: "Schedule", href: `${F4_SITE}/schedule` },
+  { label: "News", href: `${F4_SITE}/news` },
+  { label: "Sponsors", href: `${F4_SITE}/sponsors` },
 ];
 
 export default function JourneyFooter() {

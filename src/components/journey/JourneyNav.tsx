@@ -5,12 +5,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import type { Chapter } from "@/data/biographyData";
 import { cn } from "@/lib/utils";
 
-const MAIN_SITE = "https://chennaiturboriders.in";
+const F4_SITE = "https://chennaiturboriders.in";
 
 const primaryLinks = [
   { label: "Home", href: `/`, external: false },
   { label: "Our Story", href: "#hero", external: false },
-  { label: "Team", href: `${MAIN_SITE}/team`, external: true },
+  { label: "Team", href: `${F4_SITE}/team`, external: true },
   { label: "Contact", href: "#contact", external: false },
 ];
 

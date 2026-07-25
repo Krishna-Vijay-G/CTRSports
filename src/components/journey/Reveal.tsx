@@ -48,10 +48,12 @@ export function RevealStagger({
   children,
   className = "",
   as = "div",
+  role,
 }: {
   children: React.ReactNode;
   className?: string;
   as?: "div" | "ul";
+  role?: string;
 }) {
   const M = motion[as] as typeof motion.div;
   return (
@@ -61,6 +63,7 @@ export function RevealStagger({
       whileInView="visible"
       viewport={{ once: true, margin: "-12%" }}
       className={className}
+      role={role}
     >
       {children}
     </M>
