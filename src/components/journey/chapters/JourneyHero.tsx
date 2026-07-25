@@ -23,7 +23,7 @@ export default function JourneyHero({ chapter }: { chapter: Chapter }) {
       className="relative min-h-[100svh] w-full overflow-hidden bg-ctr-navy-deep"
     >
       {/* Media layer */}
-      <motion.div style={{ y: mediaY }} className="absolute inset-0 -z-10 scale-110">
+      <motion.div style={{ y: mediaY }} className="absolute inset-0 z-0 scale-110">
         {chapter.video ? (
           <video
             className="h-full w-full object-cover"
@@ -42,8 +42,8 @@ export default function JourneyHero({ chapter }: { chapter: Chapter }) {
       </motion.div>
 
       {/* Scrims: keep text readable, lift the CTR light identity */}
-      <div className="absolute inset-0 -z-10 bg-gradient-to-r from-ctr-navy-deep/92 via-ctr-navy-deep/55 to-ctr-navy-deep/20" />
-      <div className="absolute inset-0 -z-10 bg-gradient-to-t from-ctr-navy-deep via-transparent to-ctr-navy-deep/40" />
+      <div className="absolute inset-0 z-0 bg-gradient-to-r from-ctr-navy-deep/92 via-ctr-navy-deep/55 to-ctr-navy-deep/20" />
+      <div className="absolute inset-0 z-0 bg-gradient-to-t from-ctr-navy-deep via-transparent to-ctr-navy-deep/40" />
 
       {/* Eagle watermark top-right */}
       <img
