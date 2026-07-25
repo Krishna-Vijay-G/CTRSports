@@ -83,7 +83,7 @@ export const landingContent: LandingContent = {
         "Vertical athleticism and controlled transition play power our volleyball program across elite competitions.",
       website_url: "#",
       logo_image: "/media/volley.png",
-      visit_label: "Visit",
+      visit_label: "Under Construction",
     },
     {
       id: "sport-cricket",
@@ -93,7 +93,7 @@ export const landingContent: LandingContent = {
         "Structured batting depth, precision bowling plans, and relentless fielding standards anchor this unit.",
       website_url: "#",
       logo_image: "/media/cricket.png",
-      visit_label: "Visit",
+      visit_label: "Under Construction",
     },
     {
       id: "sport-hockey",
@@ -112,7 +112,7 @@ export const landingContent: LandingContent = {
       description:
         "From telemetry to racecraft, the F4 pathway develops next-generation circuit talent with measurable rigor.",
       website_url: "https://www.chennaiturboriders.in",
-      logo_image: "/media/f4.png",
+      logo_image: "/media/ctr-f4-championship.png",
       visit_label: "Visit",
     },
     {
@@ -122,7 +122,7 @@ export const landingContent: LandingContent = {
       description:
         "Academy programs blend motorsport science, athlete conditioning, and team discipline into one track-ready system.",
       website_url: "/academy",
-      logo_image: "/media/ctr-mark.png",
+      logo_image: "/media/ctr-logo.png",
       visit_label: "Explore",
     },
     {
@@ -132,7 +132,7 @@ export const landingContent: LandingContent = {
       description:
         "The karting league identifies young drivers early and builds race intelligence through structured progression.",
       website_url: "/academy",
-      logo_image: "/media/ctr-mark.png",
+      logo_image: "/media/ctr-logo.png",
       visit_label: "Visit",
     },
     {
@@ -142,7 +142,7 @@ export const landingContent: LandingContent = {
       description:
         "A professional national ladder connecting karting graduates to full circuit competition under one unified banner.",
       website_url: "/academy",
-      logo_image: "/media/f4.png",
+      logo_image: "/media/ctr-national-racing.png",
       visit_label: "Visit",
     },
   ],
