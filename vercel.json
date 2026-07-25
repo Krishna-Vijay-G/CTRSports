@@ -3,5 +3,7 @@
   "framework": null,
   "buildCommand": "next build",
   "outputDirectory": "out",
-  "installCommand": "npm install"
+  "installCommand": "npm install",
+  "cleanUrls": true,
+  "trailingSlash": false
 }
