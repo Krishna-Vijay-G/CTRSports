@@ -385,7 +385,7 @@ export function LandingPage({ posts, year }: { posts: MediaPost[]; year: number 
             </div>
           </div>
           <div className="border-t border-white/5 py-4 text-center text-[11px] text-white/30">
-            © {year} CTR Unified. All rights reserved.
+            © {year} <a href="https://krishna-vijay-g.vercel.app" target="_blank" className="hover:text-racing-yellow">CTR Unified.</a> All rights reserved.
           </div>
         </footer>
       </div>

@@ -151,7 +151,7 @@ export default function JourneyFooter() {
 
         <div className="mt-12 pt-6 border-t border-white/10 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-xs text-white/40 tracking-wider">
-            © {year} Chennai Turbo Riders Pvt Ltd. All Rights Reserved.
+            © {year} <a href="https://krishna-vijay-g.vercel.app" target="_blank" className="hover:text-racing-yellow">CTR Unified.</a> All rights reserved.
           </p>
           <p className="flex items-center gap-2 text-xs text-ctr-gold/80 font-display uppercase tracking-[0.2em]">
             <TripleChevron className="text-ctr-gold/70" />
