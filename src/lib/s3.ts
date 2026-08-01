@@ -1,6 +1,7 @@
 import "server-only";
 
 import { DeleteObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 const BUCKET = process.env.S3_BUCKET;
 const REGION = process.env.S3_REGION;
@@ -58,6 +59,29 @@ export async function uploadObject(
   );
 
   return publicUrl(key);
+}
+
+/**
+ * Short-lived PUT URL so the browser can send a file straight to S3. Videos are
+ * far larger than the serverless request-body limit, so they cannot be proxied
+ * through an API route. Requires a CORS rule on the bucket allowing PUT.
+ */
+export async function createUploadUrl(
+  key: string,
+  contentType: string
+): Promise<{ uploadUrl: string; publicUrl: string }> {
+  const uploadUrl = await getSignedUrl(
+    getClient(),
+    new PutObjectCommand({
+      Bucket: BUCKET,
+      Key: key,
+      ContentType: contentType,
+      CacheControl: "public, max-age=31536000, immutable",
+    }),
+    { expiresIn: 900 }
+  );
+
+  return { uploadUrl, publicUrl: publicUrl(key) };
 }
 
 export async function deleteObject(key: string): Promise<void> {

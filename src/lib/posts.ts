@@ -1,16 +1,28 @@
 import { getSql } from "@/lib/db";
+import type { TemplateId } from "@/lib/templates";
+
+export type MediaType = "image" | "video";
 
 export type MediaPost = {
   id: string;
   title: string;
   subtext: string;
-  image_url: string;
-  image_key: string | null;
+  /** Image or video, depending on `media_type`. */
+  media_url: string;
+  media_key: string | null;
+  media_type: MediaType;
+  /** Still frame for videos — captured from the first frame at upload time. */
+  poster_url: string | null;
+  poster_key: string | null;
+  template: TemplateId;
   instagram_url: string | null;
   /** ISO 8601 string — serialisable across the server/client boundary. */
   published_at: string;
   is_published: boolean;
 };
+
+const COLUMNS =
+  "id, title, subtext, media_url, media_key, media_type, poster_url, poster_key, template, instagram_url, published_at, is_published";
 
 type PostRow = Omit<MediaPost, "published_at"> & { published_at: string | Date };
 
@@ -25,7 +37,8 @@ function toPost(row: PostRow): MediaPost {
 export async function listPublishedPosts(limit = 60): Promise<MediaPost[]> {
   const sql = getSql();
   const rows = (await sql`
-    SELECT id, title, subtext, image_url, image_key, instagram_url, published_at, is_published
+    SELECT id, title, subtext, media_url, media_key, media_type, poster_url, poster_key,
+           template, instagram_url, published_at, is_published
       FROM media_posts
      WHERE is_published = true
        AND published_at <= now()
@@ -40,7 +53,8 @@ export async function listPublishedPosts(limit = 60): Promise<MediaPost[]> {
 export async function listAllPosts(): Promise<MediaPost[]> {
   const sql = getSql();
   const rows = (await sql`
-    SELECT id, title, subtext, image_url, image_key, instagram_url, published_at, is_published
+    SELECT id, title, subtext, media_url, media_key, media_type, poster_url, poster_key,
+           template, instagram_url, published_at, is_published
       FROM media_posts
      ORDER BY published_at DESC
   `) as PostRow[];
@@ -51,7 +65,8 @@ export async function listAllPosts(): Promise<MediaPost[]> {
 export async function getPost(id: string): Promise<MediaPost | null> {
   const sql = getSql();
   const rows = (await sql`
-    SELECT id, title, subtext, image_url, image_key, instagram_url, published_at, is_published
+    SELECT id, title, subtext, media_url, media_key, media_type, poster_url, poster_key,
+           template, instagram_url, published_at, is_published
       FROM media_posts
      WHERE id = ${id}
   `) as PostRow[];
@@ -62,8 +77,12 @@ export async function getPost(id: string): Promise<MediaPost | null> {
 export type PostInput = {
   title: string;
   subtext: string;
-  image_url: string;
-  image_key: string | null;
+  media_url: string;
+  media_key: string | null;
+  media_type: MediaType;
+  poster_url: string | null;
+  poster_key: string | null;
+  template: TemplateId;
   instagram_url: string | null;
   published_at: string;
   is_published: boolean;
@@ -72,17 +91,23 @@ export type PostInput = {
 export async function createPost(input: PostInput): Promise<MediaPost> {
   const sql = getSql();
   const rows = (await sql`
-    INSERT INTO media_posts (title, subtext, image_url, image_key, instagram_url, published_at, is_published)
+    INSERT INTO media_posts
+      (title, subtext, media_url, media_key, media_type, poster_url, poster_key,
+       template, instagram_url, published_at, is_published)
     VALUES (
       ${input.title},
       ${input.subtext},
-      ${input.image_url},
-      ${input.image_key},
+      ${input.media_url},
+      ${input.media_key},
+      ${input.media_type},
+      ${input.poster_url},
+      ${input.poster_key},
+      ${input.template},
       ${input.instagram_url},
       ${input.published_at},
       ${input.is_published}
     )
-    RETURNING id, title, subtext, image_url, image_key, instagram_url, published_at, is_published
+    RETURNING ${sql.unsafe(COLUMNS)}
   `) as PostRow[];
 
   return toPost(rows[0]);
@@ -94,14 +119,18 @@ export async function updatePost(id: string, input: PostInput): Promise<MediaPos
     UPDATE media_posts
        SET title         = ${input.title},
            subtext       = ${input.subtext},
-           image_url     = ${input.image_url},
-           image_key     = ${input.image_key},
+           media_url     = ${input.media_url},
+           media_key     = ${input.media_key},
+           media_type    = ${input.media_type},
+           poster_url    = ${input.poster_url},
+           poster_key    = ${input.poster_key},
+           template      = ${input.template},
            instagram_url = ${input.instagram_url},
            published_at  = ${input.published_at},
            is_published  = ${input.is_published},
            updated_at    = now()
      WHERE id = ${id}
-    RETURNING id, title, subtext, image_url, image_key, instagram_url, published_at, is_published
+    RETURNING ${sql.unsafe(COLUMNS)}
   `) as PostRow[];
 
   return rows[0] ? toPost(rows[0]) : null;
@@ -112,7 +141,7 @@ export async function deletePost(id: string): Promise<MediaPost | null> {
   const rows = (await sql`
     DELETE FROM media_posts
      WHERE id = ${id}
-    RETURNING id, title, subtext, image_url, image_key, instagram_url, published_at, is_published
+    RETURNING ${sql.unsafe(COLUMNS)}
   `) as PostRow[];
 
   return rows[0] ? toPost(rows[0]) : null;

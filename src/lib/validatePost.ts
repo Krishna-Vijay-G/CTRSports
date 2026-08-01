@@ -1,4 +1,5 @@
 import type { PostInput } from "@/lib/posts";
+import { DEFAULT_TEMPLATE, isTemplateId } from "@/lib/templates";
 
 export type ValidationResult =
   | { ok: true; value: PostInput }
@@ -18,6 +19,11 @@ function isSafeHttpUrl(value: string): boolean {
   }
 }
 
+/** Relative paths point at /public assets and are safe; anything else must be http(s). */
+function isUsableMediaUrl(value: string): boolean {
+  return value.startsWith("/") || isSafeHttpUrl(value);
+}
+
 export function validatePostBody(body: unknown): ValidationResult {
   if (!body || typeof body !== "object") {
     return { ok: false, error: "Invalid request body." };
@@ -34,11 +40,27 @@ export function validatePostBody(body: unknown): ValidationResult {
     return { ok: false, error: "Subtext must be 2000 characters or fewer." };
   }
 
-  const imageUrl = asString(raw.image_url);
-  if (!imageUrl) return { ok: false, error: "An image is required — upload one or paste a URL." };
-  // Relative paths point at /public assets and are safe; anything else must be http(s).
-  if (!imageUrl.startsWith("/") && !isSafeHttpUrl(imageUrl)) {
-    return { ok: false, error: "Image URL must start with http://, https:// or /." };
+  const mediaUrl = asString(raw.media_url);
+  if (!mediaUrl) {
+    return { ok: false, error: "Media is required — upload an image or video, or paste a URL." };
+  }
+  if (!isUsableMediaUrl(mediaUrl)) {
+    return { ok: false, error: "Media URL must start with http://, https:// or /." };
+  }
+
+  const mediaType = asString(raw.media_type) || "image";
+  if (mediaType !== "image" && mediaType !== "video") {
+    return { ok: false, error: "Media type must be either image or video." };
+  }
+
+  const posterUrl = asString(raw.poster_url);
+  if (posterUrl && !isUsableMediaUrl(posterUrl)) {
+    return { ok: false, error: "Poster URL must start with http://, https:// or /." };
+  }
+
+  const template = raw.template;
+  if (template !== undefined && template !== null && template !== "" && !isTemplateId(template)) {
+    return { ok: false, error: "Unknown template." };
   }
 
   const instagramRaw = asString(raw.instagram_url);
@@ -57,8 +79,12 @@ export function validatePostBody(body: unknown): ValidationResult {
     value: {
       title,
       subtext,
-      image_url: imageUrl,
-      image_key: asString(raw.image_key) || null,
+      media_url: mediaUrl,
+      media_key: asString(raw.media_key) || null,
+      media_type: mediaType,
+      poster_url: posterUrl || null,
+      poster_key: asString(raw.poster_key) || null,
+      template: isTemplateId(template) ? template : DEFAULT_TEMPLATE,
       instagram_url: instagramRaw || null,
       published_at: publishedAt.toISOString(),
       is_published: raw.is_published === undefined ? true : Boolean(raw.is_published),
