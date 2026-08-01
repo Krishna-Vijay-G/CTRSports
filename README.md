@@ -12,7 +12,12 @@ to publish at `/journey`).
 - **Next.js 16** (App Router) · **React 18** · **TypeScript**
 - **Tailwind CSS 3.4** + `tailwindcss-animate`
 - **Framer Motion 11** (scroll reveals, parallax, draw-in timelines/ladder/track)
-- `clsx` + `tailwind-merge` (`cn()` helper), static export (`output: "export"`)
+- `clsx` + `tailwind-merge` (`cn()` helper)
+- **Neon Postgres** + **AWS S3** for the media-post system (see below)
+
+> The site is a **server-rendered** Next.js app on Vercel. It used to be a static export
+> (`output: "export"` → `./out`); that was removed because the media admin needs API routes,
+> a database and file uploads.
 
 Config, tokens, and reusable brand assets mirror the existing team site at
 `../CTR` so this can live standalone or drop into that repo as a `/journey` route group.
@@ -21,11 +26,51 @@ Config, tokens, and reusable brand assets mirror the existing team site at
 
 ```bash
 npm install
-npm run dev      # http://localhost:3000
-npm run build    # static export -> ./out
+cp .env.example .env   # then fill in the real values
+npm run dev            # http://localhost:3000
+npm run build
+npm start
 ```
 
-Serve the export with any static host, e.g. `npx serve out`.
+## Media posts & admin
+
+Posts shown on the landing page are stored in Neon Postgres; their images live in S3.
+
+- **Landing page** — the 3 most recent published posts render as rotating banners under the
+  hero (`#latest`): title top-left, subtext beneath it, the full uncropped image on the right.
+  Every published post also appears in the grid at the bottom of the page (`#media`).
+- **Admin** — <https://ctrsports.in/media/admin/login>. Create, edit and delete posts with
+  title, subtext, drag-and-drop / browse / paste-URL image, date & time (IST, defaults to now),
+  an optional Instagram link, and a draft toggle.
+
+### One-time setup
+
+1. Put `DATABASE_URL` and the four `S3_*` values in `.env` (and in the Vercel project's
+   environment variables). See [`.env.example`](./.env.example).
+2. Create the tables and your admin account:
+
+   ```bash
+   npm run create-admin -- <username> <password>
+   ```
+
+   The script creates `media_posts`, `admin_users` and `admin_sessions` if they are missing.
+   Re-running it for an existing username resets that password and signs out its sessions.
+
+### How it fits together
+
+- `src/lib/db.ts` — Neon HTTP client + `ensureSchema()`.
+- `src/lib/posts.ts` — post queries (`listPublishedPosts` for the site, `listAllPosts` for admin).
+- `src/lib/auth.ts` — scrypt password hashing, DB-backed sessions in an HttpOnly cookie
+  (7 days). Only the SHA-256 of the session token is stored.
+- `src/lib/s3.ts` — uploads and deletes. Set `S3_PUBLIC_BASE_URL` if you put CloudFront or a
+  custom domain in front of the bucket.
+- `src/app/api/admin/*` — login, logout, posts CRUD, upload. Every write checks the session.
+- Uploads are proxied through the API route (no bucket CORS needed). Images over ~3.5 MB are
+  downscaled to WebP in the browser first (`src/lib/imageCompress.ts`) to stay under Vercel's
+  request-body limit.
+- The landing page uses ISR (`revalidate = 60`) and every write calls `revalidatePath("/")`,
+  so changes appear immediately. If the database is unreachable the page still renders, just
+  without posts.
 
 ## How it's organised
 
