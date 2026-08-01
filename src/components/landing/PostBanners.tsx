@@ -48,11 +48,15 @@ function SoundIcon({ muted }: { muted: boolean }) {
   );
 }
 
+/** Hard ceiling in case a clip stalls or never reports `ended`. */
+const VIDEO_FALLBACK_MS = 90_000;
+
 export function PostBanners({ posts }: { posts: MediaPost[] }) {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const [muted, setMuted] = useState(true);
   const [reducedMotion, setReducedMotion] = useState(false);
+  const [videoSeconds, setVideoSeconds] = useState<number | null>(null);
   const total = posts.length;
 
   useEffect(() => {
@@ -72,16 +76,47 @@ export function PostBanners({ posts }: { posts: MediaPost[] }) {
     [total]
   );
 
+  const current = total > 0 ? posts[index] : null;
+  const isVideo = current?.media_type === "video";
+
+  // A fresh slide means a fresh (unknown) clip length.
+  useEffect(() => setVideoSeconds(null), [index]);
+
+  // Image slides advance on a fixed timer. Video slides do not — they hand over
+  // when the clip ends (below), so a post is never cut off mid-playback.
   useEffect(() => {
-    if (total < 2 || paused || reducedMotion) return;
-    const timer = window.setInterval(() => setIndex((i) => (i + 1) % total), AUTOPLAY_MS);
-    return () => window.clearInterval(timer);
-  }, [total, paused, reducedMotion]);
+    if (total < 2 || paused || reducedMotion || isVideo) return;
+    const timer = window.setTimeout(() => setIndex((i) => (i + 1) % total), AUTOPLAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [total, paused, reducedMotion, isVideo, index]);
 
-  if (total === 0) return null;
+  // Safety net: if `ended` never arrives (stalled download, decode failure), move
+  // on anyway rather than parking the carousel on one slide forever.
+  useEffect(() => {
+    if (total < 2 || paused || reducedMotion || !isVideo) return;
+    const limit = videoSeconds ? videoSeconds * 1000 + 2500 : VIDEO_FALLBACK_MS;
+    const timer = window.setTimeout(() => setIndex((i) => (i + 1) % total), limit);
+    return () => window.clearTimeout(timer);
+  }, [total, paused, reducedMotion, isVideo, videoSeconds, index]);
 
-  const post = posts[index];
-  const autoplaying = total > 1 && !paused && !reducedMotion;
+  if (!current) return null;
+
+  const post = current;
+  const advancing = total > 1 && !paused && !reducedMotion;
+  // The rail tracks the clip for video, the fixed dwell for images.
+  const railSeconds = isVideo ? videoSeconds : AUTOPLAY_MS / 1000;
+  const showRail = advancing && railSeconds !== null;
+
+  const videoHooks = {
+    // Looping only makes sense when there is nothing to advance to.
+    loop: total < 2 || reducedMotion,
+    onEnded: () => {
+      if (advancing) setIndex((i) => (i + 1) % total);
+    },
+    onDuration: (seconds: number) => {
+      if (Number.isFinite(seconds) && seconds > 0) setVideoSeconds(seconds);
+    },
+  };
 
   return (
     <section
@@ -106,7 +141,12 @@ export function PostBanners({ posts }: { posts: MediaPost[] }) {
             transition={{ duration: 0.35, ease: "easeInOut" }}
             className="absolute inset-0"
           >
-            <BannerTemplate post={post} muted={muted} reducedMotion={reducedMotion} />
+            <BannerTemplate
+              post={post}
+              muted={muted}
+              reducedMotion={reducedMotion}
+              video={videoHooks}
+            />
 
             {/* Seams into the sections above and below, shared by every template. */}
             <div
@@ -191,12 +231,12 @@ export function PostBanners({ posts }: { posts: MediaPost[] }) {
           {/* Autoplay progress rail. */}
           {total > 1 ? (
             <div className="h-[3px] w-full bg-white/[0.07]">
-              {autoplaying ? (
+              {showRail ? (
                 <motion.div
-                  key={`${post.id}-progress`}
+                  key={`${post.id}-progress-${railSeconds}`}
                   initial={{ scaleX: 0 }}
                   animate={{ scaleX: 1 }}
-                  transition={{ duration: AUTOPLAY_MS / 1000, ease: "linear" }}
+                  transition={{ duration: railSeconds, ease: "linear" }}
                   style={{ transformOrigin: "left" }}
                   className="h-full bg-racing-yellow"
                 />

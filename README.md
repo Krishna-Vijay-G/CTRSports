@@ -46,10 +46,11 @@ Posts shown on the landing page are stored in Neon Postgres; their images and vi
 ### Templates
 
 Every post is saved with one of five templates, chosen from a visual picker with a live
-preview that renders the real banner components at reduced scale. The template sets the banner
-layout when the post is among the three most recent, and shapes its card in the grid so the
-choice is visible for every post. Defined in [`src/lib/templates.ts`](./src/lib/templates.ts),
-rendered by [`BannerTemplates.tsx`](./src/components/landing/BannerTemplates.tsx).
+preview that renders the real banner components at reduced scale. **Templates apply to the
+banners only** — the post cards in the grid at the bottom of the page all share one format
+(4:3 stage, `object-contain`, copy below). Defined in
+[`src/lib/templates.ts`](./src/lib/templates.ts), rendered by
+[`BannerTemplates.tsx`](./src/components/landing/BannerTemplates.tsx).
 
 | id | Layout |
 | --- | --- |
@@ -65,8 +66,13 @@ component and register it in `COMPONENTS`, then add a wireframe case in `Templat
 ### Video
 
 - Accepted: MP4, WebM, MOV, M4V — up to 200 MB.
-- Banner videos autoplay muted and loop, with a mute toggle beside the carousel arrows. Grid
-  videos show a poster with a play badge and preview on hover.
+- Banner videos autoplay muted, with a mute toggle beside the carousel arrows. **A video slide
+  is never cut off**: it does not loop and the carousel waits for the clip to finish before
+  advancing, where an image slide advances on a 7s timer. The progress rail tracks whichever
+  applies. A stalled clip still hands over via a duration-derived fallback timer, so the
+  carousel cannot park on one slide forever. A lone video post loops, since there is nothing
+  to advance to.
+- Grid videos show a poster with a play badge and preview on hover.
 - A poster frame is captured from the clip in the browser at upload time and stored alongside
   it, so there is something to show before playback starts.
 - Videos are **too large for Vercel's ~4.5 MB request-body limit**, so they upload straight

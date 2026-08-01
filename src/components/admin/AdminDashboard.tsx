@@ -376,8 +376,8 @@ export function AdminDashboard({
                 Template
               </h2>
               <p className="mt-1 text-xs text-white/40">
-                How this post is presented. Sets the banner layout when it is one of the three most
-                recent, and shapes its card in the grid below.
+                The banner layout used when this post is one of the three most recent. Cards in the
+                grid at the bottom of the page all share one format.
               </p>
               <div className="mt-5">
                 <TemplatePicker

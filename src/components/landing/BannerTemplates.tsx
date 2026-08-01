@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import type { MediaPost } from "@/lib/posts";
 import { formatPostDate } from "@/lib/formatDate";
-import { PostMedia } from "@/components/landing/PostMedia";
+import { PostMedia, type VideoHooks } from "@/components/landing/PostMedia";
 import { TEMPLATES, resolveTemplate, type TemplateId } from "@/lib/templates";
 import { cn } from "@/lib/utils";
 
@@ -11,6 +11,8 @@ export type TemplateProps = {
   post: MediaPost;
   muted: boolean;
   reducedMotion: boolean;
+  /** Wired onto the template's primary media so the banner can pace off the clip. */
+  video?: VideoHooks;
 };
 
 const EASE = [0.25, 0.46, 0.45, 0.94] as const;
@@ -112,7 +114,7 @@ const SHELL = "mx-auto h-full max-w-6xl px-5 pb-24 sm:px-6";
 
 /* ─────────────────────────── 1 · Wedge ─────────────────────────── */
 
-function WedgeTemplate({ post, muted, reducedMotion }: TemplateProps) {
+function WedgeTemplate({ post, muted, reducedMotion, video }: TemplateProps) {
   return (
     <>
       <div
@@ -121,7 +123,7 @@ function WedgeTemplate({ post, muted, reducedMotion }: TemplateProps) {
           "md:[clip-path:polygon(16%_0,100%_0,100%_100%,0_100%)]"
         )}
       >
-        <PostMedia post={post} muted={muted} reducedMotion={reducedMotion} kenBurns priority />
+        <PostMedia post={post} muted={muted} reducedMotion={reducedMotion} video={video} kenBurns priority />
       </div>
 
       <div
@@ -144,11 +146,11 @@ function WedgeTemplate({ post, muted, reducedMotion }: TemplateProps) {
 
 /* ─────────────────────────── 2 · Cinematic ─────────────────────────── */
 
-function CinematicTemplate({ post, muted, reducedMotion }: TemplateProps) {
+function CinematicTemplate({ post, muted, reducedMotion, video }: TemplateProps) {
   return (
     <>
       <div className="absolute inset-0">
-        <PostMedia post={post} muted={muted} reducedMotion={reducedMotion} kenBurns priority />
+        <PostMedia post={post} muted={muted} reducedMotion={reducedMotion} video={video} kenBurns priority />
       </div>
 
       <div
@@ -172,12 +174,12 @@ function CinematicTemplate({ post, muted, reducedMotion }: TemplateProps) {
 
 /* ─────────────────────────── 3 · Split ─────────────────────────── */
 
-function SplitTemplate({ post, muted, reducedMotion }: TemplateProps) {
+function SplitTemplate({ post, muted, reducedMotion, video }: TemplateProps) {
   return (
     <>
       {/* Media occupies the right half on desktop, the top on mobile. */}
       <div className="absolute inset-x-0 top-0 h-[46%] md:inset-y-0 md:left-1/2 md:right-0 md:h-full">
-        <PostMedia post={post} muted={muted} reducedMotion={reducedMotion} priority />
+        <PostMedia post={post} muted={muted} reducedMotion={reducedMotion} video={video} priority />
         <div
           aria-hidden
           className="absolute inset-0 bg-gradient-to-t from-carbon-950 via-carbon-950/20 to-transparent md:bg-gradient-to-r md:from-carbon-950/60 md:via-transparent md:to-transparent"
@@ -205,16 +207,23 @@ function SplitTemplate({ post, muted, reducedMotion }: TemplateProps) {
 
 /* ─────────────────────────── 4 · Spotlight ─────────────────────────── */
 
-function SpotlightTemplate({ post, muted, reducedMotion }: TemplateProps) {
+function SpotlightTemplate({ post, muted, reducedMotion, video }: TemplateProps) {
   return (
     <>
       <div
         aria-hidden
         className="absolute inset-0 bg-[radial-gradient(ellipse_at_72%_50%,rgba(247,214,25,0.13)_0%,rgba(10,10,10,0)_58%)]"
       />
-      {/* Blurred fill of the same media so the frame never sits on dead space. */}
+      {/* Blurred fill so the frame never sits on dead space. For a video this
+          uses the poster rather than a second <video> of the same file. */}
       <div aria-hidden className="absolute inset-0 overflow-hidden opacity-25">
-        <PostMedia post={post} reducedMotion className="scale-110 blur-3xl" />
+        {post.media_type === "video" ? (
+          post.poster_url ? (
+            <img src={post.poster_url} alt="" className="h-full w-full scale-110 object-cover blur-3xl" />
+          ) : null
+        ) : (
+          <PostMedia post={post} reducedMotion className="scale-110 blur-3xl" />
+        )}
       </div>
       <div aria-hidden className="absolute inset-0 bg-carbon-950/55" />
 
@@ -238,6 +247,7 @@ function SpotlightTemplate({ post, muted, reducedMotion }: TemplateProps) {
                 sizing="natural"
                 muted={muted}
                 reducedMotion={reducedMotion}
+                video={video}
                 className="max-h-[34vh] max-w-full rounded-xl md:max-h-[46vh]"
                 priority
               />
@@ -251,11 +261,11 @@ function SpotlightTemplate({ post, muted, reducedMotion }: TemplateProps) {
 
 /* ─────────────────────────── 5 · Marquee ─────────────────────────── */
 
-function MarqueeTemplate({ post, muted, reducedMotion }: TemplateProps) {
+function MarqueeTemplate({ post, muted, reducedMotion, video }: TemplateProps) {
   return (
     <>
       <div className="absolute inset-0">
-        <PostMedia post={post} muted={muted} reducedMotion={reducedMotion} kenBurns priority />
+        <PostMedia post={post} muted={muted} reducedMotion={reducedMotion} video={video} kenBurns priority />
       </div>
 
       <div aria-hidden className="absolute inset-0 bg-carbon-950/72" />

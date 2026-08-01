@@ -5,10 +5,18 @@ import { motion } from "framer-motion";
 import type { MediaPost } from "@/lib/posts";
 import { cn } from "@/lib/utils";
 
+/** Playback wiring the banner needs to pace itself off the clip. */
+export type VideoHooks = {
+  /** Off in the banner so the clip can end and hand over to the next slide. */
+  loop?: boolean;
+  onEnded?: () => void;
+  onDuration?: (seconds: number) => void;
+};
+
 /**
- * Renders a post's media, whichever kind it is. Videos autoplay muted and loop
- * (the only form of autoplay browsers allow); the caller owns the mute state so
- * a single control in the banner can unmute the slide that is on screen.
+ * Renders a post's media, whichever kind it is. Videos autoplay muted (the only
+ * form of autoplay browsers allow); the caller owns the mute state so a single
+ * control in the banner can unmute the slide that is on screen.
  */
 export function PostMedia({
   post,
@@ -19,6 +27,7 @@ export function PostMedia({
   reducedMotion = false,
   kenBurns = false,
   priority = false,
+  video,
 }: {
   post: MediaPost;
   fit?: "cover" | "contain";
@@ -33,16 +42,17 @@ export function PostMedia({
   reducedMotion?: boolean;
   kenBurns?: boolean;
   priority?: boolean;
+  video?: VideoHooks;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const fitClass = fit === "contain" ? "object-contain" : "object-cover";
   const sizeClass = sizing === "natural" ? "block h-auto w-auto" : "h-full w-full";
 
   useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-    video.muted = muted;
-    if (!muted) void video.play().catch(() => undefined);
+    const element = videoRef.current;
+    if (!element) return;
+    element.muted = muted;
+    if (!muted) void element.play().catch(() => undefined);
   }, [muted]);
 
   if (post.media_type === "video") {
@@ -54,9 +64,11 @@ export function PostMedia({
         // `muted` must be on the element for autoplay to be permitted at all.
         muted
         autoPlay={!reducedMotion}
-        loop
+        loop={video?.loop ?? true}
         playsInline
         preload={priority ? "auto" : "metadata"}
+        onEnded={video?.onEnded}
+        onLoadedMetadata={(event) => video?.onDuration?.(event.currentTarget.duration)}
         className={cn(sizeClass, fitClass, className)}
       />
     );
