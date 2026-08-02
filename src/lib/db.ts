@@ -31,8 +31,8 @@ export async function ensureSchema() {
       id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       title         text NOT NULL,
       subtext       text NOT NULL DEFAULT '',
-      image_url     text NOT NULL,
-      image_key     text,
+      media_url     text NOT NULL,
+      media_key     text,
       instagram_url text,
       published_at  timestamptz NOT NULL DEFAULT now(),
       is_published  boolean NOT NULL DEFAULT true,
@@ -40,6 +40,25 @@ export async function ensureSchema() {
       updated_at    timestamptz NOT NULL DEFAULT now()
     )
   `;
+
+  // v1 stored images only; the columns now carry either an image or a video.
+  await sql`
+    DO $$ BEGIN
+      IF EXISTS (SELECT 1 FROM information_schema.columns
+                  WHERE table_name = 'media_posts' AND column_name = 'image_url') THEN
+        ALTER TABLE media_posts RENAME COLUMN image_url TO media_url;
+      END IF;
+      IF EXISTS (SELECT 1 FROM information_schema.columns
+                  WHERE table_name = 'media_posts' AND column_name = 'image_key') THEN
+        ALTER TABLE media_posts RENAME COLUMN image_key TO media_key;
+      END IF;
+    END $$
+  `;
+
+  await sql`ALTER TABLE media_posts ADD COLUMN IF NOT EXISTS media_type text NOT NULL DEFAULT 'image'`;
+  await sql`ALTER TABLE media_posts ADD COLUMN IF NOT EXISTS poster_url text`;
+  await sql`ALTER TABLE media_posts ADD COLUMN IF NOT EXISTS poster_key text`;
+  await sql`ALTER TABLE media_posts ADD COLUMN IF NOT EXISTS template text NOT NULL DEFAULT 'wedge'`;
 
   await sql`
     CREATE INDEX IF NOT EXISTS media_posts_published_at_idx

@@ -2,21 +2,15 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { isS3Configured, uploadObject } from "@/lib/s3";
+import { IMAGE_EXTENSIONS, MAX_IMAGE_BYTES } from "@/lib/mediaTypes";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Vercel caps a serverless request body at ~4.5 MB; the client downscales before sending. */
-const MAX_BYTES = 4 * 1024 * 1024;
-
-const EXTENSIONS: Record<string, string> = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-  "image/gif": "gif",
-  "image/avif": "avif",
-};
-
+/**
+ * Proxied image upload. Kept for images because it works with no bucket CORS at
+ * all; videos go direct to S3 via /api/admin/upload-url instead.
+ */
 export async function POST(request: Request) {
   if (!(await getSession())) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
@@ -24,7 +18,7 @@ export async function POST(request: Request) {
 
   if (!isS3Configured()) {
     return NextResponse.json(
-      { error: "Image storage is not configured. Paste an image URL instead." },
+      { error: "Media storage is not configured. Paste a media URL instead." },
       { status: 503 }
     );
   }
@@ -42,15 +36,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "No file received." }, { status: 400 });
   }
 
-  const extension = EXTENSIONS[file.type];
+  const extension = IMAGE_EXTENSIONS[file.type];
   if (!extension) {
     return NextResponse.json(
-      { error: "Unsupported file type. Use JPG, PNG, WebP, GIF or AVIF." },
+      { error: "Unsupported image type. Use JPG, PNG, WebP, GIF or AVIF." },
       { status: 415 }
     );
   }
 
-  if (file.size > MAX_BYTES) {
+  if (file.size > MAX_IMAGE_BYTES) {
     return NextResponse.json(
       { error: "Image is larger than 4 MB. Try a smaller file." },
       { status: 413 }

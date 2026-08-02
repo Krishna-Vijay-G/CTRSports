@@ -3,32 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { MediaPost } from "@/lib/posts";
-import { formatPostDate } from "@/lib/formatDate";
+import { BannerTemplate } from "@/components/landing/BannerTemplates";
 import { cn } from "@/lib/utils";
 
 const AUTOPLAY_MS = 7000;
-
-/** Diagonal wedge the artwork is cut along on desktop — the deck's speed motif. */
-const WEDGE = "md:[clip-path:polygon(16%_0,100%_0,100%_100%,0_100%)]";
-
-function InstagramGlyph({ className = "h-4 w-4" }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.8}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <rect x="3.5" y="3.5" width="17" height="17" rx="5" />
-      <circle cx="12" cy="12" r="4" />
-      <circle cx="17.2" cy="6.8" r="0.7" fill="currentColor" stroke="none" />
-    </svg>
-  );
-}
 
 function Arrow({ direction }: { direction: "prev" | "next" }) {
   return (
@@ -44,10 +22,41 @@ function Arrow({ direction }: { direction: "prev" | "next" }) {
   );
 }
 
+function SoundIcon({ muted }: { muted: boolean }) {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M4 9.5h3.2L11.5 6v12L7.2 14.5H4z" />
+      {muted ? (
+        <path d="M16 9.5l4.5 5M20.5 9.5L16 14.5" />
+      ) : (
+        <>
+          <path d="M15.5 9.4a3.4 3.4 0 0 1 0 5.2" />
+          <path d="M18 7a6.8 6.8 0 0 1 0 10" />
+        </>
+      )}
+    </svg>
+  );
+}
+
+/** Hard ceiling in case a clip stalls or never reports `ended`. */
+const VIDEO_FALLBACK_MS = 90_000;
+
 export function PostBanners({ posts }: { posts: MediaPost[] }) {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
+  const [muted, setMuted] = useState(true);
   const [reducedMotion, setReducedMotion] = useState(false);
+  const [videoSeconds, setVideoSeconds] = useState<number | null>(null);
   const total = posts.length;
 
   useEffect(() => {
@@ -67,21 +76,52 @@ export function PostBanners({ posts }: { posts: MediaPost[] }) {
     [total]
   );
 
+  const current = total > 0 ? posts[index] : null;
+  const isVideo = current?.media_type === "video";
+
+  // A fresh slide means a fresh (unknown) clip length.
+  useEffect(() => setVideoSeconds(null), [index]);
+
+  // Image slides advance on a fixed timer. Video slides do not — they hand over
+  // when the clip ends (below), so a post is never cut off mid-playback.
   useEffect(() => {
-    if (total < 2 || paused || reducedMotion) return;
-    const timer = window.setInterval(() => setIndex((i) => (i + 1) % total), AUTOPLAY_MS);
-    return () => window.clearInterval(timer);
-  }, [total, paused, reducedMotion]);
+    if (total < 2 || paused || reducedMotion || isVideo) return;
+    const timer = window.setTimeout(() => setIndex((i) => (i + 1) % total), AUTOPLAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [total, paused, reducedMotion, isVideo, index]);
 
-  if (total === 0) return null;
+  // Safety net: if `ended` never arrives (stalled download, decode failure), move
+  // on anyway rather than parking the carousel on one slide forever.
+  useEffect(() => {
+    if (total < 2 || paused || reducedMotion || !isVideo) return;
+    const limit = videoSeconds ? videoSeconds * 1000 + 2500 : VIDEO_FALLBACK_MS;
+    const timer = window.setTimeout(() => setIndex((i) => (i + 1) % total), limit);
+    return () => window.clearTimeout(timer);
+  }, [total, paused, reducedMotion, isVideo, videoSeconds, index]);
 
-  const post = posts[index];
-  const autoplaying = total > 1 && !paused && !reducedMotion;
+  if (!current) return null;
+
+  const post = current;
+  const advancing = total > 1 && !paused && !reducedMotion;
+  // The rail tracks the clip for video, the fixed dwell for images.
+  const railSeconds = isVideo ? videoSeconds : AUTOPLAY_MS / 1000;
+  const showRail = advancing && railSeconds !== null;
+
+  const videoHooks = {
+    // Looping only makes sense when there is nothing to advance to.
+    loop: total < 2 || reducedMotion,
+    onEnded: () => {
+      if (advancing) setIndex((i) => (i + 1) % total);
+    },
+    onDuration: (seconds: number) => {
+      if (Number.isFinite(seconds) && seconds > 0) setVideoSeconds(seconds);
+    },
+  };
 
   return (
     <section
       id="latest"
-      aria-labelledby="latest-heading"
+      aria-label="Latest posts"
       aria-roledescription="carousel"
       className="relative w-full overflow-hidden bg-carbon-950"
       // Hovering does not pause — only keyboard focus does, so a user tabbing
@@ -90,164 +130,120 @@ export function PostBanners({ posts }: { posts: MediaPost[] }) {
       onBlurCapture={() => setPaused(false)}
     >
       <div className="relative h-[76svh] min-h-[540px] max-h-[780px]">
-        <AnimatePresence initial={false}>
+        {/* `wait` rather than a crossfade: two slides overlapping at partial
+            opacity ghosts the headline text into an unreadable double image. */}
+        <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={post.id}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.7, ease: "easeInOut" }}
+            transition={{ duration: 0.35, ease: "easeInOut" }}
             className="absolute inset-0"
           >
-            {/* ── Artwork: full-bleed cover, cut along the wedge on desktop ── */}
-            <div className={cn("absolute inset-0 md:left-auto md:right-0 md:w-[66%]", WEDGE)}>
-              <motion.img
-                src={post.image_url}
-                alt={post.title}
-                initial={reducedMotion ? undefined : { scale: 1.09 }}
-                animate={reducedMotion ? undefined : { scale: 1 }}
-                transition={{ duration: 9, ease: "linear" }}
-                className="h-full w-full object-cover object-center"
-                loading={index === 0 ? "eager" : "lazy"}
-              />
-            </div>
-
-            {/* ── Diagonal scrim: opaque behind the copy, clear over the artwork ── */}
-            <div
-              aria-hidden
-              className="absolute inset-0 bg-[linear-gradient(178deg,rgba(10,10,10,0.94)_8%,rgba(10,10,10,0.72)_38%,rgba(10,10,10,0.40)_62%,rgba(10,10,10,0.86)_100%)] md:bg-[linear-gradient(101deg,#0A0A0A_0%,#0A0A0A_26%,rgba(10,10,10,0.88)_40%,rgba(10,10,10,0.42)_56%,rgba(10,10,10,0.06)_74%,transparent_88%)]"
+            <BannerTemplate
+              post={post}
+              muted={muted}
+              reducedMotion={reducedMotion}
+              video={videoHooks}
             />
 
-            {/* Gold sheen running along the wedge. */}
+            {/* Seams into the sections above and below, shared by every template. */}
             <div
               aria-hidden
-              className="absolute inset-0 hidden md:block md:bg-[linear-gradient(101deg,transparent_28%,rgba(247,214,25,0.16)_35%,rgba(247,214,25,0.03)_41%,transparent_48%)]"
-            />
-
-            {/* Seam into the sections above and below. */}
-            <div
-              aria-hidden
-              className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-carbon-950 to-transparent"
+              className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-carbon-950 to-transparent"
             />
             <div
               aria-hidden
-              className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-carbon-950/80 to-transparent"
+              className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-carbon-950/80 to-transparent"
             />
-
-            {/* ── Copy: title top-left, subtext beneath ── */}
-            <div className="absolute inset-0">
-              <div className="mx-auto flex h-full max-w-6xl flex-col justify-center px-5 pb-24 pt-16 sm:px-6">
-                <motion.div
-                  initial={{ opacity: 0, y: 22 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: 0.15, ease: [0.25, 0.46, 0.45, 0.94] }}
-                  className="max-w-xl"
-                >
-                  <div className="flex flex-wrap items-center gap-3">
-                    <span className="font-display text-[11px] font-bold uppercase tracking-[0.24em] text-racing-yellow">
-                      Latest from CTR
-                    </span>
-                    <span aria-hidden className="h-px w-8 bg-racing-yellow/40" />
-                    <span className="font-display text-[11px] uppercase tracking-[0.18em] text-white/50">
-                      {formatPostDate(post.published_at)}
-                    </span>
-                  </div>
-
-                  <h2
-                    id="latest-heading"
-                    className="mt-4 font-display text-[clamp(1.9rem,4.6vw,3.6rem)] font-bold uppercase leading-[0.98] tracking-wide text-white drop-shadow-[0_4px_24px_rgba(0,0,0,0.65)]"
-                  >
-                    {post.title}
-                  </h2>
-
-                  {/* Clamped so a long caption can never overflow the fixed-height frame. */}
-                  {post.subtext ? (
-                    <p className="mt-4 line-clamp-4 max-w-lg whitespace-pre-line text-sm leading-relaxed text-white/75 drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)] sm:text-base md:line-clamp-6">
-                      {post.subtext}
-                    </p>
-                  ) : null}
-
-                  {post.instagram_url ? (
-                    <a
-                      href={post.instagram_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-7 inline-flex items-center gap-2 rounded-full bg-racing-yellow px-7 py-3 font-display text-sm font-semibold uppercase tracking-wider text-carbon-950 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_38px_-10px_rgba(247,214,25,0.6)] active:translate-y-0"
-                    >
-                      <InstagramGlyph />
-                      View on Instagram
-                    </a>
-                  ) : null}
-                </motion.div>
-              </div>
-            </div>
           </motion.div>
         </AnimatePresence>
 
         {/* ── Controls ── */}
-        {total > 1 ? (
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10">
-            <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 pb-7 sm:px-6">
-              <div className="pointer-events-auto flex items-center gap-2.5">
-                {posts.map((item, i) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => go(i)}
-                    aria-label={`Show post ${i + 1}: ${item.title}`}
-                    aria-current={i === index}
-                    className="group py-2"
-                  >
-                    <span
-                      className={cn(
-                        "block h-[3px] rounded-full transition-all duration-300",
-                        i === index
-                          ? "w-11 bg-racing-yellow"
-                          : "w-5 bg-white/30 group-hover:bg-white/60"
-                      )}
-                    />
-                  </button>
-                ))}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10">
+          <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 pb-7 sm:px-6">
+            <div className="pointer-events-auto flex items-center gap-2.5">
+              {total > 1
+                ? posts.map((item, i) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => go(i)}
+                      aria-label={`Show post ${i + 1}: ${item.title}`}
+                      aria-current={i === index}
+                      className="group py-2"
+                    >
+                      <span
+                        className={cn(
+                          "block h-[3px] rounded-full transition-all duration-300",
+                          i === index
+                            ? "w-11 bg-racing-yellow"
+                            : "w-5 bg-white/30 group-hover:bg-white/60"
+                        )}
+                      />
+                    </button>
+                  ))
+                : null}
+              {total > 1 ? (
                 <span className="ml-2 font-display text-[11px] uppercase tracking-[0.2em] text-white/45">
                   {String(index + 1).padStart(2, "0")} / {String(total).padStart(2, "0")}
                 </span>
-              </div>
-
-              <div className="pointer-events-auto flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => go(index - 1)}
-                  aria-label="Previous post"
-                  className="flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-carbon-950/40 text-white/75 backdrop-blur-sm transition hover:border-racing-yellow/70 hover:text-racing-yellow"
-                >
-                  <Arrow direction="prev" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => go(index + 1)}
-                  aria-label="Next post"
-                  className="flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-carbon-950/40 text-white/75 backdrop-blur-sm transition hover:border-racing-yellow/70 hover:text-racing-yellow"
-                >
-                  <Arrow direction="next" />
-                </button>
-              </div>
+              ) : null}
             </div>
 
-            {/* Autoplay progress rail. */}
+            <div className="pointer-events-auto flex items-center gap-2">
+              {post.media_type === "video" ? (
+                <button
+                  type="button"
+                  onClick={() => setMuted((m) => !m)}
+                  aria-label={muted ? "Unmute video" : "Mute video"}
+                  aria-pressed={!muted}
+                  className="flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-carbon-950/40 text-white/75 backdrop-blur-sm transition hover:border-racing-yellow/70 hover:text-racing-yellow"
+                >
+                  <SoundIcon muted={muted} />
+                </button>
+              ) : null}
+
+              {total > 1 ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => go(index - 1)}
+                    aria-label="Previous post"
+                    className="flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-carbon-950/40 text-white/75 backdrop-blur-sm transition hover:border-racing-yellow/70 hover:text-racing-yellow"
+                  >
+                    <Arrow direction="prev" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => go(index + 1)}
+                    aria-label="Next post"
+                    className="flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-carbon-950/40 text-white/75 backdrop-blur-sm transition hover:border-racing-yellow/70 hover:text-racing-yellow"
+                  >
+                    <Arrow direction="next" />
+                  </button>
+                </>
+              ) : null}
+            </div>
+          </div>
+
+          {/* Autoplay progress rail. */}
+          {total > 1 ? (
             <div className="h-[3px] w-full bg-white/[0.07]">
-              {autoplaying ? (
+              {showRail ? (
                 <motion.div
-                  key={`${post.id}-progress`}
+                  key={`${post.id}-progress-${railSeconds}`}
                   initial={{ scaleX: 0 }}
                   animate={{ scaleX: 1 }}
-                  transition={{ duration: AUTOPLAY_MS / 1000, ease: "linear" }}
+                  transition={{ duration: railSeconds, ease: "linear" }}
                   style={{ transformOrigin: "left" }}
                   className="h-full bg-racing-yellow"
                 />
               ) : null}
             </div>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </div>
 
       <div aria-live="polite" className="sr-only">

@@ -34,14 +34,59 @@ npm start
 
 ## Media posts & admin
 
-Posts shown on the landing page are stored in Neon Postgres; their images live in S3.
+Posts shown on the landing page are stored in Neon Postgres; their images and videos live in S3.
 
-- **Landing page** — the 3 most recent published posts render as rotating banners under the
-  hero (`#latest`): title top-left, subtext beneath it, the full uncropped image on the right.
-  Every published post also appears in the grid at the bottom of the page (`#media`).
+- **Landing page** — the 3 most recent published posts render as rotating full-bleed banners
+  under the hero (`#latest`). Every published post also appears in the grid at the bottom of
+  the page (`#media`).
 - **Admin** — <https://ctrsports.in/media/admin/login>. Create, edit and delete posts with
-  title, subtext, drag-and-drop / browse / paste-URL image, date & time (IST, defaults to now),
-  an optional Instagram link, and a draft toggle.
+  title, subtext, drag-and-drop / browse / paste-URL **image or video**, a template, date &
+  time (IST, defaults to now), an optional Instagram link, and a draft toggle.
+
+### Templates
+
+Every post is saved with one of five templates, chosen from a visual picker with a live
+preview that renders the real banner components at reduced scale. **Templates apply to the
+banners only** — the post cards in the grid at the bottom of the page all share one format
+(4:3 stage, `object-contain`, copy below). Defined in
+[`src/lib/templates.ts`](./src/lib/templates.ts), rendered by
+[`BannerTemplates.tsx`](./src/components/landing/BannerTemplates.tsx).
+
+| id | Layout |
+| --- | --- |
+| `wedge` | Diagonal cut, media filling the right. The default and house style. |
+| `cinematic` | Edge-to-edge media, copy low-left over a deep scrim. |
+| `split` | Clean 50/50 — solid panel left, media right, gold seam. |
+| `spotlight` | Framed media with a gold glow; the frame hugs the media so nothing crops. |
+| `marquee` | Dimmed full-bleed media, oversized centred headline. |
+
+To add a sixth, append its id to `TEMPLATE_IDS`, add an entry to `TEMPLATES`, write the
+component and register it in `COMPONENTS`, then add a wireframe case in `TemplatePicker`.
+
+### Video
+
+- Accepted: MP4, WebM, MOV, M4V — up to 200 MB.
+- Banner videos autoplay muted, with a mute toggle beside the carousel arrows. **A video slide
+  is never cut off**: it does not loop and the carousel waits for the clip to finish before
+  advancing, where an image slide advances on a 7s timer. The progress rail tracks whichever
+  applies. A stalled clip still hands over via a duration-derived fallback timer, so the
+  carousel cannot park on one slide forever. A lone video post loops, since there is nothing
+  to advance to.
+- Grid videos show a poster with a play badge and preview on hover.
+- A poster frame is captured from the clip in the browser at upload time and stored alongside
+  it, so there is something to show before playback starts.
+- Videos are **too large for Vercel's ~4.5 MB request-body limit**, so they upload straight
+  from the browser to S3 with a presigned PUT. That requires this CORS rule on the bucket
+  (already applied):
+
+  ```json
+  [{ "AllowedOrigins": ["https://ctrsports.in", "https://www.ctrsports.in",
+                        "https://*.vercel.app", "http://localhost:3000"],
+     "AllowedMethods": ["PUT", "GET", "HEAD"], "AllowedHeaders": ["*"],
+     "ExposeHeaders": ["ETag"], "MaxAgeSeconds": 3000 }]
+  ```
+
+  Images still go through the API route, which needs no CORS at all.
 
 ### One-time setup
 
@@ -51,23 +96,29 @@ Posts shown on the landing page are stored in Neon Postgres; their images live i
 
    ```bash
    npm run create-admin -- <username> <password>
+   npm run migrate                 # schema only, safe to re-run
    ```
 
-   The script creates `media_posts`, `admin_users` and `admin_sessions` if they are missing.
-   Re-running it for an existing username resets that password and signs out its sessions.
+   Re-running `create-admin` for an existing username resets that password and signs out its
+   sessions.
 
 ### How it fits together
 
+- `scripts/schema.mjs` — the schema, idempotent. Used by both `migrate` and `create-admin`.
 - `src/lib/db.ts` — Neon HTTP client + `ensureSchema()`.
 - `src/lib/posts.ts` — post queries (`listPublishedPosts` for the site, `listAllPosts` for admin).
+- `src/lib/templates.ts` — the five templates and their grid-card treatments.
 - `src/lib/auth.ts` — scrypt password hashing, DB-backed sessions in an HttpOnly cookie
   (7 days). Only the SHA-256 of the session token is stored.
-- `src/lib/s3.ts` — uploads and deletes. Set `S3_PUBLIC_BASE_URL` if you put CloudFront or a
-  custom domain in front of the bucket.
-- `src/app/api/admin/*` — login, logout, posts CRUD, upload. Every write checks the session.
-- Uploads are proxied through the API route (no bucket CORS needed). Images over ~3.5 MB are
-  downscaled to WebP in the browser first (`src/lib/imageCompress.ts`) to stay under Vercel's
-  request-body limit.
+- `src/lib/s3.ts` — proxied upload, presigned upload, delete. Set `S3_PUBLIC_BASE_URL` if you
+  put CloudFront or a custom domain in front of the bucket.
+- `src/lib/uploadMedia.ts` — the browser side: picks the proxy or presigned path, reports
+  progress, captures the video poster.
+- `src/app/api/admin/*` — login, logout, posts CRUD, upload, upload-url. Every write checks
+  the session.
+- Images over ~3.5 MB are downscaled to WebP in the browser first
+  (`src/lib/imageCompress.ts`) to stay under the request-body limit.
+- Replacing or deleting a post's media also deletes the orphaned S3 objects.
 - The landing page uses ISR (`revalidate = 60`) and every write calls `revalidatePath("/")`,
   so changes appear immediately. If the database is unreachable the page still renders, just
   without posts.

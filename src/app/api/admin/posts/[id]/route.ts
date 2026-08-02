@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth";
-import { deletePost, getPost, updatePost } from "@/lib/posts";
+import { deletePost, getPost, updatePost, type MediaPost } from "@/lib/posts";
 import { deleteObject } from "@/lib/s3";
 import { validatePostBody } from "@/lib/validatePost";
 
@@ -9,6 +9,18 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type Context = { params: Promise<{ id: string }> };
+
+/** Drops S3 objects the post no longer points at. Never fails the request. */
+async function removeKeys(keys: (string | null)[]) {
+  for (const key of keys) {
+    if (!key) continue;
+    try {
+      await deleteObject(key);
+    } catch (error) {
+      console.error("[admin/posts] orphaned S3 object", key, error);
+    }
+  }
+}
 
 export async function PUT(request: Request, { params }: Context) {
   if (!(await getSession())) {
@@ -37,14 +49,14 @@ export async function PUT(request: Request, { params }: Context) {
 
     const post = await updatePost(id, parsed.value);
 
-    // The image was swapped out — drop the orphaned object from S3.
-    if (existing.image_key && existing.image_key !== parsed.value.image_key) {
-      try {
-        await deleteObject(existing.image_key);
-      } catch (error) {
-        console.error("[admin/posts PUT] orphaned S3 object", existing.image_key, error);
-      }
+    const orphaned: (string | null)[] = [];
+    if (existing.media_key && existing.media_key !== parsed.value.media_key) {
+      orphaned.push(existing.media_key);
     }
+    if (existing.poster_key && existing.poster_key !== parsed.value.poster_key) {
+      orphaned.push(existing.poster_key);
+    }
+    await removeKeys(orphaned);
 
     revalidatePath("/");
     return NextResponse.json({ post });
@@ -62,18 +74,12 @@ export async function DELETE(_request: Request, { params }: Context) {
   const { id } = await params;
 
   try {
-    const removed = await deletePost(id);
+    const removed: MediaPost | null = await deletePost(id);
     if (!removed) {
       return NextResponse.json({ error: "Post not found." }, { status: 404 });
     }
 
-    if (removed.image_key) {
-      try {
-        await deleteObject(removed.image_key);
-      } catch (error) {
-        console.error("[admin/posts DELETE] orphaned S3 object", removed.image_key, error);
-      }
-    }
+    await removeKeys([removed.media_key, removed.poster_key]);
 
     revalidatePath("/");
     return NextResponse.json({ ok: true });
