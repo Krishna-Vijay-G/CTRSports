@@ -70,9 +70,13 @@ Everything on the landing page that is not a post — splash, brand, hero, the s
 heading, the sport cards, the footer links — is stored in the `site_content` table as one JSONB
 document and edited at **/media/admin/content**. Nothing on that page is hardcoded any more.
 
-- [`landing_content.json`](./landing_content.json) at the project root is both the seed for
-  `npm run import-content` **and** what [`src/data/landingContent.ts`](./src/data/landingContent.ts)
-  imports for its defaults, so the two can never drift apart. Edit it to change the defaults.
+- **The table is the only copy.** There is no JSON snapshot in the repo and no import step — with
+  no row, the page renders `DEFAULT_LANDING_CONTENT` from
+  [`src/data/landingContent.ts`](./src/data/landingContent.ts) and the editor opens on it, so
+  saving once creates the row.
+- Those defaults are a **fallback, not a mirror**. Once the row exists, editing them changes
+  nothing live. If you change something in the admin that should survive a database outage,
+  change it in both places.
 - [`normaliseContent.ts`](./src/lib/normaliseContent.ts) merges the stored document over those
   defaults **on every read as well as every write**, field by field. A partial, stale or corrupt
   document degrades one field at a time instead of taking the page down: missing fields fall
@@ -149,17 +153,14 @@ component and register it in `COMPONENTS`, then add a wireframe case in `Templat
    Re-running `create-admin` for an existing username resets that password and signs out its
    sessions.
 
-3. Optionally seed content from the two snapshots at the project root:
+   That is the whole setup. There is no seed step: posts are created at `/media/admin`, and the
+   landing copy renders from its built-in defaults until you save it once at
+   `/media/admin/content`.
 
-   ```bash
-   npm run import-posts -- --dry     # report what would change
-   npm run import-posts              # upsert posts by id, safe to re-run
-   npm run import-content            # push the landing page copy
-   ```
-
-   `import-posts` leaves rows that are in the database but not in the file alone — it imports,
-   it does not mirror. `import-content` replaces the whole landing document, so it doubles as
-   "reset the landing page to its built-in copy".
+> **The database is the only copy of the content.** Nothing is snapshotted into the repo, so
+> deleting a post in the admin is final — the row goes and its S3 objects go with it. If you
+> want a safety net, take a database snapshot in the Neon console; point-in-time restore is the
+> right tool for that, not a JSON file in git.
 
 ### How it fits together
 
