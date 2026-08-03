@@ -22,6 +22,8 @@ export function getSql() {
  * Creates the media/admin tables when they are missing. Safe to call repeatedly;
  * the seed script and the login route both run it so a fresh database works
  * without a manual migration step.
+ *
+ * Keep this in step with `migrate()` in scripts/schema.mjs.
  */
 export async function ensureSchema() {
   const sql = getSql();
@@ -29,11 +31,11 @@ export async function ensureSchema() {
   await sql`
     CREATE TABLE IF NOT EXISTS media_posts (
       id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-      title         text NOT NULL,
+      title         text,
       subtext       text NOT NULL DEFAULT '',
-      media_url     text NOT NULL,
+      media_url     text,
       media_key     text,
-      instagram_url text,
+      link_url      text,
       published_at  timestamptz NOT NULL DEFAULT now(),
       is_published  boolean NOT NULL DEFAULT true,
       created_at    timestamptz NOT NULL DEFAULT now(),
@@ -60,9 +62,50 @@ export async function ensureSchema() {
   await sql`ALTER TABLE media_posts ADD COLUMN IF NOT EXISTS poster_key text`;
   await sql`ALTER TABLE media_posts ADD COLUMN IF NOT EXISTS template text NOT NULL DEFAULT 'wedge'`;
 
+  // v2 pointed every post at Instagram. The CTA now carries its own type and
+  // label, so the column is no longer named after one destination.
+  await sql`
+    DO $$ BEGIN
+      IF EXISTS (SELECT 1 FROM information_schema.columns
+                  WHERE table_name = 'media_posts' AND column_name = 'instagram_url')
+         AND NOT EXISTS (SELECT 1 FROM information_schema.columns
+                          WHERE table_name = 'media_posts' AND column_name = 'link_url') THEN
+        ALTER TABLE media_posts RENAME COLUMN instagram_url TO link_url;
+      END IF;
+    END $$
+  `;
+
+  await sql`ALTER TABLE media_posts ADD COLUMN IF NOT EXISTS link_url text`;
+  // Defaulting to 'instagram' back-fills the pre-existing links correctly.
+  await sql`ALTER TABLE media_posts ADD COLUMN IF NOT EXISTS link_type text NOT NULL DEFAULT 'instagram'`;
+  await sql`ALTER TABLE media_posts ADD COLUMN IF NOT EXISTS link_label text`;
+
+  // Which vertical the post belongs to. 'main' is the landing page.
+  await sql`ALTER TABLE media_posts ADD COLUMN IF NOT EXISTS sport text NOT NULL DEFAULT 'main'`;
+
+  // Title and media became optional alongside the link — a post now only has to
+  // carry at least one of title / subtext / media.
+  await sql`ALTER TABLE media_posts ALTER COLUMN title DROP NOT NULL`;
+  await sql`ALTER TABLE media_posts ALTER COLUMN media_url DROP NOT NULL`;
+
   await sql`
     CREATE INDEX IF NOT EXISTS media_posts_published_at_idx
       ON media_posts (published_at DESC)
+  `;
+  await sql`
+    CREATE INDEX IF NOT EXISTS media_posts_sport_published_at_idx
+      ON media_posts (sport, published_at DESC)
+  `;
+
+  // Editable page copy, one JSONB document per page ('landing' is the only key
+  // so far). A document rather than a column per field: the shape is nested and
+  // changes with the design, and nothing ever queries inside it.
+  await sql`
+    CREATE TABLE IF NOT EXISTS site_content (
+      key        text PRIMARY KEY,
+      content    jsonb NOT NULL,
+      updated_at timestamptz NOT NULL DEFAULT now()
+    )
   `;
 
   await sql`

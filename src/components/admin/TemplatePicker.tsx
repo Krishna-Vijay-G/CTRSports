@@ -85,7 +85,7 @@ function Wireframe({ id, active }: { id: TemplateId; active: boolean }) {
 
 /* ─── Live preview of the real template with the real content ─── */
 
-function LivePreview({ post }: { post: MediaPost }) {
+function LivePreview({ post, kicker }: { post: MediaPost; kicker?: string }) {
   const frameRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.25);
 
@@ -112,7 +112,7 @@ function LivePreview({ post }: { post: MediaPost }) {
       >
         {/* Same components the live site renders, so this is not an approximation. */}
         <div className="relative h-full w-full overflow-hidden bg-carbon-950">
-          <BannerTemplate post={post} muted reducedMotion />
+          <BannerTemplate post={post} muted reducedMotion kicker={kicker} />
         </div>
       </div>
     </div>
@@ -123,10 +123,12 @@ export function TemplatePicker({
   value,
   onChange,
   previewPost,
+  previewKicker,
 }: {
   value: TemplateId;
   onChange: (next: TemplateId) => void;
   previewPost: MediaPost | null;
+  previewKicker?: string;
 }) {
   return (
     <div className="space-y-4">
@@ -173,12 +175,12 @@ export function TemplatePicker({
             Live preview
           </span>
           <div className="mt-2">
-            <LivePreview post={previewPost} />
+            <LivePreview post={previewPost} kicker={previewKicker} />
           </div>
         </div>
       ) : (
         <p className="rounded-xl border border-dashed border-white/15 px-4 py-6 text-center text-xs text-white/35">
-          Add a title and media to see a live preview.
+          Add a title, subtext or media to see a live preview.
         </p>
       )}
     </div>

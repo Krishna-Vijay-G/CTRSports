@@ -3,7 +3,8 @@
 import { motion } from "framer-motion";
 import type { MediaPost } from "@/lib/posts";
 import { formatPostDate } from "@/lib/formatDate";
-import { PostMedia, type VideoHooks } from "@/components/landing/PostMedia";
+import { PostMedia, hasMedia, type VideoHooks } from "@/components/landing/PostMedia";
+import { resolvePostLink, type LinkTypeId } from "@/lib/links";
 import { TEMPLATES, resolveTemplate, type TemplateId } from "@/lib/templates";
 import { cn } from "@/lib/utils";
 
@@ -11,47 +12,86 @@ export type TemplateProps = {
   post: MediaPost;
   muted: boolean;
   reducedMotion: boolean;
+  /** Overline above the headline — the sport pages set their own. */
+  kicker?: string;
   /** Wired onto the template's primary media so the banner can pace off the clip. */
   video?: VideoHooks;
 };
 
 const EASE = [0.25, 0.46, 0.45, 0.94] as const;
 
+export const DEFAULT_KICKER = "Latest from CTR";
+
 /* ─────────────────────────── shared pieces ─────────────────────────── */
 
-function InstagramGlyph({ className = "h-4 w-4" }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.8}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <rect x="3.5" y="3.5" width="17" height="17" rx="5" />
-      <circle cx="12" cy="12" r="4" />
-      <circle cx="17.2" cy="6.8" r="0.7" fill="currentColor" stroke="none" />
-    </svg>
-  );
+/** One glyph per link type, so the CTA reads as its destination at a glance. */
+export function LinkGlyph({
+  type,
+  className = "h-4 w-4",
+}: {
+  type: LinkTypeId;
+  className?: string;
+}) {
+  const common = {
+    className,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.8,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    "aria-hidden": true,
+  };
+
+  switch (type) {
+    case "instagram":
+      return (
+        <svg {...common}>
+          <rect x="3.5" y="3.5" width="17" height="17" rx="5" />
+          <circle cx="12" cy="12" r="4" />
+          <circle cx="17.2" cy="6.8" r="0.7" fill="currentColor" stroke="none" />
+        </svg>
+      );
+    case "facebook":
+      return (
+        <svg {...common}>
+          <path d="M14 21v-7h2.5l.5-3H14V9c0-.9.3-1.5 1.7-1.5H17V4.8c-.3 0-1.2-.1-2.3-.1-2.3 0-3.7 1.4-3.7 4V11H8.5v3H11v7z" />
+        </svg>
+      );
+    case "website":
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="8.5" />
+          <path d="M3.5 12h17M12 3.5c2.2 2.3 3.3 5.3 3.3 8.5s-1.1 6.2-3.3 8.5c-2.2-2.3-3.3-5.3-3.3-8.5S9.8 5.8 12 3.5z" />
+        </svg>
+      );
+    default:
+      return (
+        <svg {...common}>
+          <path d="M14 5h5v5M19 5l-8 8" />
+          <path d="M18 14v4.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6H10" />
+        </svg>
+      );
+  }
 }
 
 function Copy({
   post,
+  kicker = DEFAULT_KICKER,
   align = "left",
   size = "md",
   clamp = "line-clamp-4 md:line-clamp-6",
   className,
 }: {
   post: MediaPost;
+  kicker?: string;
   align?: "left" | "center";
   size?: "md" | "lg";
   clamp?: string;
   className?: string;
 }) {
   const centered = align === "center";
+  const link = resolvePostLink(post);
 
   return (
     <motion.div
@@ -62,7 +102,7 @@ function Copy({
     >
       <div className={cn("flex flex-wrap items-center gap-3", centered && "justify-center")}>
         <span className="font-display text-[11px] font-bold uppercase tracking-[0.24em] text-racing-yellow">
-          Latest from CTR
+          {kicker}
         </span>
         <span aria-hidden className="h-px w-8 bg-racing-yellow/40" />
         <span className="font-display text-[11px] uppercase tracking-[0.18em] text-white/50">
@@ -70,22 +110,28 @@ function Copy({
         </span>
       </div>
 
-      <h2
-        className={cn(
-          "mt-4 font-display font-bold uppercase leading-[0.98] tracking-wide text-white drop-shadow-[0_4px_24px_rgba(0,0,0,0.7)]",
-          size === "lg"
-            ? "text-[clamp(2.1rem,5.6vw,4.4rem)]"
-            : "text-[clamp(1.9rem,4.6vw,3.6rem)]"
-        )}
-      >
-        {post.title}
-      </h2>
+      {/* Title, subtext and the link are each optional. */}
+      {post.title ? (
+        <h2
+          className={cn(
+            "mt-4 font-display font-bold uppercase leading-[0.98] tracking-wide text-white drop-shadow-[0_4px_24px_rgba(0,0,0,0.7)]",
+            size === "lg"
+              ? "text-[clamp(2.1rem,5.6vw,4.4rem)]"
+              : "text-[clamp(1.9rem,4.6vw,3.6rem)]"
+          )}
+        >
+          {post.title}
+        </h2>
+      ) : null}
 
       {/* Clamped so a long caption can never overflow the fixed-height frame. */}
       {post.subtext ? (
         <p
           className={cn(
-            "mt-4 whitespace-pre-line text-sm leading-relaxed text-white/75 drop-shadow-[0_2px_12px_rgba(0,0,0,0.85)] sm:text-base",
+            "whitespace-pre-line leading-relaxed text-white/75 drop-shadow-[0_2px_12px_rgba(0,0,0,0.85)]",
+            // Without a headline above it the subtext carries the slide, so it
+            // steps up a size rather than reading as a stray caption.
+            post.title ? "mt-4 text-sm sm:text-base" : "mt-5 text-base sm:text-xl",
             centered ? "mx-auto max-w-2xl" : "max-w-lg",
             clamp
           )}
@@ -94,15 +140,15 @@ function Copy({
         </p>
       ) : null}
 
-      {post.instagram_url ? (
+      {link ? (
         <a
-          href={post.instagram_url}
+          href={link.url}
           target="_blank"
           rel="noreferrer"
           className="mt-7 inline-flex items-center gap-2 rounded-full bg-racing-yellow px-7 py-3 font-display text-sm font-semibold uppercase tracking-wider text-carbon-950 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_38px_-10px_rgba(247,214,25,0.6)] active:translate-y-0"
         >
-          <InstagramGlyph />
-          View on Instagram
+          <LinkGlyph type={link.type} />
+          {link.label}
         </a>
       ) : null}
     </motion.div>
@@ -114,7 +160,7 @@ const SHELL = "mx-auto h-full max-w-6xl px-5 pb-24 sm:px-6";
 
 /* ─────────────────────────── 1 · Wedge ─────────────────────────── */
 
-function WedgeTemplate({ post, muted, reducedMotion, video }: TemplateProps) {
+function WedgeTemplate({ post, muted, reducedMotion, kicker, video }: TemplateProps) {
   return (
     <>
       <div
@@ -137,7 +183,7 @@ function WedgeTemplate({ post, muted, reducedMotion, video }: TemplateProps) {
 
       <div className="absolute inset-0">
         <div className={cn(SHELL, "flex flex-col justify-center pt-16")}>
-          <Copy post={post} />
+          <Copy post={post} kicker={kicker} />
         </div>
       </div>
     </>
@@ -146,7 +192,7 @@ function WedgeTemplate({ post, muted, reducedMotion, video }: TemplateProps) {
 
 /* ─────────────────────────── 2 · Cinematic ─────────────────────────── */
 
-function CinematicTemplate({ post, muted, reducedMotion, video }: TemplateProps) {
+function CinematicTemplate({ post, muted, reducedMotion, kicker, video }: TemplateProps) {
   return (
     <>
       <div className="absolute inset-0">
@@ -165,7 +211,7 @@ function CinematicTemplate({ post, muted, reducedMotion, video }: TemplateProps)
       <div className="absolute inset-0">
         <div className={cn(SHELL, "flex flex-col justify-end pt-16")}>
           <span aria-hidden className="mb-6 block h-[3px] w-20 bg-gold-gradient" />
-          <Copy post={post} size="lg" clamp="line-clamp-3 md:line-clamp-4" />
+          <Copy post={post} kicker={kicker} size="lg" clamp="line-clamp-3 md:line-clamp-4" />
         </div>
       </div>
     </>
@@ -174,7 +220,7 @@ function CinematicTemplate({ post, muted, reducedMotion, video }: TemplateProps)
 
 /* ─────────────────────────── 3 · Split ─────────────────────────── */
 
-function SplitTemplate({ post, muted, reducedMotion, video }: TemplateProps) {
+function SplitTemplate({ post, muted, reducedMotion, kicker, video }: TemplateProps) {
   return (
     <>
       {/* Media occupies the right half on desktop, the top on mobile. */}
@@ -197,7 +243,7 @@ function SplitTemplate({ post, muted, reducedMotion, video }: TemplateProps) {
         <div className="mx-auto grid h-full max-w-6xl grid-rows-[42%_1fr] px-5 pb-24 sm:px-6 md:grid-cols-2 md:grid-rows-1 md:gap-12">
           <div aria-hidden className="md:order-2" />
           <div className="flex flex-col justify-center md:order-1 md:pr-6">
-            <Copy post={post} clamp="line-clamp-3 md:line-clamp-6" />
+            <Copy post={post} kicker={kicker} clamp="line-clamp-3 md:line-clamp-6" />
           </div>
         </div>
       </div>
@@ -207,7 +253,7 @@ function SplitTemplate({ post, muted, reducedMotion, video }: TemplateProps) {
 
 /* ─────────────────────────── 4 · Spotlight ─────────────────────────── */
 
-function SpotlightTemplate({ post, muted, reducedMotion, video }: TemplateProps) {
+function SpotlightTemplate({ post, muted, reducedMotion, kicker, video }: TemplateProps) {
   return (
     <>
       <div
@@ -230,7 +276,7 @@ function SpotlightTemplate({ post, muted, reducedMotion, video }: TemplateProps)
       <div className="absolute inset-0">
         <div className="mx-auto grid h-full max-w-6xl items-center gap-8 px-5 pb-24 pt-16 sm:px-6 md:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)] md:gap-14">
           <div className="order-2 flex flex-col justify-center md:order-1">
-            <Copy post={post} clamp="line-clamp-3 md:line-clamp-5" />
+            <Copy post={post} kicker={kicker} clamp="line-clamp-3 md:line-clamp-5" />
           </div>
 
           <motion.div
@@ -261,7 +307,7 @@ function SpotlightTemplate({ post, muted, reducedMotion, video }: TemplateProps)
 
 /* ─────────────────────────── 5 · Marquee ─────────────────────────── */
 
-function MarqueeTemplate({ post, muted, reducedMotion, video }: TemplateProps) {
+function MarqueeTemplate({ post, muted, reducedMotion, kicker, video }: TemplateProps) {
   return (
     <>
       <div className="absolute inset-0">
@@ -276,7 +322,35 @@ function MarqueeTemplate({ post, muted, reducedMotion, video }: TemplateProps) {
 
       <div className="absolute inset-0">
         <div className={cn(SHELL, "flex flex-col items-center justify-center pt-16")}>
-          <Copy post={post} align="center" size="lg" clamp="line-clamp-3 md:line-clamp-4" />
+          <Copy post={post} kicker={kicker} align="center" size="lg" clamp="line-clamp-3 md:line-clamp-4" />
+        </div>
+      </div>
+    </>
+  );
+}
+
+/* ─────────────────────── copy-only fallback ─────────────────────── */
+
+/**
+ * Media is optional, and `split` and `spotlight` are built around a media half —
+ * without it they would leave a visible hole. Rather than degrade five layouts
+ * separately, a post with no media gets one deliberate typographic slide.
+ */
+function CopyOnlyTemplate({ post, kicker }: TemplateProps) {
+  return (
+    <>
+      <div
+        aria-hidden
+        className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_38%,rgba(247,214,25,0.10)_0%,rgba(10,10,10,0)_62%)]"
+      />
+      <div
+        aria-hidden
+        className="absolute inset-0 bg-[repeating-linear-gradient(115deg,transparent_0px,transparent_58px,rgba(255,255,255,0.02)_58px,rgba(255,255,255,0.02)_59px)]"
+      />
+
+      <div className="absolute inset-0">
+        <div className={cn(SHELL, "flex flex-col items-center justify-center pt-16")}>
+          <Copy post={post} kicker={kicker} align="center" size="lg" clamp="line-clamp-4 md:line-clamp-6" />
         </div>
       </div>
     </>
@@ -295,6 +369,8 @@ const COMPONENTS: Record<TemplateId, (props: TemplateProps) => JSX.Element> = {
 
 /** Renders a post with whichever template it was saved with. */
 export function BannerTemplate(props: TemplateProps) {
+  if (!hasMedia(props.post)) return <CopyOnlyTemplate {...props} />;
+
   const Component = COMPONENTS[resolveTemplate(props.post.template).id];
   return <Component {...props} />;
 }

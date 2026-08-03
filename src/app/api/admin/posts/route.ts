@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth";
 import { createPost, listAllPosts } from "@/lib/posts";
+import { sportPostsPath } from "@/lib/sports";
 import { validatePostBody } from "@/lib/validatePost";
 
 export const runtime = "nodejs";
@@ -39,7 +40,7 @@ export async function POST(request: Request) {
 
   try {
     const post = await createPost(parsed.value);
-    revalidatePath("/");
+    revalidatePath(sportPostsPath(post.sport));
     return NextResponse.json({ post }, { status: 201 });
   } catch (error) {
     console.error("[admin/posts POST]", error);

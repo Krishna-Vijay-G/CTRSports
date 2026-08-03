@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth";
 import { deletePost, getPost, updatePost, type MediaPost } from "@/lib/posts";
 import { deleteObject } from "@/lib/s3";
+import { sportPostsPath } from "@/lib/sports";
 import { validatePostBody } from "@/lib/validatePost";
 
 export const runtime = "nodejs";
@@ -58,7 +59,10 @@ export async function PUT(request: Request, { params }: Context) {
     }
     await removeKeys(orphaned);
 
-    revalidatePath("/");
+    // Re-tagging a post empties it out of one page and into another, so both
+    // need rebuilding — `revalidatePath` on the same path twice is harmless.
+    revalidatePath(sportPostsPath(existing.sport));
+    revalidatePath(sportPostsPath(parsed.value.sport));
     return NextResponse.json({ post });
   } catch (error) {
     console.error("[admin/posts PUT]", error);
@@ -81,7 +85,7 @@ export async function DELETE(_request: Request, { params }: Context) {
 
     await removeKeys([removed.media_key, removed.poster_key]);
 
-    revalidatePath("/");
+    revalidatePath(sportPostsPath(removed.sport));
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("[admin/posts DELETE]", error);

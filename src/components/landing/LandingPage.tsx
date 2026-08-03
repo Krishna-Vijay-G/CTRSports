@@ -3,19 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { motion, useMotionValue, useScroll, useSpring, useTransform, type Variants } from "framer-motion";
-import { landingContent as content, type Sport } from "@/data/landingContent";
+import type { LandingContent, Sport } from "@/data/landingContent";
 import { Reveal } from "@/components/journey/Reveal";
 import { PostBanners } from "@/components/landing/PostBanners";
 import { PostGrid } from "@/components/landing/PostGrid";
 import type { MediaPost } from "@/lib/posts";
 import { cn } from "@/lib/utils";
-
-const SOCIALS = [
-  { label: "Instagram", href: "https://www.instagram.com/chennaiturboriders", icon: "instagram" },
-  { label: "Facebook", href: "https://www.facebook.com/chennaiturboriders", icon: "facebook" },
-  { label: "Twitter", href: "https://twitter.com/chennaiturbo", icon: "twitter" },
-  { label: "YouTube", href: "https://www.youtube.com/@chennaiturboriders", icon: "youtube" },
-] as const;
 
 function SocialIcon({ name, className = "h-4 w-4" }: { name: string; className?: string }) {
   const common = {
@@ -57,7 +50,13 @@ function SocialIcon({ name, className = "h-4 w-4" }: { name: string; className?:
         </svg>
       );
     default:
-      return null;
+      // "website" and anything unrecognised — a globe reads as "somewhere else".
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="8.5" />
+          <path d="M3.5 12h17M12 3.5c2.2 2.3 3.3 5.3 3.3 8.5s-1.1 6.2-3.3 8.5c-2.2-2.3-3.3-5.3-3.3-8.5S9.8 5.8 12 3.5z" />
+        </svg>
+      );
   }
 }
 
@@ -173,21 +172,30 @@ const fadeUp: Variants = {
   }),
 };
 
-export function LandingPage({ posts, year }: { posts: MediaPost[]; year: number }) {
+export function LandingPage({
+  content,
+  posts,
+  year,
+}: {
+  content: LandingContent;
+  posts: MediaPost[];
+  year: number;
+}) {
   const [showSplash, setShowSplash] = useState(true);
   const [fadeSplash, setFadeSplash] = useState(false);
 
   const bannerPosts = posts.slice(0, 3);
+  const { fade_in_ms: fadeInMs, hide_ms: hideMs } = content.splash;
 
   useEffect(() => {
-    const fadeTimer = window.setTimeout(() => setFadeSplash(true), content.splash.fade_in_ms);
-    const hideTimer = window.setTimeout(() => setShowSplash(false), content.splash.hide_ms);
+    const fadeTimer = window.setTimeout(() => setFadeSplash(true), fadeInMs);
+    const hideTimer = window.setTimeout(() => setShowSplash(false), hideMs);
 
     return () => {
       window.clearTimeout(fadeTimer);
       window.clearTimeout(hideTimer);
     };
-  }, []);
+  }, [fadeInMs, hideMs]);
 
   return (
     <>
@@ -223,26 +231,33 @@ export function LandingPage({ posts, year }: { posts: MediaPost[]; year: number 
               </span>
             </a>
 
-            {posts.length > 0 ? (
+            {/* Each anchor only appears when it has a section to jump to. */}
+            {posts.length > 0 || content.sports.length > 0 ? (
               <nav className="flex items-center gap-5">
-                <a
-                  href="#latest"
-                  className="font-display text-xs font-semibold uppercase tracking-[0.18em] text-white/55 transition hover:text-racing-yellow"
-                >
-                  Latest
-                </a>
-                <a
-                  href="#sports"
-                  className="hidden font-display text-xs font-semibold uppercase tracking-[0.18em] text-white/55 transition hover:text-racing-yellow sm:inline"
-                >
-                  Sports
-                </a>
-                <a
-                  href="#media"
-                  className="font-display text-xs font-semibold uppercase tracking-[0.18em] text-white/55 transition hover:text-racing-yellow"
-                >
-                  Media
-                </a>
+                {posts.length > 0 ? (
+                  <a
+                    href="#latest"
+                    className="font-display text-xs font-semibold uppercase tracking-[0.18em] text-white/55 transition hover:text-racing-yellow"
+                  >
+                    Latest
+                  </a>
+                ) : null}
+                {content.sports.length > 0 ? (
+                  <a
+                    href="#sports"
+                    className="hidden font-display text-xs font-semibold uppercase tracking-[0.18em] text-white/55 transition hover:text-racing-yellow sm:inline"
+                  >
+                    Sports
+                  </a>
+                ) : null}
+                {posts.length > 0 ? (
+                  <a
+                    href="#media"
+                    className="font-display text-xs font-semibold uppercase tracking-[0.18em] text-white/55 transition hover:text-racing-yellow"
+                  >
+                    Media
+                  </a>
+                ) : null}
               </nav>
             ) : null}
           </div>
@@ -323,7 +338,7 @@ export function LandingPage({ posts, year }: { posts: MediaPost[]; year: number 
                   href="#sports"
                   className="inline-flex items-center gap-2 rounded-full bg-racing-yellow px-7 py-3 font-display text-sm font-semibold uppercase tracking-wider text-carbon-950 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_14px_34px_-10px_rgba(247,214,25,0.55)] active:translate-y-0"
                 >
-                  Explore Sports
+                  {content.hero.cta_label}
                 </a>
               </motion.div>
             </div>
@@ -332,6 +347,9 @@ export function LandingPage({ posts, year }: { posts: MediaPost[]; year: number 
           {/* Three most recent posts, as banners. */}
           <PostBanners posts={bannerPosts} />
 
+          {/* Skipped entirely if every sport has been removed in the admin —
+              a heading over an empty rail reads as a broken page. */}
+          {content.sports.length > 0 ? (
           <section className="mx-auto max-w-6xl px-5 py-20 sm:px-6 sm:py-24" id="sports">
             <Reveal className="max-w-2xl">
               <p className="font-display text-xs font-bold uppercase tracking-[0.24em] text-racing-yellow">
@@ -354,6 +372,7 @@ export function LandingPage({ posts, year }: { posts: MediaPost[]; year: number 
               ))}
             </div>
           </section>
+          ) : null}
 
           {/* Every post, as a grid, at the bottom of the page. */}
           <div className="border-t border-white/5">
@@ -370,7 +389,7 @@ export function LandingPage({ posts, year }: { posts: MediaPost[]; year: number 
               </span>
             </div>
             <div className="flex items-center gap-3">
-              {SOCIALS.map((social) => (
+              {content.socials.map((social) => (
                 <a
                   key={social.label}
                   href={social.href}

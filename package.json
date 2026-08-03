@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "next lint",
     "create-admin": "node --env-file=.env scripts/create-admin.mjs",
-    "migrate": "node --env-file=.env scripts/migrate.mjs"
+    "migrate": "node --env-file=.env scripts/migrate.mjs",
+    "import-posts": "node --env-file=.env scripts/import-posts.mjs",
+    "import-content": "node --env-file=.env scripts/import-content.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1101.0",

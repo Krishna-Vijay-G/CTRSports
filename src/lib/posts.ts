@@ -1,28 +1,38 @@
 import { getSql } from "@/lib/db";
 import type { TemplateId } from "@/lib/templates";
+import type { LinkTypeId } from "@/lib/links";
+import type { SportId } from "@/lib/sports";
 
 export type MediaType = "image" | "video";
 
 export type MediaPost = {
   id: string;
-  title: string;
+  /** Which vertical the post belongs to — `main` is the landing page. */
+  sport: SportId;
+  /** Optional: a post can be media-only. */
+  title: string | null;
   subtext: string;
-  /** Image or video, depending on `media_type`. */
-  media_url: string;
+  /** Optional: a post can be copy-only. Image or video, per `media_type`. */
+  media_url: string | null;
   media_key: string | null;
   media_type: MediaType;
   /** Still frame for videos — captured from the first frame at upload time. */
   poster_url: string | null;
   poster_key: string | null;
   template: TemplateId;
-  instagram_url: string | null;
+  /** Where the call-to-action points, and what it is called. */
+  link_type: LinkTypeId;
+  link_url: string | null;
+  /** Overrides the label derived from `link_type`; how `custom` gets its name. */
+  link_label: string | null;
   /** ISO 8601 string — serialisable across the server/client boundary. */
   published_at: string;
   is_published: boolean;
 };
 
 const COLUMNS =
-  "id, title, subtext, media_url, media_key, media_type, poster_url, poster_key, template, instagram_url, published_at, is_published";
+  "id, sport, title, subtext, media_url, media_key, media_type, poster_url, poster_key, " +
+  "template, link_type, link_url, link_label, published_at, is_published";
 
 type PostRow = Omit<MediaPost, "published_at"> & { published_at: string | Date };
 
@@ -33,18 +43,35 @@ function toPost(row: PostRow): MediaPost {
   };
 }
 
-/** Published posts only, newest first — what the public landing page renders. */
-export async function listPublishedPosts(limit = 60): Promise<MediaPost[]> {
+/**
+ * Published posts for one vertical, newest first — what a public page renders.
+ * Pass `sport` to scope it; omit for every vertical at once.
+ */
+export async function listPublishedPosts(sport?: SportId, limit = 60): Promise<MediaPost[]> {
   const sql = getSql();
-  const rows = (await sql`
-    SELECT id, title, subtext, media_url, media_key, media_type, poster_url, poster_key,
-           template, instagram_url, published_at, is_published
-      FROM media_posts
-     WHERE is_published = true
-       AND published_at <= now()
-     ORDER BY published_at DESC
-     LIMIT ${limit}
-  `) as PostRow[];
+
+  // Two statements rather than one with an `OR sport IS NULL` guard, so the
+  // scoped query can use the (sport, published_at) index.
+  const rows = (await (sport
+    ? sql`
+        SELECT id, sport, title, subtext, media_url, media_key, media_type, poster_url, poster_key,
+               template, link_type, link_url, link_label, published_at, is_published
+          FROM media_posts
+         WHERE is_published = true
+           AND published_at <= now()
+           AND sport = ${sport}
+         ORDER BY published_at DESC
+         LIMIT ${limit}
+      `
+    : sql`
+        SELECT id, sport, title, subtext, media_url, media_key, media_type, poster_url, poster_key,
+               template, link_type, link_url, link_label, published_at, is_published
+          FROM media_posts
+         WHERE is_published = true
+           AND published_at <= now()
+         ORDER BY published_at DESC
+         LIMIT ${limit}
+      `)) as PostRow[];
 
   return rows.map(toPost);
 }
@@ -53,8 +80,8 @@ export async function listPublishedPosts(limit = 60): Promise<MediaPost[]> {
 export async function listAllPosts(): Promise<MediaPost[]> {
   const sql = getSql();
   const rows = (await sql`
-    SELECT id, title, subtext, media_url, media_key, media_type, poster_url, poster_key,
-           template, instagram_url, published_at, is_published
+    SELECT id, sport, title, subtext, media_url, media_key, media_type, poster_url, poster_key,
+           template, link_type, link_url, link_label, published_at, is_published
       FROM media_posts
      ORDER BY published_at DESC
   `) as PostRow[];
@@ -65,8 +92,8 @@ export async function listAllPosts(): Promise<MediaPost[]> {
 export async function getPost(id: string): Promise<MediaPost | null> {
   const sql = getSql();
   const rows = (await sql`
-    SELECT id, title, subtext, media_url, media_key, media_type, poster_url, poster_key,
-           template, instagram_url, published_at, is_published
+    SELECT id, sport, title, subtext, media_url, media_key, media_type, poster_url, poster_key,
+           template, link_type, link_url, link_label, published_at, is_published
       FROM media_posts
      WHERE id = ${id}
   `) as PostRow[];
@@ -75,15 +102,18 @@ export async function getPost(id: string): Promise<MediaPost | null> {
 }
 
 export type PostInput = {
-  title: string;
+  sport: SportId;
+  title: string | null;
   subtext: string;
-  media_url: string;
+  media_url: string | null;
   media_key: string | null;
   media_type: MediaType;
   poster_url: string | null;
   poster_key: string | null;
   template: TemplateId;
-  instagram_url: string | null;
+  link_type: LinkTypeId;
+  link_url: string | null;
+  link_label: string | null;
   published_at: string;
   is_published: boolean;
 };
@@ -92,9 +122,10 @@ export async function createPost(input: PostInput): Promise<MediaPost> {
   const sql = getSql();
   const rows = (await sql`
     INSERT INTO media_posts
-      (title, subtext, media_url, media_key, media_type, poster_url, poster_key,
-       template, instagram_url, published_at, is_published)
+      (sport, title, subtext, media_url, media_key, media_type, poster_url, poster_key,
+       template, link_type, link_url, link_label, published_at, is_published)
     VALUES (
+      ${input.sport},
       ${input.title},
       ${input.subtext},
       ${input.media_url},
@@ -103,7 +134,9 @@ export async function createPost(input: PostInput): Promise<MediaPost> {
       ${input.poster_url},
       ${input.poster_key},
       ${input.template},
-      ${input.instagram_url},
+      ${input.link_type},
+      ${input.link_url},
+      ${input.link_label},
       ${input.published_at},
       ${input.is_published}
     )
@@ -117,7 +150,8 @@ export async function updatePost(id: string, input: PostInput): Promise<MediaPos
   const sql = getSql();
   const rows = (await sql`
     UPDATE media_posts
-       SET title         = ${input.title},
+       SET sport         = ${input.sport},
+           title         = ${input.title},
            subtext       = ${input.subtext},
            media_url     = ${input.media_url},
            media_key     = ${input.media_key},
@@ -125,7 +159,9 @@ export async function updatePost(id: string, input: PostInput): Promise<MediaPos
            poster_url    = ${input.poster_url},
            poster_key    = ${input.poster_key},
            template      = ${input.template},
-           instagram_url = ${input.instagram_url},
+           link_type     = ${input.link_type},
+           link_url      = ${input.link_url},
+           link_label    = ${input.link_label},
            published_at  = ${input.published_at},
            is_published  = ${input.is_published},
            updated_at    = now()

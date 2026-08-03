@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { MediaPost } from "@/lib/posts";
 import { BannerTemplate } from "@/components/landing/BannerTemplates";
-import { cn } from "@/lib/utils";
+import { cn, postLabel } from "@/lib/utils";
 
 const AUTOPLAY_MS = 7000;
 
@@ -51,7 +51,7 @@ function SoundIcon({ muted }: { muted: boolean }) {
 /** Hard ceiling in case a clip stalls or never reports `ended`. */
 const VIDEO_FALLBACK_MS = 90_000;
 
-export function PostBanners({ posts }: { posts: MediaPost[] }) {
+export function PostBanners({ posts, kicker }: { posts: MediaPost[]; kicker?: string }) {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const [muted, setMuted] = useState(true);
@@ -145,6 +145,7 @@ export function PostBanners({ posts }: { posts: MediaPost[] }) {
               post={post}
               muted={muted}
               reducedMotion={reducedMotion}
+              kicker={kicker}
               video={videoHooks}
             />
 
@@ -170,7 +171,7 @@ export function PostBanners({ posts }: { posts: MediaPost[] }) {
                       key={item.id}
                       type="button"
                       onClick={() => go(i)}
-                      aria-label={`Show post ${i + 1}: ${item.title}`}
+                      aria-label={`Show post ${i + 1}: ${postLabel(item, `Post ${i + 1}`)}`}
                       aria-current={i === index}
                       className="group py-2"
                     >
@@ -247,7 +248,7 @@ export function PostBanners({ posts }: { posts: MediaPost[] }) {
       </div>
 
       <div aria-live="polite" className="sr-only">
-        {post.title}
+        {postLabel(post, `Post ${index + 1}`)}
       </div>
     </section>
   );

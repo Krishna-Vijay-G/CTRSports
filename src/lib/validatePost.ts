@@ -1,5 +1,7 @@
 import type { PostInput } from "@/lib/posts";
 import { DEFAULT_TEMPLATE, isTemplateId } from "@/lib/templates";
+import { DEFAULT_LINK_TYPE, LINK_LABEL_MAX, isLinkTypeId } from "@/lib/links";
+import { DEFAULT_SPORT, isSportId } from "@/lib/sports";
 
 export type ValidationResult =
   | { ok: true; value: PostInput }
@@ -31,8 +33,9 @@ export function validatePostBody(body: unknown): ValidationResult {
 
   const raw = body as Record<string, unknown>;
 
+  // Title, subtext, media and the link are each optional — but a post with none
+  // of them would render as an empty card, so at least one has to be there.
   const title = asString(raw.title);
-  if (!title) return { ok: false, error: "Title is required." };
   if (title.length > 200) return { ok: false, error: "Title must be 200 characters or fewer." };
 
   const subtext = asString(raw.subtext);
@@ -41,11 +44,12 @@ export function validatePostBody(body: unknown): ValidationResult {
   }
 
   const mediaUrl = asString(raw.media_url);
-  if (!mediaUrl) {
-    return { ok: false, error: "Media is required — upload an image or video, or paste a URL." };
-  }
-  if (!isUsableMediaUrl(mediaUrl)) {
+  if (mediaUrl && !isUsableMediaUrl(mediaUrl)) {
     return { ok: false, error: "Media URL must start with http://, https:// or /." };
+  }
+
+  if (!title && !subtext && !mediaUrl) {
+    return { ok: false, error: "Add at least a title, some subtext, or media." };
   }
 
   const mediaType = asString(raw.media_type) || "image";
@@ -63,9 +67,24 @@ export function validatePostBody(body: unknown): ValidationResult {
     return { ok: false, error: "Unknown template." };
   }
 
-  const instagramRaw = asString(raw.instagram_url);
-  if (instagramRaw && !isSafeHttpUrl(instagramRaw)) {
-    return { ok: false, error: "Instagram link must be a full http:// or https:// URL." };
+  const sport = raw.sport;
+  if (sport !== undefined && sport !== null && sport !== "" && !isSportId(sport)) {
+    return { ok: false, error: "Unknown sport." };
+  }
+
+  const linkType = raw.link_type;
+  if (linkType !== undefined && linkType !== null && linkType !== "" && !isLinkTypeId(linkType)) {
+    return { ok: false, error: "Unknown link type." };
+  }
+
+  const linkUrl = asString(raw.link_url);
+  if (linkUrl && !isSafeHttpUrl(linkUrl)) {
+    return { ok: false, error: "The link must be a full http:// or https:// URL." };
+  }
+
+  const linkLabel = asString(raw.link_label);
+  if (linkLabel.length > LINK_LABEL_MAX) {
+    return { ok: false, error: `Link name must be ${LINK_LABEL_MAX} characters or fewer.` };
   }
 
   const publishedRaw = asString(raw.published_at);
@@ -77,15 +96,20 @@ export function validatePostBody(body: unknown): ValidationResult {
   return {
     ok: true,
     value: {
-      title,
+      sport: isSportId(sport) ? sport : DEFAULT_SPORT,
+      title: title || null,
       subtext,
-      media_url: mediaUrl,
-      media_key: asString(raw.media_key) || null,
+      media_url: mediaUrl || null,
+      // A key without media of its own would strand an S3 object on the next edit.
+      media_key: mediaUrl ? asString(raw.media_key) || null : null,
       media_type: mediaType,
       poster_url: posterUrl || null,
-      poster_key: asString(raw.poster_key) || null,
+      poster_key: posterUrl ? asString(raw.poster_key) || null : null,
       template: isTemplateId(template) ? template : DEFAULT_TEMPLATE,
-      instagram_url: instagramRaw || null,
+      link_type: isLinkTypeId(linkType) ? linkType : DEFAULT_LINK_TYPE,
+      link_url: linkUrl || null,
+      // A label with no link to put it on is dead data.
+      link_label: linkUrl ? linkLabel || null : null,
       published_at: publishedAt.toISOString(),
       is_published: raw.is_published === undefined ? true : Boolean(raw.is_published),
     },

@@ -14,9 +14,10 @@ export type VideoHooks = {
 };
 
 /**
- * Renders a post's media, whichever kind it is. Videos autoplay muted (the only
- * form of autoplay browsers allow); the caller owns the mute state so a single
- * control in the banner can unmute the slide that is on screen.
+ * Renders a post's media, whichever kind it is, or nothing at all when the post
+ * carries no media. Videos autoplay muted (the only form of autoplay browsers
+ * allow); the caller owns the mute state so a single control in the banner can
+ * unmute the slide that is on screen.
  */
 export function PostMedia({
   post,
@@ -55,6 +56,9 @@ export function PostMedia({
     if (!muted) void element.play().catch(() => undefined);
   }, [muted]);
 
+  // Media is optional — a copy-only post simply has no media layer.
+  if (!post.media_url) return null;
+
   if (post.media_type === "video") {
     return (
       <video
@@ -78,7 +82,7 @@ export function PostMedia({
     return (
       <motion.img
         src={post.media_url}
-        alt={post.title}
+        alt={post.title ?? ""}
         initial={{ scale: 1.09 }}
         animate={{ scale: 1 }}
         transition={{ duration: 9, ease: "linear" }}
@@ -91,9 +95,14 @@ export function PostMedia({
   return (
     <img
       src={post.media_url}
-      alt={post.title}
+      alt={post.title ?? ""}
       className={cn(sizeClass, fitClass, className)}
       loading={priority ? "eager" : "lazy"}
     />
   );
+}
+
+/** Whether a post has anything to put in a media layer. */
+export function hasMedia(post: Pick<MediaPost, "media_url">): boolean {
+  return Boolean(post.media_url);
 }

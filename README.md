@@ -34,14 +34,61 @@ npm start
 
 ## Media posts & admin
 
-Posts shown on the landing page are stored in Neon Postgres; their images and videos live in S3.
+Posts are stored in Neon Postgres; their images and videos live in S3.
 
-- **Landing page** — the 3 most recent published posts render as rotating full-bleed banners
-  under the hero (`#latest`). Every published post also appears in the grid at the bottom of
-  the page (`#media`).
-- **Admin** — <https://ctrsports.in/media/admin/login>. Create, edit and delete posts with
-  title, subtext, drag-and-drop / browse / paste-URL **image or video**, a template, date &
-  time (IST, defaults to now), an optional Instagram link, and a draft toggle.
+- **Sport** — every post is tagged with one vertical, and that tag decides which page renders
+  it: `main` → `/`, `volleyball` → `/volleyball/post`, and so on. See
+  [`src/lib/sports.ts`](./src/lib/sports.ts) for the nine ids.
+- **Landing page** — the 3 most recent published `main` posts render as rotating full-bleed
+  banners under the hero (`#latest`). Every published `main` post also appears in the grid at
+  the bottom of the page (`#media`).
+- **Sport pages** — the crest up top with a tilt/zoom parallax effect, the 3 most recent posts
+  for that sport as banners, everything older in the grid below.
+- **Admin** — <https://ctrsports.in/media/admin/login>. Create, edit and delete posts with a
+  sport, a template, date & time (IST, defaults to now), a draft toggle, and then four
+  **optional** pieces: title, subtext, drag-and-drop / browse / paste-URL **image or video**,
+  and a link. At least one of title / subtext / media is required — everything else can be
+  left blank. The post list can be filtered by sport.
+
+### Links
+
+The call-to-action is optional and typed: `instagram`, `facebook`, `website` or `custom`. The
+type picks the glyph and the default wording ("View on Instagram", "Visit website", …);
+`custom` carries its own name. Defined in [`src/lib/links.ts`](./src/lib/links.ts).
+
+### Optional fields
+
+A post with no media renders as a **copy-only banner** — a centred typographic slide — whatever
+template it was saved with, because `split` and `spotlight` are built around a media half and
+would otherwise leave a hole. The saved template comes back if media is added later. A post
+with no title lets its subtext step up a size; a grid card with no media skips the media stage
+entirely rather than showing an empty box.
+
+## Landing page content
+
+Everything on the landing page that is not a post — splash, brand, hero, the sports section
+heading, the sport cards, the footer links — is stored in the `site_content` table as one JSONB
+document and edited at **/media/admin/content**. Nothing on that page is hardcoded any more.
+
+- [`landing_content.json`](./landing_content.json) at the project root is both the seed for
+  `npm run import-content` **and** what [`src/data/landingContent.ts`](./src/data/landingContent.ts)
+  imports for its defaults, so the two can never drift apart. Edit it to change the defaults.
+- [`normaliseContent.ts`](./src/lib/normaliseContent.ts) merges the stored document over those
+  defaults **on every read as well as every write**, field by field. A partial, stale or corrupt
+  document degrades one field at a time instead of taking the page down: missing fields fall
+  back, `javascript:` and protocol-relative URLs are replaced, splash timings are clamped,
+  duplicate card ids are renumbered, footer links with no valid `https://` address are dropped,
+  and unknown keys are discarded. A field deliberately set to `""` stays empty — only a
+  *missing* field falls back.
+- If the database is unreachable the page renders the defaults rather than failing.
+
+### Sport pages
+
+`/volleyball/post` is the one built so far. Its header carries the CTR logo, the wordmark and
+the sport's own crest. To add another, copy
+[`src/app/volleyball/post/page.tsx`](./src/app/volleyball/post/page.tsx) to
+`src/app/<slug>/post/page.tsx` and change `const sport = SPORTS.<id>` — crest, banners, grid,
+metadata and empty state all come from the shared `SportPostsPage`.
 
 ### Templates
 
@@ -102,11 +149,27 @@ component and register it in `COMPONENTS`, then add a wireframe case in `Templat
    Re-running `create-admin` for an existing username resets that password and signs out its
    sessions.
 
+3. Optionally seed content from the two snapshots at the project root:
+
+   ```bash
+   npm run import-posts -- --dry     # report what would change
+   npm run import-posts              # upsert posts by id, safe to re-run
+   npm run import-content            # push the landing page copy
+   ```
+
+   `import-posts` leaves rows that are in the database but not in the file alone — it imports,
+   it does not mirror. `import-content` replaces the whole landing document, so it doubles as
+   "reset the landing page to its built-in copy".
+
 ### How it fits together
 
 - `scripts/schema.mjs` — the schema, idempotent. Used by both `migrate` and `create-admin`.
 - `src/lib/db.ts` — Neon HTTP client + `ensureSchema()`.
-- `src/lib/posts.ts` — post queries (`listPublishedPosts` for the site, `listAllPosts` for admin).
+- `src/lib/posts.ts` — post queries (`listPublishedPosts(sport?)` for the site, `listAllPosts`
+  for admin).
+- `src/lib/sports.ts` — the nine verticals: ids, page slugs, crests, taglines.
+- `src/lib/links.ts` — the four link types and how a button label is resolved.
+- `src/lib/siteContent.ts` — read/write the landing document; `normaliseContent.ts` repairs it.
 - `src/lib/templates.ts` — the five templates and their grid-card treatments.
 - `src/lib/auth.ts` — scrypt password hashing, DB-backed sessions in an HttpOnly cookie
   (7 days). Only the SHA-256 of the session token is stored.
@@ -119,9 +182,9 @@ component and register it in `COMPONENTS`, then add a wireframe case in `Templat
 - Images over ~3.5 MB are downscaled to WebP in the browser first
   (`src/lib/imageCompress.ts`) to stay under the request-body limit.
 - Replacing or deleting a post's media also deletes the orphaned S3 objects.
-- The landing page uses ISR (`revalidate = 60`) and every write calls `revalidatePath("/")`,
-  so changes appear immediately. If the database is unreachable the page still renders, just
-  without posts.
+- Pages use ISR (`revalidate = 60`) and every write revalidates the affected sport's path, so
+  changes appear immediately. Re-tagging a post revalidates both the page it left and the page
+  it joined. If the database is unreachable the pages still render, just without posts.
 
 ## How it's organised
 

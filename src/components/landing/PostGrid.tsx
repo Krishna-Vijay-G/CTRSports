@@ -3,6 +3,8 @@
 import { useRef } from "react";
 import type { MediaPost } from "@/lib/posts";
 import { formatPostDate } from "@/lib/formatDate";
+import { resolvePostLink } from "@/lib/links";
+import { LinkGlyph } from "@/components/landing/BannerTemplates";
 import { Reveal } from "@/components/journey/Reveal";
 
 /**
@@ -11,6 +13,8 @@ import { Reveal } from "@/components/journey/Reveal";
  */
 function CardMedia({ post }: { post: MediaPost }) {
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  if (!post.media_url) return null;
 
   if (post.media_type === "video") {
     return (
@@ -41,7 +45,7 @@ function CardMedia({ post }: { post: MediaPost }) {
   return (
     <img
       src={post.media_url}
-      alt={post.title}
+      alt={post.title ?? ""}
       className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-[1.03]"
       loading="lazy"
     />
@@ -49,28 +53,42 @@ function CardMedia({ post }: { post: MediaPost }) {
 }
 
 function PostCard({ post }: { post: MediaPost }) {
+  const link = resolvePostLink(post);
+
   const body = (
     <>
-      {/* Fixed-ratio stage with object-contain — the whole frame stays visible. */}
-      <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden rounded-2xl bg-black/45 p-3">
-        <CardMedia post={post} />
-      </div>
+      {/* Fixed-ratio stage with object-contain — the whole frame stays visible.
+          Skipped entirely for copy-only posts rather than left as an empty box. */}
+      {post.media_url ? (
+        <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden rounded-2xl bg-black/45 p-3">
+          <CardMedia post={post} />
+        </div>
+      ) : null}
 
       <div className="flex flex-1 flex-col gap-2 px-1 pb-1 pt-4">
         <span className="font-display text-[11px] font-bold uppercase tracking-[0.18em] text-racing-yellow/80">
           {formatPostDate(post.published_at)}
         </span>
-        <h3 className="font-display text-lg font-semibold uppercase leading-tight tracking-wide text-white">
-          {post.title}
-        </h3>
+        {post.title ? (
+          <h3 className="font-display text-lg font-semibold uppercase leading-tight tracking-wide text-white">
+            {post.title}
+          </h3>
+        ) : null}
         {post.subtext ? (
-          <p className="line-clamp-3 whitespace-pre-line text-sm leading-relaxed text-white/55">
+          <p
+            className={
+              post.title
+                ? "line-clamp-3 whitespace-pre-line text-sm leading-relaxed text-white/55"
+                : "line-clamp-6 whitespace-pre-line text-base leading-relaxed text-white/70"
+            }
+          >
             {post.subtext}
           </p>
         ) : null}
-        {post.instagram_url ? (
+        {link ? (
           <span className="mt-auto inline-flex items-center gap-1.5 pt-2 font-display text-xs font-bold uppercase tracking-wider text-racing-yellow">
-            View on Instagram
+            <LinkGlyph type={link.type} className="h-3.5 w-3.5" />
+            {link.label}
             <svg
               width="14"
               height="14"
@@ -90,8 +108,8 @@ function PostCard({ post }: { post: MediaPost }) {
   const cardClass =
     "group flex h-full flex-col rounded-3xl border border-white/10 bg-white/[0.02] p-3 no-underline transition-colors duration-300 hover:border-racing-yellow/40 hover:bg-white/[0.05]";
 
-  return post.instagram_url ? (
-    <a href={post.instagram_url} target="_blank" rel="noreferrer" className={cardClass}>
+  return link ? (
+    <a href={link.url} target="_blank" rel="noreferrer" className={cardClass}>
       {body}
     </a>
   ) : (
@@ -99,17 +117,27 @@ function PostCard({ post }: { post: MediaPost }) {
   );
 }
 
-export function PostGrid({ posts }: { posts: MediaPost[] }) {
+export function PostGrid({
+  posts,
+  kicker = "MEDIA & UPDATES",
+  title = "All Posts",
+  id = "media",
+}: {
+  posts: MediaPost[];
+  kicker?: string;
+  title?: string;
+  id?: string;
+}) {
   if (posts.length === 0) return null;
 
   return (
-    <section id="media" className="mx-auto max-w-6xl px-5 py-20 sm:px-6 sm:py-24">
+    <section id={id} className="mx-auto max-w-6xl px-5 py-20 sm:px-6 sm:py-24">
       <Reveal className="max-w-2xl">
         <p className="font-display text-xs font-bold uppercase tracking-[0.24em] text-racing-yellow">
-          MEDIA &amp; UPDATES
+          {kicker}
         </p>
         <h2 className="mt-2 font-display text-3xl font-bold uppercase leading-tight tracking-wide text-white sm:text-4xl lg:text-5xl">
-          All Posts
+          {title}
         </h2>
       </Reveal>
 
