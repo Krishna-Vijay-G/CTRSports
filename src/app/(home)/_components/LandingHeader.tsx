@@ -1,4 +1,6 @@
 import type { LandingContent } from "@/lib/landingContent";
+import type { MarqueeItem } from "@/lib/marquee";
+import { AnnouncementMarquee } from "@/components/ui/AnnouncementMarquee";
 
 const anchorClass =
   "font-display text-xs font-semibold uppercase tracking-[0.18em] text-white/55 transition hover:text-racing-yellow";
@@ -8,13 +10,16 @@ export function LandingHeader({
   brand,
   hasPosts,
   hasSports,
+  marquee,
 }: {
   brand: LandingContent["brand"];
   hasPosts: boolean;
   hasSports: boolean;
+  marquee: MarqueeItem[];
 }) {
   return (
     <header className="sticky top-0 z-40 border-b border-white/5 bg-carbon-950/70 backdrop-blur-md">
+      <AnnouncementMarquee items={marquee} />
       <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3 sm:px-6">
         <a href="#top" className="flex items-center gap-3" aria-label={brand.home_aria_label}>
           <img src={brand.logo_image} alt="CTR Unified logo" className="h-10 w-auto sm:h-12" />

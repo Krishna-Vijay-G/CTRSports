@@ -1,5 +1,6 @@
 import type { LandingContent } from "@/lib/landingContent";
 import type { MediaPost } from "@/lib/posts";
+import type { MarqueeItem } from "@/lib/marquee";
 import { PostBanners } from "@/components/post/PostBanners";
 import { PostGrid } from "@/components/post/PostGrid";
 import { LandingFooter } from "./LandingFooter";
@@ -14,10 +15,12 @@ const BANNER_COUNT = 3;
 export function LandingPage({
   content,
   posts,
+  marquee,
   year,
 }: {
   content: LandingContent;
   posts: MediaPost[];
+  marquee: MarqueeItem[];
   year: number;
 }) {
   return (
@@ -29,6 +32,7 @@ export function LandingPage({
           brand={content.brand}
           hasPosts={posts.length > 0}
           hasSports={content.sports.length > 0}
+          marquee={marquee}
         />
 
         <main id="main-content">

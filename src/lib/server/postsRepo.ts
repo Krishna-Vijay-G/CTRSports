@@ -33,12 +33,17 @@ export async function listPublishedPosts(sport: SportId, limit = 60): Promise<Me
   return rows.map(toPost);
 }
 
-/** Every post including drafts and future-dated ones — admin dashboard view. */
-export async function listAllPosts(): Promise<MediaPost[]> {
+/**
+ * Every post for one sport, including drafts and future-dated ones — the
+ * admin media page for that sport, which is now the only admin media view
+ * (each sport's admin lives at its own `/admin/media/{sport}` route).
+ */
+export async function listAllPosts(sport: SportId): Promise<MediaPost[]> {
   const sql = getSql();
   const rows = (await sql`
     SELECT ${sql.unsafe(COLUMNS)}
       FROM media_posts
+     WHERE sport = ${sport}
      ORDER BY published_at DESC
   `) as PostRow[];
 

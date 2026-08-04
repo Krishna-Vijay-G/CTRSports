@@ -11,7 +11,6 @@ import {
   type Sport,
 } from "@/lib/landingContent";
 import { MAX_SOCIALS, MAX_SPORTS } from "@/lib/normaliseContent";
-import { AdminHeader } from "@/components/admin/AdminHeader";
 import { cn } from "@/lib/utils";
 
 const fieldClass =
@@ -190,13 +189,7 @@ function emptySport(index: number): Sport {
 
 const EMPTY_SOCIAL: SocialLink = { label: "", href: "", icon: "website" };
 
-export function ContentEditor({
-  initialContent,
-  username,
-}: {
-  initialContent: LandingContent;
-  username: string;
-}) {
+export function ContentEditor({ initialContent }: { initialContent: LandingContent }) {
   const router = useRouter();
 
   const [content, setContent] = useState<LandingContent>(initialContent);
@@ -296,10 +289,11 @@ export function ContentEditor({
   }
 
   return (
-    <div className="mx-auto max-w-[1100px] px-5 py-8 sm:px-6">
-      <AdminHeader username={username} active="content" title="Site Content" />
-
-      <p className="mt-5 text-sm leading-relaxed text-white/45">
+    <div className="mx-auto max-w-[1100px]">
+      <h1 className="font-display text-lg font-bold uppercase tracking-wide text-white">
+        Site Content
+      </h1>
+      <p className="mt-2 text-sm leading-relaxed text-white/45">
         Everything on the landing page except the posts. Changes go live as soon as you save —
         the page rebuilds immediately rather than waiting for the next revalidation.
       </p>
@@ -655,7 +649,7 @@ export function ContentEditor({
         ) : null}
 
         {/* Sticky so Save is reachable without scrolling back up a long form. */}
-        <div className="sticky bottom-0 -mx-5 flex flex-wrap items-center gap-3 border-t border-white/10 bg-carbon-950/90 px-5 py-4 backdrop-blur-md sm:-mx-6 sm:px-6">
+        <div className="sticky bottom-0 -mx-5 flex flex-wrap items-center gap-3 border-t border-white/10 bg-carbon-950/90 px-5 py-4 backdrop-blur-md sm:-mx-6 sm:px-6 md:-mx-8 md:px-8">
           <button
             type="submit"
             disabled={busy || !dirty}

@@ -2,7 +2,9 @@ import "server-only";
 
 import type { Metadata } from "next";
 import type { MediaPost } from "@/lib/posts";
+import type { MarqueeItem } from "@/lib/marquee";
 import { listPublishedPosts } from "@/lib/server/postsRepo";
+import { getMarquee } from "@/lib/server/marqueeRepo";
 import { SPORTS, type SportId } from "@/lib/sports";
 
 /**
@@ -26,6 +28,16 @@ export async function loadPosts(sport: SportId): Promise<MediaPost[]> {
     return await listPublishedPosts(sport);
   } catch (error) {
     console.error(`[${sport}] could not load posts`, error);
+    return [];
+  }
+}
+
+/** Never throws: an unreachable database means no announcement strip, not a 500. */
+export async function loadMarquee(sport: SportId): Promise<MarqueeItem[]> {
+  try {
+    return await getMarquee(sport);
+  } catch (error) {
+    console.error(`[${sport}] could not load marquee`, error);
     return [];
   }
 }

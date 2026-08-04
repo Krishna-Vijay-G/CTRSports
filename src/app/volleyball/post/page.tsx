@@ -1,5 +1,5 @@
 import { SportPostsPage } from "@/components/sport/SportPostsPage";
-import { loadPosts, sportPostMetadata } from "@/lib/server/sportPages";
+import { loadPosts, loadMarquee, sportPostMetadata } from "@/lib/server/sportPages";
 import { SPORTS } from "@/lib/sports";
 
 /** Re-rendered every minute; publishing from the admin also revalidates this path. */
@@ -12,6 +12,7 @@ export default async function Page() {
     <SportPostsPage
       sport={SPORTS.volleyball}
       posts={await loadPosts("volleyball")}
+      marquee={await loadMarquee("volleyball")}
       year={new Date().getFullYear()}
     />
   );

@@ -30,7 +30,8 @@ export function LoginForm() {
         return;
       }
 
-      router.replace("/media/admin");
+      // The index route sends each role to its own home page.
+      router.replace("/admin");
       router.refresh();
     } catch {
       setError("Network error. Please try again.");
@@ -45,9 +46,9 @@ export function LoginForm() {
           <img src="/media/ctr-logo.png" alt="CTR Unified" className="h-16 w-auto" />
           <div>
             <h1 className="font-display text-2xl font-bold uppercase tracking-wide text-white">
-              Media Management
+              Admin
             </h1>
-            <p className="mt-1 text-sm text-white/45">Sign in to publish posts to ctrsports.in</p>
+            <p className="mt-1 text-sm text-white/45">Sign in to manage ctrsports.in</p>
           </div>
         </div>
 

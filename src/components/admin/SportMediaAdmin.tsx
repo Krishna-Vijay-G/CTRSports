@@ -12,15 +12,15 @@ import {
   resolveLinkType,
   type LinkTypeId,
 } from "@/lib/links";
-import { DEFAULT_SPORT, SPORT_LIST, resolveSport, type SportId } from "@/lib/sports";
+import type { SportMeta } from "@/lib/sports";
+import type { MarqueeItem } from "@/lib/marquee";
 import { formatPostDateTime, fromDateTimeLocal, toDateTimeLocal } from "@/lib/formatDate";
-import { MediaPicker, EMPTY_MEDIA, type MediaValue } from "./MediaPicker";
-import { TemplatePicker } from "./TemplatePicker";
-import { AdminHeader } from "@/components/admin/AdminHeader";
+import { MediaPicker, EMPTY_MEDIA, type MediaValue } from "@/components/admin/MediaPicker";
+import { TemplatePicker } from "@/components/admin/TemplatePicker";
+import { MarqueeEditor } from "@/components/admin/MarqueeEditor";
 import { cn, postLabel } from "@/lib/utils";
 
 type FormState = {
-  sport: SportId;
   title: string;
   subtext: string;
   media: MediaValue;
@@ -34,7 +34,6 @@ type FormState = {
 
 function emptyForm(nowLocal: string): FormState {
   return {
-    sport: DEFAULT_SPORT,
     title: "",
     subtext: "",
     media: EMPTY_MEDIA,
@@ -49,7 +48,6 @@ function emptyForm(nowLocal: string): FormState {
 
 function formFromPost(post: MediaPost): FormState {
   return {
-    sport: resolveSport(post.sport).id,
     title: post.title ?? "",
     subtext: post.subtext,
     media: {
@@ -68,24 +66,21 @@ function formFromPost(post: MediaPost): FormState {
   };
 }
 
-/** Where a post tagged with this sport will show up, for the hint under the picker. */
-function sportDestination(sport: SportId): string {
-  const slug = resolveSport(sport).slug;
-  return slug ? `ctrsports.in/${slug}/post` : "ctrsports.in";
-}
-
 const fieldClass =
   "mt-2 w-full rounded-xl border border-white/10 bg-carbon-900 px-4 py-2.5 text-sm text-white outline-none transition focus:border-racing-yellow/60";
 
 const labelClass = "font-display text-[11px] font-bold uppercase tracking-[0.18em] text-white/40";
 
-export function AdminDashboard({
+/** One sport's media admin: create/edit/delete its posts. Reused by every `/admin/media/{sport}` route. */
+export function SportMediaAdmin({
+  sport,
   initialPosts,
-  username,
+  initialMarqueeItems,
   nowIso,
 }: {
+  sport: SportMeta;
   initialPosts: MediaPost[];
-  username: string;
+  initialMarqueeItems: MarqueeItem[];
   nowIso: string;
 }) {
   const router = useRouter();
@@ -95,7 +90,6 @@ export function AdminDashboard({
   const [posts, setPosts] = useState(initialPosts);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(() => emptyForm(nowLocal));
-  const [sportFilter, setSportFilter] = useState<SportId | "all">("all");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -108,7 +102,7 @@ export function AdminDashboard({
     if (!hasContent) return null;
     return {
       id: "preview",
-      sport: form.sport,
+      sport: sport.id,
       title: form.title.trim() || null,
       subtext: form.subtext,
       media_url: form.media.url.trim() || null,
@@ -125,33 +119,18 @@ export function AdminDashboard({
         : new Date(nowIso).toISOString(),
       is_published: form.isPublished,
     };
-  }, [form, hasContent, nowIso]);
+  }, [form, hasContent, nowIso, sport.id]);
 
-  /**
-   * Which posts currently sit in a banner slot. Counted per sport, because each
-   * sport's page runs its own carousel of that sport's three most recent posts.
-   */
+  /** Which posts currently sit in a banner slot — the three most recent, live, not future-dated. */
   const bannerIds = useMemo(() => {
-    const perSport = new Map<SportId, number>();
     const ids = new Set<string>();
-
-    // `posts` arrives newest-first; future-dated ones are not live yet.
     for (const post of posts) {
       if (!post.is_published || post.published_at > nowIso) continue;
-      const sport = resolveSport(post.sport).id;
-      const count = perSport.get(sport) ?? 0;
-      if (count < 3) {
-        ids.add(post.id);
-        perSport.set(sport, count + 1);
-      }
+      if (ids.size >= 3) break;
+      ids.add(post.id);
     }
     return ids;
   }, [posts, nowIso]);
-
-  const visiblePosts = useMemo(
-    () => (sportFilter === "all" ? posts : posts.filter((p) => resolveSport(p.sport).id === sportFilter)),
-    [posts, sportFilter]
-  );
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -172,7 +151,7 @@ export function AdminDashboard({
   }
 
   async function refresh() {
-    const response = await fetch("/api/admin/posts", { cache: "no-store" });
+    const response = await fetch(`/api/admin/posts?sport=${sport.id}`, { cache: "no-store" });
     if (response.ok) {
       const data = await response.json();
       setPosts(data.posts as MediaPost[]);
@@ -195,7 +174,7 @@ export function AdminDashboard({
     setBusy(true);
 
     const payload = {
-      sport: form.sport,
+      sport: sport.id,
       title: form.title.trim() || null,
       subtext: form.subtext,
       media_url: form.media.url.trim() || null,
@@ -271,14 +250,25 @@ export function AdminDashboard({
   }
 
   return (
-    <div className="mx-auto max-w-[1500px] px-5 py-8 sm:px-6">
-      <AdminHeader username={username} active="posts" title="Media Management" />
+    <div className="mx-auto max-w-[1500px]">
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <h1 className="font-display text-lg font-bold uppercase tracking-wide text-white">
+          {sport.name} Media
+        </h1>
+        <span className="text-xs text-white/40">
+          {posts.length} post{posts.length === 1 ? "" : "s"}
+        </span>
+      </div>
 
       {notice ? (
         <p className="mt-5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
           {notice}
         </p>
       ) : null}
+
+      <div className="mt-8">
+        <MarqueeEditor sport={sport.id} initialItems={initialMarqueeItems} />
+      </div>
 
       <form onSubmit={handleSubmit}>
         <div className="mt-8 grid gap-8 xl:grid-cols-[minmax(0,400px)_minmax(0,1fr)]">
@@ -298,24 +288,6 @@ export function AdminDashboard({
                 </button>
               ) : null}
             </div>
-
-            <label className="mt-6 block">
-              <span className={labelClass}>Sport *</span>
-              <select
-                value={form.sport}
-                onChange={(e) => set("sport", e.target.value as SportId)}
-                className={cn(fieldClass, "[color-scheme:dark]")}
-              >
-                {SPORT_LIST.map((sport) => (
-                  <option key={sport.id} value={sport.id}>
-                    {sport.short}
-                  </option>
-                ))}
-              </select>
-              <span className="mt-1.5 block text-[11px] text-white/35">
-                Shows on <span className="text-racing-yellow/70">{sportDestination(form.sport)}</span>
-              </span>
-            </label>
 
             <p className="mt-6 text-[11px] leading-relaxed text-white/35">
               Title, subtext, media and the link are all optional — fill in whichever the post
@@ -475,18 +447,16 @@ export function AdminDashboard({
                 Template
               </h2>
               <p className="mt-1 text-xs text-white/40">
-                The banner layout used when this post is one of the three most recent for its
-                sport. Cards in the grid below the banners all share one format. A post with no
-                media always uses the copy-only banner.
+                The banner layout used when this post is one of the three most recent for{" "}
+                {sport.name}. Cards in the grid below the banners all share one format. A post
+                with no media always uses the copy-only banner.
               </p>
               <div className="mt-5">
                 <TemplatePicker
                   value={form.template}
                   onChange={(next) => set("template", next)}
                   previewPost={previewPost}
-                  previewKicker={
-                    form.sport === DEFAULT_SPORT ? undefined : resolveSport(form.sport).name
-                  }
+                  previewKicker={sport.slug ? sport.name : undefined}
                 />
               </div>
             </section>
@@ -497,48 +467,16 @@ export function AdminDashboard({
                 <h2 className="font-display text-base font-bold uppercase tracking-wide text-white">
                   Posts
                 </h2>
-                <span className="text-xs text-white/40">
-                  {visiblePosts.length} of {posts.length} · newest first
-                </span>
+                <span className="text-xs text-white/40">{posts.length} · newest first</span>
               </div>
 
-              <div className="mt-4 flex flex-wrap gap-2">
-                {([{ id: "all" as const, short: "All" }, ...SPORT_LIST]).map((sport) => {
-                  const active = sportFilter === sport.id;
-                  const count =
-                    sport.id === "all"
-                      ? posts.length
-                      : posts.filter((p) => resolveSport(p.sport).id === sport.id).length;
-
-                  return (
-                    <button
-                      key={sport.id}
-                      type="button"
-                      onClick={() => setSportFilter(sport.id)}
-                      aria-pressed={active}
-                      className={cn(
-                        "rounded-full border px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-wider transition",
-                        active
-                          ? "border-racing-yellow/70 bg-racing-yellow/[0.08] text-racing-yellow"
-                          : "border-white/10 text-white/50 hover:border-white/25 hover:text-white/75"
-                      )}
-                    >
-                      {sport.short}
-                      <span className="ml-1.5 text-white/30">{count}</span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {visiblePosts.length === 0 ? (
+              {posts.length === 0 ? (
                 <p className="mt-6 rounded-2xl border border-dashed border-white/15 px-6 py-14 text-center text-sm text-white/40">
-                  {posts.length === 0
-                    ? "No posts yet. Create your first one with the form."
-                    : "No posts for this sport yet."}
+                  No posts yet. Create your first one with the form.
                 </p>
               ) : (
                 <ul className="mt-5 space-y-4">
-                  {visiblePosts.map((post) => (
+                  {posts.map((post) => (
                     <li
                       key={post.id}
                       className={cn(
@@ -573,9 +511,6 @@ export function AdminDashboard({
 
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white/75">
-                            {resolveSport(post.sport).short}
-                          </span>
                           {bannerIds.has(post.id) ? (
                             <span className="rounded-full bg-racing-yellow/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-racing-yellow">
                               Banner

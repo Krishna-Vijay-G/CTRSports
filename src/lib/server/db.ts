@@ -117,12 +117,29 @@ export async function ensureSchema() {
     )
   `;
 
+  // Which admin section this account can reach — an AdminRoleId from
+  // src/lib/adminRoles.ts. Defaulting to 'super_admin' backfills accounts
+  // created before roles existed to the full access they already had.
+  await sql`ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS role text NOT NULL DEFAULT 'super_admin'`;
+
   await sql`
     CREATE TABLE IF NOT EXISTS admin_sessions (
       token_hash text PRIMARY KEY,
       admin_id   uuid NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
       expires_at timestamptz NOT NULL,
       created_at timestamptz NOT NULL DEFAULT now()
+    )
+  `;
+
+  // Each page's scrolling announcement strip — 'main' is the landing page,
+  // every other key is a SportId. A JSONB array rather than a row per item:
+  // the whole list is always read and written together, and there is no
+  // query that ever needs one item out of it.
+  await sql`
+    CREATE TABLE IF NOT EXISTS page_marquees (
+      sport      text PRIMARY KEY,
+      items      jsonb NOT NULL DEFAULT '[]',
+      updated_at timestamptz NOT NULL DEFAULT now()
     )
   `;
 

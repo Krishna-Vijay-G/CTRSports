@@ -2,7 +2,7 @@
  * The landing page's copy, images and links.
  *
  * The LIVE content lives in the `site_content` table and is edited at
- * /media/admin/content. What lives here is the TYPE plus the DEFAULTS, which:
+ * /admin/content. What lives here is the TYPE plus the DEFAULTS, which:
  *
  *   1. render the page when the database is unreachable or has no row yet, so
  *      it can never come up blank

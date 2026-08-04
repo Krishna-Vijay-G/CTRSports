@@ -1,17 +1,18 @@
 ================================================================================
 CTR UNIFIED — MEDIA UPLOAD & POST TEMPLATES
 Reference for the post system behind ctrsports.in
-Last updated: 2 August 2026
+Last updated: 4 August 2026
 ================================================================================
 
 
 1. WHAT THIS COVERS
 --------------------------------------------------------------------------------
-Posts are created and managed at /media/admin. Each post carries a
-sport, a template, a publish date/time, and then four OPTIONAL pieces:
-a title, subtext, one piece of media (image OR video), and a link. Only
-the sport and the template are mandatory — plus at least one of title,
-subtext or media, since a post with none of those has nothing to render.
+Posts are created and managed at /admin/media/{sport} — one URL per
+sport, per the role an account has (section 6.4). Each post carries a
+template, a publish date/time, and then four OPTIONAL pieces: a title,
+subtext, one piece of media (image OR video), and a link. Only the
+template is mandatory — plus at least one of title, subtext or media,
+since a post with none of those has nothing to render.
 
 Posts are stored in Neon Postgres. Media files live in the S3 bucket
 ctr-unified-media-storage (ap-south-1).
@@ -196,7 +197,7 @@ grid cards all look the same regardless of template.
   3. Write the component in src/components/post/BannerTemplates.tsx
      and register it in the COMPONENTS map
   4. Add a wireframe case to the switch in
-     src/app/media/admin/_components/TemplatePicker.tsx
+     src/components/admin/TemplatePicker.tsx
   Anything not matching a known id falls back to "wedge", so old rows
   are never left broken.
 
@@ -235,7 +236,7 @@ An unrecognised value also falls back to 'main' rather than vanishing.
   route. They do not collide and /academy is untouched.
 
 5.2 Adding one of the remaining sport pages
-  Three steps:
+  Four steps:
 
     1. Create src/app/<slug>/post/page.tsx — copy any existing one and
        change the sport id in the three places it appears:
@@ -247,8 +248,14 @@ An unrecognised value also falls back to 'main' rather than vanishing.
     2. Add the id to BUILT_SPORT_PAGES in src/lib/sports.ts, or the page
        will never reach the sitemap.
 
-    3. Point its landing card at the new page — that is CONTENT, so edit
-       it at /media/admin/content (set the card's Link to /<slug>/post),
+    3. Give it an admin: add a "hockey_admin" entry to ADMIN_ROLES in
+       src/lib/adminRoles.ts (sport: "hockey"), then create
+       src/app/admin/(protected)/media/hockey/page.tsx — copy any
+       existing media/<sport>/page.tsx and swap the sport id. It reuses
+       SportMediaAdmin, so there is no new UI to write.
+
+    4. Point its landing card at the new page — that is CONTENT, so edit
+       it at /admin/content (set the card's Link to /<slug>/post),
        not in code. Changing DEFAULT_LANDING_CONTENT only moves the
        fallback; see 6.3.
 
@@ -283,7 +290,18 @@ Table: media_posts
   created_at     timestamptz
   updated_at     timestamptz
 
-Also: admin_users, admin_sessions.
+Also:
+  admin_users        id, username, password_hash, role (default
+                     'super_admin' — see 6.4), created_at
+  admin_sessions     token_hash (primary key), admin_id, expires_at,
+                     created_at
+  race_registrations id, name, dob (date), category, phone, email,
+                     created_at — the public form at
+                     /academy/registration; see docs/../README.md
+                     "Race registrations" for the field-level detail
+  page_marquees      sport (primary key), items (jsonb array of
+                     { id, text, url }), updated_at — see README.md
+                     "Marquees"
 
 Title, subtext, media and the link are each optional at the column
 level. The application layer adds one rule on top: at least one of
@@ -303,6 +321,10 @@ the site. Future-dating a post therefore schedules it.
   Existing rows default to link_type 'instagram' and sport 'main', which
   is exactly what they were before, so the rename is invisible.
   v3 dropped NOT NULL from title and media_url.
+  v4 added admin_users.role (default 'super_admin', so accounts created
+  before roles existed keep the full access they already had) and the
+  race_registrations table.
+  v5 added the page_marquees table.
 
   Every step checks before it acts, so re-running is safe:
       npm run migrate
@@ -310,7 +332,7 @@ the site. Future-dating a post therefore schedules it.
 6.2 The database is the only copy
   There is no JSON snapshot of the posts in the repo and no import
   script. The table IS the content: posts are created, edited and deleted
-  at /media/admin and nowhere else.
+  at /admin/media/{sport} and nowhere else.
 
   That means DELETING A POST IS FINAL. The row goes, and the DELETE route
   also drops its S3 objects (section 2.7), so neither the record nor the
@@ -336,7 +358,7 @@ the site. Future-dating a post therefore schedules it.
   One JSONB document rather than a column per field: the shape is nested,
   it changes whenever the design does, and nothing ever queries inside it.
 
-  Edit it at /media/admin/content. There is no seed step and no JSON
+  Edit it at /admin/content. There is no seed step and no JSON
   snapshot: with no row, the page renders the defaults in
   src/lib/landingContent.ts and the editor opens on them, so saving once
   writes the row. "Load defaults" in the editor restores those same
@@ -368,6 +390,48 @@ the site. Future-dating a post therefore schedules it.
   rather than failing. That is a real, exercised path, not a theory: the
   page stays at HTTP 200 with the built-in copy and no posts.
 
+6.4 Roles
+  admin_users.role is one AdminRoleId from src/lib/adminRoles.ts:
+
+    super_admin        every /admin/* screen, including /admin/users
+    main_admin         /admin/media/main + /admin/content
+    academy_admin      /admin/media/academy + /admin/registration/academy
+    volleyball_admin   /admin/media/volleyball only
+    cricket_admin      /admin/media/cricket only
+    karting_admin      /admin/media/karting only
+
+  ADMIN_ROLES in adminRoles.ts is the single source for what each role
+  reaches (adminNavItems() renders the sidebar from it; adminHomePath()
+  is where login and an unauthorized page both redirect to) and every
+  admin API route calls the matching canManageMedia() / canManageContent()
+  / canManageRegistrations() / isSuperAdmin() check independently — the
+  sidebar not showing a link is a convenience, not the enforcement.
+
+  Changing a role (at /admin/users, super_admin only) deletes that
+  account's admin_sessions rows, so the new permissions apply the moment
+  the change is saved, not on next login. A super admin cannot change
+  their own role from that screen, so a mistake there cannot lock every
+  super admin out at once — get another super admin to do it, or fall
+  back to `npm run create-admin -- <username> <password> super_admin`.
+
+6.5 Marquees
+  Every page a role owns can carry its own scrolling announcement strip:
+  /, /academy/post, /volleyball/post, /cricket/post, /karting/post. Edited
+  in a "Marquee" panel on that page's own /admin/media/{sport} screen —
+  same role, same page, same gate (canManageMedia(role, sport)) as the
+  posts beside it.
+
+  Each item is { id, text, url }. url is optional: blank renders as plain
+  text; a leading "/" opens via next/link in the same tab; a full
+  http(s):// URL opens in a new one. A page with none configured shows
+  nothing extra — AnnouncementMarquee (src/components/ui/) returns null
+  rather than an empty bar.
+
+  This is unrelated to JourneyMarquee, the gold ticker fixed to the top
+  of /academy (the biography microsite) — that one is static deck copy,
+  not stored in the database, and was left alone. /academy itself has no
+  admin screen; academy_admin's page is /academy/post.
+
 
 7. LINKS
 --------------------------------------------------------------------------------
@@ -398,21 +462,37 @@ fall back to 'instagram'.
 
 8. API ROUTES
 --------------------------------------------------------------------------------
-  POST   /api/admin/login        sign in, sets the session cookie
-  POST   /api/admin/logout       sign out, revokes the session row
-  GET    /api/admin/posts        list all posts incl. drafts
-  POST   /api/admin/posts        create
-  PUT    /api/admin/posts/[id]   update
-  DELETE /api/admin/posts/[id]   delete (+ its S3 objects)
-  GET    /api/admin/content      the landing page document
-  PUT    /api/admin/content      replace it
-  POST   /api/admin/upload       proxied image upload
-  POST   /api/admin/upload-url   presigned PUT for video
+  POST   /api/admin/login          sign in, sets the session cookie
+  POST   /api/admin/logout         sign out, revokes the session row
+  GET    /api/admin/posts?sport=   list one sport's posts incl. drafts
+  POST   /api/admin/posts          create
+  PUT    /api/admin/posts/[id]     update
+  DELETE /api/admin/posts/[id]     delete (+ its S3 objects)
+  GET    /api/admin/content        the landing page document
+  PUT    /api/admin/content        replace it
+  POST   /api/admin/upload         proxied image upload
+  POST   /api/admin/upload-url     presigned PUT for video
+  GET    /api/admin/users          list admin accounts (super_admin)
+  POST   /api/admin/users          create an account (super_admin)
+  PATCH  /api/admin/users/[id]     change its role (super_admin, not self)
+  GET    /api/admin/marquee?sport= one page's announcements
+  PUT    /api/admin/marquee?sport= replace them
+  POST   /api/academy/registration public — create a race registration
 
-Every one of these checks the session first. Server-side validation
-rejects unknown sports, templates and link types, media types other than
-image/video, and any URL that is not http(s) or a leading-slash path —
-so javascript: URLs cannot reach an href or src.
+Every /api/admin/* route checks the session first, then (posts, content,
+marquee, users) the role: canManageMedia(role, sport) for the posts AND
+marquee routes — checked against BOTH the post's current sport and, on a
+PUT, the sport it is being saved as, so a scoped role can neither edit a
+post outside its section nor move one of its own posts into someone
+else's — canManageContent(role) for /content, isSuperAdmin(role) for
+/users. /api/academy/registration is the one unauthenticated write in
+the app; it validates every field server-side (see the README's "Race
+registrations") and carries a honeypot field.
+
+Server-side validation on the posts routes also rejects unknown sports,
+templates and link types, media types other than image/video, and any
+URL that is not http(s) or a leading-slash path — so javascript: URLs
+cannot reach an href or src.
 
 Writes revalidate the page the post belongs to, not always "/". An edit
 that re-tags a post from one sport to another revalidates BOTH the page
@@ -437,14 +517,25 @@ it left and the page it joined.
     src/lib/formatDate.ts         IST-pinned post timestamps
     src/lib/site.ts               site URL, name, social profiles
     src/lib/utils.ts              cn() + postLabel() for titleless posts
+    src/lib/adminRoles.ts         the role catalog, permission checks,
+                                  adminNavItems() / adminHomePath()
+    src/lib/raceCategories.ts     the eight INCRC categories
+    src/lib/registrations.ts      the Registration type + ageFromDob()
+    src/lib/validateRegistration.ts  request-body validation
+    src/lib/marquee.ts            the MarqueeItem type, MAX_MARQUEE_ITEMS
+    src/lib/validateMarquee.ts    request-body validation
 
   SERVER ONLY — never reachable from a client component
     src/lib/server/db.ts          Neon client + schema bootstrap
-    src/lib/server/auth.ts        scrypt hashing, DB-backed sessions
-    src/lib/server/postsRepo.ts   the post queries
+    src/lib/server/auth.ts        scrypt hashing, DB-backed sessions,
+                                  getSession() (cached, returns the role)
+    src/lib/server/postsRepo.ts   the post queries, listAllPosts(sport)
     src/lib/server/siteContent.ts read/write the landing document
     src/lib/server/s3.ts          proxied upload, presigned upload, delete
     src/lib/server/sportPages.ts  metadata + never-throwing post loader
+    src/lib/server/adminUsersRepo.ts    list/create users, change a role
+    src/lib/server/registrationsRepo.ts the registration queries
+    src/lib/server/marqueeRepo.ts       getMarquee(sport), saveMarquee(sport, items)
 
   BROWSER ONLY
     src/lib/client/uploadMedia.ts    upload path choice, progress,
@@ -461,23 +552,39 @@ it left and the page it joined.
     src/components/sport/SportHero.tsx       crest: tilt, zoom, parallax
     src/components/ui/Reveal.tsx             scroll-reveal primitives
     src/components/ui/CopyrightBar.tsx       the footer strip
+    src/components/ui/AnnouncementMarquee.tsx the scrolling announcement
+                                              strip; null when empty
+    src/components/admin/AdminShell.tsx      the sidebar + identity, wraps
+                                             every /admin/* page
+    src/components/admin/SportMediaAdmin.tsx one sport's post CRUD screen,
+                                             reused by all five media routes
+    src/components/admin/MarqueeEditor.tsx   that page's announcement list,
+                                             a section inside SportMediaAdmin
+    src/components/admin/MediaPicker.tsx     drag/drop/URL
+    src/components/admin/TemplatePicker.tsx  wireframes + live preview
 
   ROUTES
     src/app/(home)/                          "/" and its sections
     src/app/academy/                         "/academy" biography + _data
+    src/app/academy/registration/            "/academy/registration" —
+                                             the public entry form
     src/app/{volleyball,cricket,academy,karting}/post/page.tsx
                                              the four built sport routes
-    src/app/media/admin/_components/AdminHeader.tsx     tabs, sign out
-    src/app/media/admin/_components/AdminDashboard.tsx  the posts screen
-    src/app/media/admin/_components/ContentEditor.tsx   landing copy
-    src/app/media/admin/_components/MediaPicker.tsx     drag/drop/URL
-    src/app/media/admin/_components/TemplatePicker.tsx  wireframes +
-                                                        live preview
+    src/app/admin/(auth)/login/              "/admin/login"
+    src/app/admin/(protected)/layout.tsx     session gate + <AdminShell>
+    src/app/admin/(protected)/page.tsx       "/admin" -> adminHomePath(role)
+    src/app/admin/(protected)/media/{main,academy,volleyball,cricket,
+                                     karting}/page.tsx
+                                             "/admin/media/{sport}"
+    src/app/admin/(protected)/content/       "/admin/content"
+    src/app/admin/(protected)/registration/academy/
+                                             "/admin/registration/academy"
+    src/app/admin/(protected)/users/         "/admin/users"
 
   SCRIPTS
     scripts/schema.mjs            the schema, idempotent
     scripts/migrate.mjs           npm run migrate
-    scripts/create-admin.mjs      npm run create-admin
+    scripts/create-admin.mjs      npm run create-admin -- <user> <pass> [role]
 
 
 10. OPERATIONAL NOTES
@@ -494,6 +601,7 @@ it left and the page it joined.
 - Sessions last 7 days. Only a SHA-256 of the session token is stored,
   so a database leak cannot be replayed as a login.
 - Re-running create-admin for an existing username resets that password
-  and signs out all of its sessions.
+  and role, and signs out all of its sessions. Changing a role from
+  /admin/users does the same.
 
 ================================================================================

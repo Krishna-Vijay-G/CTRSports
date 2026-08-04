@@ -1,9 +1,11 @@
 import "server-only";
 
+import { cache } from "react";
 import { createHash, randomBytes, scrypt as scryptCb, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 import { cookies } from "next/headers";
 import { getSql } from "@/lib/server/db";
+import { isAdminRoleId, type AdminRoleId, DEFAULT_ADMIN_ROLE } from "@/lib/adminRoles";
 
 const scrypt = promisify(scryptCb) as (
   password: string,
@@ -60,9 +62,14 @@ export async function createSession(adminId: string): Promise<void> {
   });
 }
 
-export type AdminSession = { adminId: string; username: string };
+export type AdminSession = { adminId: string; username: string; role: AdminRoleId };
 
-export async function getSession(): Promise<AdminSession | null> {
+/**
+ * `cache()` dedupes repeated calls within one request — the layout that gates
+ * `/admin/*` and the page inside it both call this, and should cost one query
+ * between them, not two.
+ */
+export const getSession = cache(async (): Promise<AdminSession | null> => {
   const jar = await cookies();
   const token = jar.get(SESSION_COOKIE)?.value;
   if (!token) return null;
@@ -70,19 +77,25 @@ export async function getSession(): Promise<AdminSession | null> {
   try {
     const sql = getSql();
     const rows = (await sql`
-      SELECT u.id AS admin_id, u.username
+      SELECT u.id AS admin_id, u.username, u.role
         FROM admin_sessions s
         JOIN admin_users u ON u.id = s.admin_id
        WHERE s.token_hash = ${hashToken(token)}
          AND s.expires_at > now()
-    `) as { admin_id: string; username: string }[];
+    `) as { admin_id: string; username: string; role: string }[];
 
-    if (!rows[0]) return null;
-    return { adminId: rows[0].admin_id, username: rows[0].username };
+    const row = rows[0];
+    if (!row) return null;
+
+    return {
+      adminId: row.admin_id,
+      username: row.username,
+      role: isAdminRoleId(row.role) ? row.role : DEFAULT_ADMIN_ROLE,
+    };
   } catch {
     return null;
   }
-}
+});
 
 export async function destroySession(): Promise<void> {
   const jar = await cookies();

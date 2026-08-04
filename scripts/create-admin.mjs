@@ -1,7 +1,11 @@
 /**
- * Creates (or updates the password of) a media-admin account.
+ * Creates (or updates the password and role of) an admin account.
  *
- *   npm run create-admin -- <username> <password>
+ *   npm run create-admin -- <username> <password> [role]
+ *
+ * `role` is one of the AdminRoleId values in src/lib/adminRoles.ts — defaults
+ * to super_admin so the very first account this is run for can set up
+ * everyone else through /admin/users.
  *
  * Reads DATABASE_URL from .env via node --env-file. Also applies the schema, so
  * this doubles as the one-time database setup step.
@@ -13,15 +17,29 @@ import { migrate } from "./schema.mjs";
 
 const scrypt = promisify(scryptCb);
 
-const [username, password] = process.argv.slice(2);
+const ADMIN_ROLE_IDS = [
+  "super_admin",
+  "main_admin",
+  "academy_admin",
+  "volleyball_admin",
+  "cricket_admin",
+  "karting_admin",
+];
+
+const [username, password, role = "super_admin"] = process.argv.slice(2);
 
 if (!username || !password) {
-  console.error("Usage: npm run create-admin -- <username> <password>");
+  console.error("Usage: npm run create-admin -- <username> <password> [role]");
   process.exit(1);
 }
 
 if (password.length < 10) {
   console.error("Password must be at least 10 characters.");
+  process.exit(1);
+}
+
+if (!ADMIN_ROLE_IDS.includes(role)) {
+  console.error(`Unknown role "${role}". Expected one of: ${ADMIN_ROLE_IDS.join(", ")}`);
   process.exit(1);
 }
 
@@ -44,22 +62,22 @@ async function main() {
   const hash = await hashPassword(password);
 
   const rows = await sql`
-    INSERT INTO admin_users (username, password_hash)
-    VALUES (${username}, ${hash})
-    ON CONFLICT (username) DO UPDATE SET password_hash = EXCLUDED.password_hash
+    INSERT INTO admin_users (username, password_hash, role)
+    VALUES (${username}, ${hash}, ${role})
+    ON CONFLICT (username) DO UPDATE SET password_hash = EXCLUDED.password_hash, role = EXCLUDED.role
     RETURNING id, (xmax = 0) AS inserted
   `;
 
   // Any existing sessions for this account are no longer trustworthy after a
-  // password change.
+  // password or role change.
   await sql`DELETE FROM admin_sessions WHERE admin_id = ${rows[0].id}`;
 
   console.log(
     rows[0].inserted
-      ? `Created admin "${username}".`
-      : `Updated password for admin "${username}" and signed out existing sessions.`
+      ? `Created admin "${username}" with role "${role}".`
+      : `Updated admin "${username}" (role "${role}") and signed out existing sessions.`
   );
-  console.log("Sign in at /media/admin/login");
+  console.log("Sign in at /admin/login");
 }
 
 main().catch((error) => {

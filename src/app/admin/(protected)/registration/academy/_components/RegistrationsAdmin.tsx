@@ -6,7 +6,6 @@ import type { Registration } from "@/lib/registrations";
 import { ageFromDob } from "@/lib/registrations";
 import { RACE_CATEGORY_LIST, RACE_CATEGORIES, type RaceCategoryId } from "@/lib/raceCategories";
 import { formatPostDateTime } from "@/lib/formatDate";
-import { AdminHeader } from "@/components/admin/AdminHeader";
 import { cn } from "@/lib/utils";
 
 function matchesSearch(registration: Registration, query: string): boolean {
@@ -15,13 +14,7 @@ function matchesSearch(registration: Registration, query: string): boolean {
   return haystack.includes(query);
 }
 
-export function RegistrationsAdmin({
-  registrations,
-  username,
-}: {
-  registrations: Registration[];
-  username: string;
-}) {
+export function RegistrationsAdmin({ registrations }: { registrations: Registration[] }) {
   const router = useRouter();
   const [categoryFilter, setCategoryFilter] = useState<RaceCategoryId | "all">("all");
   const [search, setSearch] = useState("");
@@ -34,10 +27,12 @@ export function RegistrationsAdmin({
   }, [registrations, categoryFilter, search]);
 
   return (
-    <div className="mx-auto max-w-6xl px-5 py-8 sm:px-6">
-      <AdminHeader username={username} active="registrations" title="Race Registrations" />
+    <div className="mx-auto max-w-6xl">
+      <h1 className="font-display text-lg font-bold uppercase tracking-wide text-white">
+        Academy Registrations
+      </h1>
 
-      <div className="mt-8 flex flex-wrap items-center justify-between gap-4">
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap gap-2">
           {([{ id: "all" as const, name: "All" }, ...RACE_CATEGORY_LIST]).map((category) => {
             const active = categoryFilter === category.id;
