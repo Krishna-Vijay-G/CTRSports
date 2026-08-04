@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
-import { createUploadUrl, isS3Configured } from "@/lib/s3";
+import { getSession } from "@/lib/server/auth";
+import { createUploadUrl, isS3Configured } from "@/lib/server/s3";
 import { MAX_VIDEO_BYTES, extensionFor, isVideoType } from "@/lib/mediaTypes";
 
 export const runtime = "nodejs";

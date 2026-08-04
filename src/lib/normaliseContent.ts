@@ -5,7 +5,7 @@ import {
   type SocialIconName,
   type SocialLink,
   type Sport,
-} from "@/data/landingContent";
+} from "@/lib/landingContent";
 
 /**
  * Turns whatever came out of the `site_content` row into a valid LandingContent.

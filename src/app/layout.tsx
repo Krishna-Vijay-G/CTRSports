@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
+import { SITE_NAME, SITE_URL, SOCIAL_PROFILES } from "@/lib/site";
 import "@/styles/globals.css";
-
-const SITE_URL = "https://ctrsports.in";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -35,7 +34,7 @@ export const metadata: Metadata = {
     description:
       "One Team. Multiple Sports. Unlimited Possibilities. CTR Unified brings athletes and teams together across every discipline.",
     url: SITE_URL,
-    siteName: "CTR Unified",
+    siteName: SITE_NAME,
     type: "website",
     locale: "en_IN",
   },
@@ -49,16 +48,11 @@ export const metadata: Metadata = {
 const jsonLd = {
   "@context": "https://schema.org",
   "@type": "SportsOrganization",
-  name: "CTR Unified",
+  name: SITE_NAME,
   alternateName: "CTR Sports Collective",
   url: SITE_URL,
   logo: `${SITE_URL}/media/ctr-logo.png`,
-  sameAs: [
-    "https://www.instagram.com/chennaiturboriders",
-    "https://www.facebook.com/chennaiturboriders",
-    "https://twitter.com/chennaiturbo",
-    "https://www.youtube.com/@chennaiturboriders",
-  ],
+  sameAs: SOCIAL_PROFILES,
 };
 
 export default function RootLayout({

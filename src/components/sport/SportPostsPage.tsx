@@ -2,8 +2,9 @@ import Link from "next/link";
 import type { MediaPost } from "@/lib/posts";
 import type { SportMeta } from "@/lib/sports";
 import { SportHero } from "@/components/sport/SportHero";
-import { PostBanners } from "@/components/landing/PostBanners";
-import { PostGrid } from "@/components/landing/PostGrid";
+import { PostBanners } from "@/components/post/PostBanners";
+import { PostGrid } from "@/components/post/PostGrid";
+import { CopyrightBar } from "@/components/ui/CopyrightBar";
 
 /**
  * One sport's post page: crest, the three most recent posts as banners, and
@@ -118,9 +119,7 @@ export function SportPostsPage({
             ← Back to CTR Unified
           </Link>
         </div>
-        <div className="border-t border-white/5 py-4 text-center text-[11px] text-white/30">
-          © {year} <a href="https://krishna-vijay-g.vercel.app" target="_blank" className="hover:text-racing-yellow">CTR Unified.</a> All rights reserved.
-        </div>
+        <CopyrightBar year={year} />
       </footer>
     </div>
   );

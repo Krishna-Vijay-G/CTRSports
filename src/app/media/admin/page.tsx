@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth";
-import { listAllPosts, type MediaPost } from "@/lib/posts";
-import { AdminDashboard } from "@/components/admin/AdminDashboard";
+import { getSession } from "@/lib/server/auth";
+import type { MediaPost } from "@/lib/posts";
+import { listAllPosts } from "@/lib/server/postsRepo";
+import { AdminDashboard } from "./_components/AdminDashboard";
 
 export const dynamic = "force-dynamic";
 

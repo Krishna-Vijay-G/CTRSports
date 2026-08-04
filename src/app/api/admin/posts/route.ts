@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
-import { getSession } from "@/lib/auth";
-import { createPost, listAllPosts } from "@/lib/posts";
+import { getSession } from "@/lib/server/auth";
+import { createPost, listAllPosts } from "@/lib/server/postsRepo";
 import { sportPostsPath } from "@/lib/sports";
 import { validatePostBody } from "@/lib/validatePost";
 

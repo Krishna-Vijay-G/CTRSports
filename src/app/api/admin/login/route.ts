@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { ensureSchema, getSql } from "@/lib/db";
-import { createSession, pruneExpiredSessions, verifyPassword } from "@/lib/auth";
+import { ensureSchema, getSql } from "@/lib/server/db";
+import { createSession, pruneExpiredSessions, verifyPassword } from "@/lib/server/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

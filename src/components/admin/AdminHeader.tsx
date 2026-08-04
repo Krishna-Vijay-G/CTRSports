@@ -5,9 +5,12 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const TABS = [
-  { href: "/media/admin", label: "Posts" },
-  { href: "/media/admin/content", label: "Site content" },
+  { key: "posts", href: "/media/admin", label: "Posts" },
+  { key: "content", href: "/media/admin/content", label: "Site content" },
+  { key: "registrations", href: "/registration/academy/admin", label: "Registrations" },
 ] as const;
+
+type AdminTab = (typeof TABS)[number]["key"];
 
 /** Shared chrome for the admin screens: identity, tabs, view site, sign out. */
 export function AdminHeader({
@@ -16,7 +19,7 @@ export function AdminHeader({
   title,
 }: {
   username: string;
-  active: "posts" | "content";
+  active: AdminTab;
   title: string;
 }) {
   const router = useRouter();
@@ -43,7 +46,7 @@ export function AdminHeader({
 
       <nav className="flex items-center gap-2">
         {TABS.map((tab) => {
-          const isActive = (tab.label === "Posts" ? "posts" : "content") === active;
+          const isActive = tab.key === active;
           return (
             <Link
               key={tab.href}

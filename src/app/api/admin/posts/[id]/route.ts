@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
-import { getSession } from "@/lib/auth";
-import { deletePost, getPost, updatePost, type MediaPost } from "@/lib/posts";
-import { deleteObject } from "@/lib/s3";
+import { getSession } from "@/lib/server/auth";
+import type { MediaPost } from "@/lib/posts";
+import { deletePost, getPost, updatePost } from "@/lib/server/postsRepo";
+import { deleteObject } from "@/lib/server/s3";
 import { sportPostsPath } from "@/lib/sports";
 import { validatePostBody } from "@/lib/validatePost";
 

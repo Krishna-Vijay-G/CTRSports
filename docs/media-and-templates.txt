@@ -1,0 +1,499 @@
+================================================================================
+CTR UNIFIED — MEDIA UPLOAD & POST TEMPLATES
+Reference for the post system behind ctrsports.in
+Last updated: 2 August 2026
+================================================================================
+
+
+1. WHAT THIS COVERS
+--------------------------------------------------------------------------------
+Posts are created and managed at /media/admin. Each post carries a
+sport, a template, a publish date/time, and then four OPTIONAL pieces:
+a title, subtext, one piece of media (image OR video), and a link. Only
+the sport and the template are mandatory — plus at least one of title,
+subtext or media, since a post with none of those has nothing to render.
+
+Posts are stored in Neon Postgres. Media files live in the S3 bucket
+ctr-unified-media-storage (ap-south-1).
+
+The sport decides WHICH PAGE the post appears on (see section 5). Within
+that page, posts appear twice over:
+  - Banners  — the 3 most recent published posts for that sport, directly
+               under the hero (#latest). Each uses its own template.
+  - Grid     — the remaining posts, further down (#media). All cards share
+               ONE format; templates do not apply here.
+
+  The landing page is the exception: its grid repeats all posts including
+  the three in the banner. Sport pages show the banner three once.
+
+
+2. MEDIA UPLOAD
+--------------------------------------------------------------------------------
+
+2.1 Ways to add media
+  - Drag and drop onto the upload box
+  - Click the box to browse
+  - Paste a URL into the "…or paste an image / video URL" field
+
+  When a URL is pasted, the type is guessed from the file extension
+  (.mp4/.webm/.mov/.m4v => video, otherwise image). A Type dropdown
+  appears underneath so the guess can be overridden.
+
+2.2 Accepted formats
+  Images : JPG, PNG, WebP, GIF, AVIF
+  Videos : MP4, WebM, MOV (quicktime), M4V
+
+2.3 Size limits
+  Images : 4 MB after client-side processing (see 2.4)
+  Videos : 200 MB
+
+2.4 Two upload paths — and why there are two
+  Vercel caps a serverless request body at roughly 4.5 MB. That is fine
+  for photos and hopeless for video, so the two take different routes.
+
+  IMAGES -> proxied through the API route
+    Browser -> POST /api/admin/upload -> server -> S3
+    Needs no bucket CORS at all, so it works even if the CORS rule is
+    ever removed. Before sending, any image over ~3.5 MB is downscaled
+    in the browser (src/lib/client/imageCompress.ts): longest edge capped at
+    2400px, re-encoded as WebP at quality 0.88, then 0.75, then 0.6
+    until it fits. WebP keeps transparency, so PNG logos survive. GIFs
+    are never re-encoded (it would kill the animation). If anything in
+    that pipeline fails, the original file is sent and the server's own
+    size check catches it.
+
+  VIDEOS -> straight from the browser to S3
+    Browser -> POST /api/admin/upload-url  (returns a presigned PUT)
+    Browser -> PUT <presigned url>          (direct to S3, never touches
+                                             the server)
+    The presigned URL is valid for 15 minutes. Upload uses XHR rather
+    than fetch, because only XHR reports upload progress — that is what
+    drives the percentage bar in the admin.
+
+2.5 Video poster frames
+  Right after a video finishes uploading, the browser captures a still
+  from it and uploads that too, as a separate WebP (quality 0.85). The
+  frame is taken at min(0.5s, duration/4) — slightly into the clip,
+  which is usually more representative than frame zero.
+
+  The poster is what the grid card and the banner show before playback
+  starts. It is best-effort: if capture fails the post still saves, just
+  without a poster.
+
+2.6 S3 layout
+  Key format   : ctrsports/media/<uuid>.<ext>
+  Cache-Control: public, max-age=31536000, immutable
+  Objects are publicly readable and support range requests (needed for
+  video seeking).
+
+2.7 Orphan cleanup
+  Replacing a post's media, or deleting the post outright, also deletes
+  the old S3 object(s) — both the media and its poster. A failure to
+  delete is logged but never fails the request.
+
+2.8 Bucket CORS (required for video only)
+  Applied to ctr-unified-media-storage on 2 Aug 2026. Without it the
+  browser cannot PUT directly to S3 and video upload fails with a
+  message saying exactly that. Images are unaffected.
+
+    [
+      {
+        "AllowedOrigins": [
+          "https://ctrsports.in",
+          "https://www.ctrsports.in",
+          "https://*.vercel.app",
+          "http://localhost:3000"
+        ],
+        "AllowedMethods": ["PUT", "GET", "HEAD"],
+        "AllowedHeaders": ["*"],
+        "ExposeHeaders": ["ETag"],
+        "MaxAgeSeconds": 3000
+      }
+    ]
+
+  If the site ever moves to a new domain, add it to AllowedOrigins or
+  video upload will break there.
+
+
+3. VIDEO PLAYBACK ON THE SITE
+--------------------------------------------------------------------------------
+
+3.1 In the banner
+  - Autoplays muted (browsers allow no other kind of autoplay)
+  - Does NOT loop, so the clip can reach its end
+  - A mute/unmute button appears next to the carousel arrows, and only
+    for video slides
+
+3.2 Carousel pacing
+  - An IMAGE slide holds for 7 seconds
+  - A VIDEO slide holds until the clip finishes. It is never cut off
+    part-way through.
+  - The yellow progress rail along the bottom tracks whichever applies:
+    the clip's real duration for video, the 7s dwell for images
+  - If a clip stalls and never reports that it ended, a fallback timer
+    (its duration + 2.5s, or 90s if the duration is unknown) advances
+    anyway, so the carousel can never park on one slide forever
+  - A lone video post loops, since there is nothing to advance to
+  - Hovering does NOT pause. Keyboard focus does, so tabbing through the
+    controls is not interrupted
+  - prefers-reduced-motion disables autoplay, auto-advance and the slow
+    Ken Burns push-in entirely
+
+3.3 In the grid
+  Video cards show the poster with a play badge, and preview on hover
+  (muted, looping). They do not autoplay — a grid of clips all starting
+  at once would be a bandwidth stampede.
+
+
+4. TEMPLATES
+--------------------------------------------------------------------------------
+Five layouts. Each post is saved with one. THEY AFFECT THE BANNER ONLY —
+grid cards all look the same regardless of template.
+
+  wedge      Diagonal cut, media filling the right. The house style and
+             the default for new and pre-existing posts.
+  cinematic  Edge-to-edge media, copy low-left over a deep scrim.
+  split      Clean 50/50 — solid panel left, media right, gold seam. No
+             diagonal.
+  spotlight  Framed media with a gold glow and a blurred backdrop. The
+             frame hugs the media, so nothing is ever cropped — best for
+             portrait posters and Instagram-shaped artwork.
+  marquee    Dimmed full-bleed media, oversized centred headline.
+             Announcement style.
+
+  A SIXTH layout exists but cannot be chosen: a post with NO MEDIA always
+  renders as "copy only" — a centred typographic slide over a gold wash —
+  whatever template it was saved with. Two of the five (split, spotlight)
+  are built around a media half and would otherwise leave a visible hole,
+  so rather than degrade five layouts separately there is one deliberate
+  fallback. The saved template is kept and comes back if media is added.
+
+4.1 Choosing one
+  In the admin, the Template panel shows five wireframe thumbnails.
+  Clicking one selects it. Below them is a LIVE PREVIEW that renders the
+  actual banner components at reduced scale using whatever is currently
+  typed in the form — it is the real thing scaled down, not a mock-up.
+  Switching template updates it instantly.
+
+  The template can be changed at any time afterwards via Edit.
+
+4.2 Shared behaviour across all five
+  - Full-bleed, no borders: 76svh tall, floor 540px, ceiling 780px
+  - Gradient seams top and bottom so the banner melts into the hero
+    above and the sports section below
+  - Subtext is clamped (3–6 lines depending on template) so a long
+    caption can never overflow the fixed-height frame. The full text
+    still lives in the database and on the linked post.
+  - A post with no title lets the subtext step up a size, so the slide
+    still has something carrying it rather than a stray caption.
+  - Slides change with a 0.35s fade, one at a time. An overlapping
+    crossfade was tried and rejected — it ghosted the headline into an
+    unreadable double image.
+
+4.3 Adding a sixth template
+  1. Add its id to TEMPLATE_IDS in src/lib/templates.ts
+  2. Add a name + description entry to TEMPLATES
+  3. Write the component in src/components/post/BannerTemplates.tsx
+     and register it in the COMPONENTS map
+  4. Add a wireframe case to the switch in
+     src/app/media/admin/_components/TemplatePicker.tsx
+  Anything not matching a known id falls back to "wedge", so old rows
+  are never left broken.
+
+
+5. SPORTS — WHICH PAGE A POST LANDS ON
+--------------------------------------------------------------------------------
+Every post is tagged with exactly one sport. That tag alone decides
+which page renders it; nothing else routes posts.
+
+  id           shown as        page
+  ----------   -------------   -------------------------------
+  main         Main site       /                (the landing page)
+  pickleball   Pickleball      /pickleball/post   not built
+  volleyball   Volleyball      /volleyball/post   built
+  cricket      Cricket         /cricket/post      built
+  hockey       Hockey          /hockey/post       not built
+  f4           F4              /f4/post           not built
+  academy      Academy         /academy/post      built
+  karting      Karting League  /karting/post      built
+  incrc        INCRC           /incrc/post        not built
+
+'main' is the default, so anything untagged stays on the landing page.
+An unrecognised value also falls back to 'main' rather than vanishing.
+
+5.1 Which pages actually exist
+  Built:      /  ·  /volleyball/post  ·  /cricket/post
+              /academy/post  ·  /karting/post
+  Not built:  pickleball, hockey, f4, incrc
+
+  The four unbuilt ids are still valid and selectable in the admin —
+  posts tagged with them are stored correctly and simply have nowhere to
+  show yet. The authoritative list of what exists is BUILT_SPORT_PAGES in
+  src/lib/sports.ts; the sitemap is generated from it.
+
+  /academy/post sits UNDER the pre-existing /academy microsite as a child
+  route. They do not collide and /academy is untouched.
+
+5.2 Adding one of the remaining sport pages
+  Three steps:
+
+    1. Create src/app/<slug>/post/page.tsx — copy any existing one and
+       change the sport id in the three places it appears:
+
+           export const metadata = sportPostMetadata("hockey");
+           sport={SPORTS.hockey}
+           posts={await loadPosts("hockey")}
+
+    2. Add the id to BUILT_SPORT_PAGES in src/lib/sports.ts, or the page
+       will never reach the sitemap.
+
+    3. Point its landing card at the new page — that is CONTENT, so edit
+       it at /media/admin/content (set the card's Link to /<slug>/post),
+       not in code. Changing DEFAULT_LANDING_CONTENT only moves the
+       fallback; see 6.3.
+
+  Everything else — crest, hero, banners, grid, metadata, empty state —
+  comes from SportPostsPage and the sport's entry in src/lib/sports.ts.
+
+  To add a sport that is not in the list at all, first add its id to
+  SPORT_IDS plus a SPORTS entry (name, short, slug, team, tagline, logo).
+
+
+6. DATABASE
+--------------------------------------------------------------------------------
+Table: media_posts
+
+  id             uuid, primary key
+  sport          text — one of the nine ids above, default 'main'
+  title          text, OPTIONAL, max 200 chars
+  subtext        text, OPTIONAL, max 2000 chars
+  media_url      text, OPTIONAL — the image or video
+  media_key      text — S3 key, null for pasted external URLs
+  media_type     text — 'image' or 'video', default 'image'
+  poster_url     text — video still, null for images
+  poster_key     text — S3 key for the poster
+  template       text — one of the five ids, default 'wedge'
+  link_type      text — 'instagram' | 'facebook' | 'website' | 'custom',
+                 default 'instagram'
+  link_url       text, OPTIONAL — the call-to-action target
+  link_label     text, OPTIONAL — overrides the label derived from
+                 link_type; how 'custom' gets its name
+  published_at   timestamptz, default now()
+  is_published   boolean, default true
+  created_at     timestamptz
+  updated_at     timestamptz
+
+Also: admin_users, admin_sessions.
+
+Title, subtext, media and the link are each optional at the column
+level. The application layer adds one rule on top: at least one of
+title / subtext / media must be present, enforced in the admin form and
+again in src/lib/validatePost.ts. A link_label with no link_url, or a
+media_key with no media_url, is nulled out on save rather than stored as
+dead data.
+
+Only posts with is_published = true AND published_at <= now() appear on
+the site. Future-dating a post therefore schedules it.
+
+6.1 Migration history
+  v1 had image_url / image_key. Those were renamed to media_url /
+  media_key when video support landed.
+  v2 had instagram_url. That was renamed to link_url when the CTA gained
+  a type, and link_type / link_label / sport were added alongside it.
+  Existing rows default to link_type 'instagram' and sport 'main', which
+  is exactly what they were before, so the rename is invisible.
+  v3 dropped NOT NULL from title and media_url.
+
+  Every step checks before it acts, so re-running is safe:
+      npm run migrate
+
+6.2 The database is the only copy
+  There is no JSON snapshot of the posts in the repo and no import
+  script. The table IS the content: posts are created, edited and deleted
+  at /media/admin and nowhere else.
+
+  That means DELETING A POST IS FINAL. The row goes, and the DELETE route
+  also drops its S3 objects (section 2.7), so neither the record nor the
+  artwork can be recovered from the project. Back up with a database
+  snapshot in the Neon console if you want a safety net — Neon's
+  point-in-time restore is the right tool for this, not a file in git.
+
+  A fresh database needs no seeding: `npm run migrate` creates the
+  tables, `npm run create-admin` makes a login, and posts are written
+  from the admin.
+
+
+6.3 The landing page's own copy
+  Everything on the landing page that is NOT a post — splash, brand,
+  hero, the sports section heading, the sport cards, the footer links —
+  lives in a second table:
+
+      site_content
+        key        text, primary key  ('landing' is the only one so far)
+        content    jsonb              the whole document
+        updated_at timestamptz
+
+  One JSONB document rather than a column per field: the shape is nested,
+  it changes whenever the design does, and nothing ever queries inside it.
+
+  Edit it at /media/admin/content. There is no seed step and no JSON
+  snapshot: with no row, the page renders the defaults in
+  src/lib/landingContent.ts and the editor opens on them, so saving once
+  writes the row. "Load defaults" in the editor restores those same
+  values into the form without saving.
+
+  NOTHING TRUSTS THE STORED SHAPE. src/lib/normaliseContent.ts merges the
+  document over the defaults on every read as well as every write, field
+  by field, so a partial, stale or corrupt document degrades one field at
+  a time instead of taking the page down:
+    - a missing or wrong-typed field falls back to its default
+    - a field present as "" stays empty — clearing a line of copy is a
+      real editorial choice, and only a MISSING field falls back
+    - images and links must be a /path or an http(s) URL; javascript:
+      and protocol-relative //host URLs are replaced with the default
+    - "#" is allowed as a link, meaning "card with nowhere to go"
+    - splash timings are clamped, so a typo cannot strand visitors on
+      the splash screen
+    - sport cards get unique ids (React keys); duplicates are renumbered
+    - footer links with no valid https:// address are dropped
+    - unknown keys are discarded
+
+  The defaults are DEFAULT_LANDING_CONTENT in src/lib/landingContent.ts.
+  They are a fallback, not a mirror — once the row exists, editing them
+  changes nothing on the live page. If you change something in the admin
+  that ought to survive a database outage (a social handle, say), change
+  it in both places.
+
+  If the database is unreachable the landing page renders the defaults
+  rather than failing. That is a real, exercised path, not a theory: the
+  page stays at HTTP 200 with the built-in copy and no posts.
+
+
+7. LINKS
+--------------------------------------------------------------------------------
+A post can carry one call-to-action. It is optional; with no link_url
+the button simply is not rendered, on the banner or on the grid card.
+
+The type sets the glyph and the default wording:
+
+  instagram   Instagram mark      "View on Instagram"   (the default)
+  facebook    Facebook mark       "View on Facebook"
+  website     Globe               "Visit website"
+  custom      External-link mark  whatever you type
+
+Only 'custom' shows the name field in the admin, but link_label
+overrides the wording for any type if it is set directly. Blank falls
+back to the default above, so a custom link with no name still reads
+"Open link" rather than an empty button.
+
+The URL must be a full http:// or https:// address. This is checked in
+the browser and again server-side, so javascript: URLs cannot reach an
+href.
+
+Adding a fifth type: add its id to LINK_TYPE_IDS in src/lib/links.ts,
+add a LINK_TYPES entry (name, defaultLabel, placeholder), and add a case
+to LinkGlyph in src/components/post/BannerTemplates.tsx. Unknown ids
+fall back to 'instagram'.
+
+
+8. API ROUTES
+--------------------------------------------------------------------------------
+  POST   /api/admin/login        sign in, sets the session cookie
+  POST   /api/admin/logout       sign out, revokes the session row
+  GET    /api/admin/posts        list all posts incl. drafts
+  POST   /api/admin/posts        create
+  PUT    /api/admin/posts/[id]   update
+  DELETE /api/admin/posts/[id]   delete (+ its S3 objects)
+  GET    /api/admin/content      the landing page document
+  PUT    /api/admin/content      replace it
+  POST   /api/admin/upload       proxied image upload
+  POST   /api/admin/upload-url   presigned PUT for video
+
+Every one of these checks the session first. Server-side validation
+rejects unknown sports, templates and link types, media types other than
+image/video, and any URL that is not http(s) or a leading-slash path —
+so javascript: URLs cannot reach an href or src.
+
+Writes revalidate the page the post belongs to, not always "/". An edit
+that re-tags a post from one sport to another revalidates BOTH the page
+it left and the page it joined.
+
+
+9. FILE MAP
+--------------------------------------------------------------------------------
+  The folder tree mirrors the URL tree. Route-owned code lives in an
+  "_components" / "_data" folder inside that route; anything reached by
+  two or more routes lives in src/components or src/lib.
+
+  DOMAIN — safe to import anywhere
+    src/lib/sports.ts             the nine verticals, ids, slugs, crests
+    src/lib/links.ts              the four link types and label resolution
+    src/lib/templates.ts          the five templates, ids and descriptions
+    src/lib/posts.ts              the MediaPost / PostInput types
+    src/lib/landingContent.ts     the LandingContent type + the defaults
+    src/lib/normaliseContent.ts   merge over defaults, reject unsafe URLs
+    src/lib/validatePost.ts       request-body validation
+    src/lib/mediaTypes.ts         accepted MIME types and size limits
+    src/lib/formatDate.ts         IST-pinned post timestamps
+    src/lib/site.ts               site URL, name, social profiles
+    src/lib/utils.ts              cn() + postLabel() for titleless posts
+
+  SERVER ONLY — never reachable from a client component
+    src/lib/server/db.ts          Neon client + schema bootstrap
+    src/lib/server/auth.ts        scrypt hashing, DB-backed sessions
+    src/lib/server/postsRepo.ts   the post queries
+    src/lib/server/siteContent.ts read/write the landing document
+    src/lib/server/s3.ts          proxied upload, presigned upload, delete
+    src/lib/server/sportPages.ts  metadata + never-throwing post loader
+
+  BROWSER ONLY
+    src/lib/client/uploadMedia.ts    upload path choice, progress,
+                                     poster capture
+    src/lib/client/imageCompress.ts  image downscaling before upload
+
+  SHARED UI
+    src/components/post/PostBanners.tsx      carousel shell + pacing
+    src/components/post/BannerTemplates.tsx  the five layouts, the
+                                             copy-only fallback, LinkGlyph
+    src/components/post/PostMedia.tsx        image/video renderer
+    src/components/post/PostGrid.tsx         the uniform grid
+    src/components/sport/SportPostsPage.tsx  a sport page end to end
+    src/components/sport/SportHero.tsx       crest: tilt, zoom, parallax
+    src/components/ui/Reveal.tsx             scroll-reveal primitives
+    src/components/ui/CopyrightBar.tsx       the footer strip
+
+  ROUTES
+    src/app/(home)/                          "/" and its sections
+    src/app/academy/                         "/academy" biography + _data
+    src/app/{volleyball,cricket,academy,karting}/post/page.tsx
+                                             the four built sport routes
+    src/app/media/admin/_components/AdminHeader.tsx     tabs, sign out
+    src/app/media/admin/_components/AdminDashboard.tsx  the posts screen
+    src/app/media/admin/_components/ContentEditor.tsx   landing copy
+    src/app/media/admin/_components/MediaPicker.tsx     drag/drop/URL
+    src/app/media/admin/_components/TemplatePicker.tsx  wireframes +
+                                                        live preview
+
+  SCRIPTS
+    scripts/schema.mjs            the schema, idempotent
+    scripts/migrate.mjs           npm run migrate
+    scripts/create-admin.mjs      npm run create-admin
+
+
+10. OPERATIONAL NOTES
+--------------------------------------------------------------------------------
+- Pages use ISR (revalidate = 60) and every write revalidates the
+  affected sport's path, so changes show up straight away rather than
+  after a minute.
+- If the database is unreachable the pages still render — they just
+  render without posts. The site never goes down because of it.
+- Environment variables needed in Vercel: DATABASE_URL, S3_BUCKET,
+  S3_REGION, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY. Optionally
+  S3_PUBLIC_BASE_URL if CloudFront or a custom domain is put in front
+  of the bucket.
+- Sessions last 7 days. Only a SHA-256 of the session token is stored,
+  so a database leak cannot be replayed as a login.
+- Re-running create-admin for an existing username resets that password
+  and signs out all of its sessions.
+
+================================================================================

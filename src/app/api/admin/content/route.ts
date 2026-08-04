@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
-import { getSession } from "@/lib/auth";
-import { getLandingContent, saveLandingContent } from "@/lib/siteContent";
+import { getSession } from "@/lib/server/auth";
+import { getLandingContent, saveLandingContent } from "@/lib/server/siteContent";
 import { normaliseLandingContent } from "@/lib/normaliseContent";
 
 export const runtime = "nodejs";

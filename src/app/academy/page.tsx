@@ -1,14 +1,15 @@
 import type { Metadata } from "next";
-import { biography } from "@/data/biographyData";
-import ScrollProgressBar from "@/components/journey/ScrollProgressBar";
-import JourneyMarquee from "@/components/journey/JourneyMarquee";
-import JourneyNav from "@/components/journey/JourneyNav";
-import ProgressRail from "@/components/journey/ProgressRail";
-import ChapterRenderer from "@/components/journey/ChapterRenderer";
-import StatsBand from "@/components/journey/StatsBand";
-import JourneyFooter from "@/components/journey/JourneyFooter";
+import { SITE_NAME, SITE_URL, SOCIAL_PROFILES } from "@/lib/site";
+import { biography } from "./_data/biography";
+import { ChapterRenderer } from "./_components/ChapterRenderer";
+import { JourneyFooter } from "./_components/JourneyFooter";
+import { JourneyMarquee } from "./_components/JourneyMarquee";
+import { JourneyNav } from "./_components/JourneyNav";
+import { ProgressRail } from "./_components/ProgressRail";
+import { ScrollProgressBar } from "./_components/ScrollProgressBar";
+import { StatsBand } from "./_components/StatsBand";
 
-const SITE_URL = "https://ctrsports.in";
+const OG_IMAGE = "/images/journey/og-journey.jpg";
 
 export const metadata: Metadata = {
   title: "Our Story | Chennai Turbo Riders — From Passion to Purpose",
@@ -33,12 +34,12 @@ export const metadata: Metadata = {
     description:
       "From passion to purpose, from track to legacy — the story of India's Turbo Riders and the national motorsport ecosystem they are building.",
     url: `${SITE_URL}/academy`,
-    siteName: "CTR Unified",
+    siteName: SITE_NAME,
     type: "website",
     locale: "en_IN",
     images: [
       {
-        url: "/images/journey/og-journey.jpg",
+        url: OG_IMAGE,
         width: 1200,
         height: 630,
         alt: "Chennai Turbo Riders — Engineering Speed. Delivering Dominance.",
@@ -50,7 +51,7 @@ export const metadata: Metadata = {
     title: "Our Story | Chennai Turbo Riders",
     description:
       "The story of India's Turbo Riders — from passion to purpose, from track to legacy.",
-    images: ["/images/journey/og-journey.jpg"],
+    images: [OG_IMAGE],
   },
 };
 
@@ -73,12 +74,7 @@ const jsonLd = {
     postalCode: "600020",
     addressCountry: "IN",
   },
-  sameAs: [
-    "https://www.instagram.com/chennaiturboriders",
-    "https://www.facebook.com/chennaiturboriders",
-    "https://twitter.com/chennaiturbo",
-    "https://www.youtube.com/@chennaiturboriders",
-  ],
+  sameAs: SOCIAL_PROFILES,
 };
 
 export default function AcademyPage() {

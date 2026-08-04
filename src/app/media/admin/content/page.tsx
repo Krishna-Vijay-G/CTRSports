@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth";
-import { getLandingContentSafe } from "@/lib/siteContent";
-import { ContentEditor } from "@/components/admin/ContentEditor";
+import { getSession } from "@/lib/server/auth";
+import { getLandingContentSafe } from "@/lib/server/siteContent";
+import { ContentEditor } from "../_components/ContentEditor";
 
 export const dynamic = "force-dynamic";
 
