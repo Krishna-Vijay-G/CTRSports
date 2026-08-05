@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import type { MediaPost } from "@/lib/posts";
 import type { MarqueeItem } from "@/lib/marquee";
@@ -33,14 +32,12 @@ export function SportPostsPage({
         <AnnouncementMarquee items={marquee} />
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3 sm:px-6">
           <Link href="/" className="flex items-center gap-3" aria-label="CTR Unified home">
-            <Image
+            <img
               src="/media/ctr-logo.png"
               alt="CTR Unified logo"
-              width={128}
-              height={72}
-              priority
-              sizes="(min-width: 640px) 48px, 40px"
               className="h-10 w-auto sm:h-12"
+              fetchPriority="high"
+              decoding="async"
             />
             <span className="flex flex-col leading-none">
               <strong className="font-display text-sm font-semibold tracking-[0.14em] text-racing-yellow sm:text-base">
@@ -53,14 +50,12 @@ export function SportPostsPage({
             {/* The sport's own crest, right of the name — the header should say
                 which vertical you are on without reading it. */}
             <span aria-hidden className="ml-1 h-8 w-px bg-white/10 sm:ml-2 sm:h-10" />
-            <Image
+            <img
               src={sport.logo}
               alt={`${sport.name} crest`}
-              width={112}
-              height={112}
-              priority
-              sizes="56px"
               className="h-9 w-auto max-w-[3rem] object-contain sm:h-11 sm:max-w-[3.5rem]"
+              fetchPriority="high"
+              decoding="async"
             />
           </Link>
 
@@ -125,7 +120,15 @@ export function SportPostsPage({
       <footer className="border-t border-white/10">
         <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 px-5 py-10 text-center sm:flex-row sm:justify-between sm:px-6 sm:text-left">
           <div className="flex items-center gap-3">
-            <Image src={sport.logo} alt="" aria-hidden width={64} height={64} sizes="32px" className="h-8 w-auto" />
+              quality={92}
+            <img
+  src={sport.logo}
+  alt=""
+  aria-hidden
+  className="h-8 w-auto"
+  loading="lazy"
+  decoding="async"
+/>
             <span className="font-display text-xs uppercase tracking-[0.2em] text-white/45">
               {sport.name} — {sport.team}
             </span>

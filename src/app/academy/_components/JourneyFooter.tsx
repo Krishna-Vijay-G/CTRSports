@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { contact, socials } from "../_data/biography";
 import { TripleChevron } from "./Motifs";
 
@@ -52,13 +51,12 @@ export function JourneyFooter() {
           {/* Brand */}
           <div>
             <div className="flex items-center gap-3 mb-5">
-              <Image
+              <img
                 src="/images/journey/CTR_yellow.png"
                 alt="Chennai Turbo Riders"
-                width={160}
-                height={90}
-                sizes="86px"
                 className="h-12 w-auto"
+                loading="lazy"
+                decoding="async"
               />
               <div className="leading-none">
                 <span className="block font-display font-bold text-lg tracking-wide">CTR</span>

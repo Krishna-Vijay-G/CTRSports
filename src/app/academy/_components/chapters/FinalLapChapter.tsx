@@ -1,4 +1,3 @@
-import Image from "next/image";
 import type { Chapter } from "../../_data/biography";
 import { socials } from "../../_data/biography";
 import { ChapterFrame } from "./ChapterFrame";
@@ -40,13 +39,12 @@ export function FinalLapChapter({ chapter }: { chapter: Chapter }) {
             />
             <div className="relative overflow-hidden rounded-2xl clip-diagonal-l shadow-card ring-1 ring-white/10">
               {chapter.image ? (
-                <Image
+                <img
                   src={chapter.image}
                   alt={chapter.imageAlt || ""}
-                  width={1600}
-                  height={1000}
-                  sizes="(min-width: 1024px) 50vw, 100vw"
                   className="h-full max-h-[560px] w-full object-cover"
+                  loading="lazy"
+                  decoding="async"
                 />
               ) : null}
             </div>

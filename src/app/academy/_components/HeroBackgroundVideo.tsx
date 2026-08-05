@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
 
 /**
  * Poster-first hero background.
@@ -85,13 +84,12 @@ export function HeroBackgroundVideo({
 
   return (
     <div ref={hostRef} className="absolute inset-0">
-      <Image
+      <img
         src={poster}
         alt={alt}
-        fill
-        priority
-        sizes="100vw"
-        className="object-cover"
+        className="absolute inset-0 h-full w-full object-cover"
+        fetchPriority="high"
+        decoding="async"
       />
 
       {src ? (

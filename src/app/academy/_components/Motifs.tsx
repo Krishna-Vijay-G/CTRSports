@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -193,11 +192,12 @@ export function EagleWatermark({
   drift?: boolean;
 }) {
   return (
-    // The motion wrapper animates; the Image inside it goes through the
-    // optimizer. A raw <img> here would fetch the unoptimized source on every
-    // chapter that shows the watermark.
-    <motion.div
+    <motion.img
+      src="/images/journey/CTR_yellow.png"
+      alt=""
       aria-hidden
+      loading="lazy"
+      decoding="async"
       initial={drift ? { y: -6, opacity: 0 } : false}
       whileInView={drift ? { y: 0, opacity: 1 } : undefined}
       viewport={{ once: true }}
@@ -206,16 +206,7 @@ export function EagleWatermark({
         "pointer-events-none select-none absolute top-5 right-4 sm:right-8 w-24 sm:w-32 lg:w-40 drop-shadow-[0_6px_18px_rgba(244,180,0,0.35)]",
         className
       )}
-    >
-      <Image
-        src="/images/journey/CTR_yellow.png"
-        alt=""
-        width={640}
-        height={360}
-        sizes="(min-width: 1024px) 160px, (min-width: 640px) 128px, 96px"
-        className="h-auto w-full"
-      />
-    </motion.div>
+    />
   );
 }
 

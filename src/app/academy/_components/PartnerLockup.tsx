@@ -1,4 +1,3 @@
-import Image from "next/image";
 import type { PartnerItem } from "../_data/biography";
 import { cn } from "@/lib/utils";
 
@@ -39,13 +38,12 @@ export function PartnerLockup({
             )}
           >
             {p.logo ? (
-              <Image
+              <img
                 src={p.logo}
                 alt={p.name}
-                width={240}
-                height={88}
-                sizes="(min-width: 640px) 44px, 36px"
                 className="h-9 sm:h-11 w-auto object-contain"
+                loading="lazy"
+                decoding="async"
               />
             ) : (
               <span className="font-display font-bold uppercase tracking-wide text-ctr-navy">

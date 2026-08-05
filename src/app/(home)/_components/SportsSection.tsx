@@ -3,7 +3,6 @@
 import { useRef } from "react";
 import Link from "next/link";
 import { motion, useMotionValue, useScroll, useSpring, useTransform } from "framer-motion";
-import { SmartImage } from "@/components/ui/SmartImage";
 import type { LandingContent, Sport } from "@/lib/landingContent";
 import { Reveal } from "@/components/ui/Reveal";
 import { cn } from "@/lib/utils";
@@ -49,12 +48,11 @@ function SportRow({ sport, index }: { sport: Sport; index: number }) {
           onMouseLeave={handleLogoMouseLeave}
           className="will-change-transform"
         >
-          <SmartImage
+          <img
             src={sport.logo_image}
             alt={`${sport.name} logo`}
-            width={256}
-            height={256}
-            sizes="(min-width: 768px) 256px, (min-width: 640px) 224px, 176px"
+            loading="lazy"
+            decoding="async"
             className="h-44 w-44 object-contain drop-shadow-[0_20px_36px_rgba(0,0,0,0.5)] sm:h-56 sm:w-56 md:h-64 md:w-64"
           />
         </motion.div>

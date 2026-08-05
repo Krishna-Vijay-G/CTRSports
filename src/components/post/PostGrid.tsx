@@ -6,7 +6,6 @@ import { formatPostDate } from "@/lib/formatDate";
 import { resolvePostLink } from "@/lib/links";
 import { LinkGlyph } from "@/components/post/BannerTemplates";
 import { Reveal } from "@/components/ui/Reveal";
-import { SmartImage } from "@/components/ui/SmartImage";
 
 /**
  * Every card in this grid uses the same format regardless of the post's
@@ -44,12 +43,11 @@ function CardMedia({ post }: { post: MediaPost }) {
   }
 
   return (
-    <SmartImage
+    <img
       src={post.media_url}
       alt={post.title ?? ""}
-      width={640}
-      height={640}
-      sizes="(min-width: 1024px) 320px, (min-width: 640px) 45vw, 90vw"
+      loading="lazy"
+      decoding="async"
       className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-[1.03]"
     />
   );

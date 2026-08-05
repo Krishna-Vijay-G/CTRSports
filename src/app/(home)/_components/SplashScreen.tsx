@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { SmartImage } from "@/components/ui/SmartImage";
 import type { LandingContent } from "@/lib/landingContent";
 
 /**
@@ -69,14 +68,12 @@ export function SplashScreen({ splash }: { splash: LandingContent["splash"] }) {
       style={{ background: "radial-gradient(circle at center, #191919 0%, #060606 62%)" }}
       aria-label={splash.aria_label}
     >
-      <SmartImage
+      <img
         src={splash.logo_image}
         alt="CTR Unified logo"
-        width={240}
-        height={135}
-        priority
-        sizes="min(240px, 46vw)"
-        className="h-auto w-[min(240px,46vw)] animate-float"
+        fetchPriority="high"
+        decoding="async"
+        className="w-[min(240px,46vw)] animate-float"
       />
       <p className="font-display text-sm uppercase tracking-[0.3em] text-racing-yellow">
         {splash.title}

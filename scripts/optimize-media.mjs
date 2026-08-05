@@ -1,19 +1,23 @@
 /**
- * One-shot media optimizer.
+ * Media optimizer — run it after adding or replacing anything under public/.
  *
  * The repo shipped camera-original assets straight to the browser: a 6000x4000
- * 9.3 MB hero JPEG, 1343x756 logos rendered at 36 px tall, 1510x1510 sport
- * badges. With `images.unoptimized` now off, next/image handles FORMAT
- * negotiation (AVIF/WebP) per browser — but it still has to read the source, and
- * a 6000 px source costs memory and transform time on every cold cache. So the
- * job here is DIMENSIONS, not format: cap each asset at the largest size it is
- * ever displayed at, times a 2x DPR allowance.
+ * 9.3 MB hero JPEG, 1343x756 wordmarks drawn at 36 px tall, 1510x1510 crests
+ * shown at 128. Nothing resizes images at request time — the site uses plain
+ * <img> tags pointing at these files — so whatever is on disk is exactly what
+ * every visitor downloads, and this script is the only thing standing between
+ * a camera original and the browser.
  *
- * Paths and extensions are deliberately preserved, so nothing in the app has to
- * change and next/image keeps serving modern formats off these sources.
+ * Each rule caps an asset at the largest size it is actually drawn at, times 3
+ * so it stays sharp on a 3x phone screen. Sizing below that is what makes
+ * images look soft, and no CSS can recover detail the file no longer has.
  *
- * Originals are moved to public/_originals/ (git-ignored) before anything is
+ * Paths and extensions are preserved, so nothing in the app has to change.
+ *
+ * Originals are copied to public/_originals/ (git-ignored) before anything is
  * written, so this is reversible: `node scripts/optimize-media.mjs --restore`.
+ * Re-running never overwrites a preserved original, so it is safe to iterate on
+ * the rules and re-run as often as needed.
  *
  *   node scripts/optimize-media.mjs [--dry] [--restore]
  */
@@ -32,40 +36,69 @@ const DRY = process.argv.includes("--dry");
 const RESTORE = process.argv.includes("--restore");
 
 /**
- * Longest edge each asset class is allowed to keep, already doubled for retina.
- * Order matters — the first matching rule wins.
+ * Longest edge each asset class keeps.
+ *
+ * Nothing resizes these at request time — every image is a plain <img> pointing
+ * straight at the file, so what is on disk is exactly what the browser
+ * downloads. Each cap is therefore the largest CSS size the asset is ever drawn
+ * at, times 3 so it stays sharp on a 3x phone screen. The `at` note records
+ * where that display size comes from, so the cap can be rechecked when a layout
+ * changes. Order matters — the first matching rule wins.
  */
 const RULES = [
-  // Full-bleed hero art. Displayed edge-to-edge, so 2560 covers a 2x 1280 viewport.
-  { test: /^images\/car\/hero\.(jpg|jpeg)$/i, max: 2560, quality: 78 },
-  { test: /^media\/background\.(jpe?g|png)$/i, max: 2560, quality: 78 },
+  // Full-bleed backgrounds. 2560 covers a 2x 1280 viewport and 1x at 2560.
+  { test: /^images\/car\/hero\.(jpg|jpeg)$/i, max: 2560, quality: 82, at: "academy hero, full bleed" },
+  { test: /^media\/background\.(jpe?g|png)$/i, max: 2560, quality: 82, at: "landing hero, full bleed" },
 
-  // Chapter / panel photography — half-width columns at most.
-  { test: /^images\/journey\/(panels|incrc|origin)\//i, max: 1600, quality: 78 },
-  { test: /^images\/team\//i, max: 1200, quality: 78 },
+  // Chapter photography sits in a half-width column, ~720 CSS wide at most.
+  { test: /^images\/journey\/(panels|incrc|origin|academy)\//i, max: 1600, quality: 82, at: "half-width column" },
+  { test: /^images\/team\//i, max: 1200, quality: 82, at: "team portraits" },
 
-  // Social card. Spec is exactly 1200x630; never needs more.
-  { test: /^images\/journey\/og-journey\.(jpg|jpeg)$/i, max: 1200, quality: 82 },
+  // Social card. Spec is exactly 1200x630; never rendered on the site.
+  { test: /^images\/journey\/og-journey\.(jpg|jpeg)$/i, max: 1200, quality: 85, at: "og:image spec" },
 
-  // Sport badges + team crests. Largest real render is ~320 px, so 640 is 2x.
-  { test: /^media\/(volley|cricket|hockey|pickle)\.png$/i, max: 640 },
-  { test: /^media\/ctr-(national-racing|f4-championship)\.png$/i, max: 640 },
-  { test: /^images\/journey\/teams\//i, max: 640 },
-  { test: /^images\/journey\/logos\//i, max: 480 },
+  // Sport crests peak at SportHero's lg:h-80 (320 CSS px) -> 960 at 3x.
+  { test: /^media\/(volley|cricket|hockey|pickle)\.png$/i, max: 960, at: "SportHero lg:h-80 = 320px" },
+  { test: /^media\/ctr-(national-racing|f4-championship)\.png$/i, max: 960, at: "SportHero lg:h-80 = 320px" },
+  { test: /^media\/ctr-logo\.png$/i, max: 960, at: "SportHero lg:h-80 = 320px" },
 
-  // Wordmarks/logos. Biggest render is the academy hero watermark at ~208 px
-  // wide (lg:w-52), so 640 leaves headroom at 3x.
-  { test: /^(images\/(journey|logos)|media)\/CTR_(yellow|blue)\.png$/i, max: 640 },
-  { test: /^media\/ctr-logo\.png$/i, max: 640 },
+  // Team crests only ever appear in UnifiedChapter at max-h-32 (128 CSS px).
+  { test: /^images\/journey\/teams\//i, max: 384, at: "UnifiedChapter max-h-32 = 128px" },
 
-  // Sponsor/federation marks sit in a footer strip.
-  { test: /^images\/sponsors\//i, max: 480 },
+  // Wordmarks peak at the academy hero watermark, lg:w-52 (208 CSS px).
+  { test: /^(images\/(journey|logos)|media)\/CTR_(yellow|blue)\.png$/i, max: 640, at: "JourneyHero lg:w-52 = 208px" },
+
+  // Partner / federation marks in the lockup strip, sm:h-11 (44 CSS px).
+  { test: /^images\/journey\/logos\//i, max: 320, at: "PartnerLockup sm:h-11 = 44px" },
+  { test: /^images\/sponsors\//i, max: 320, at: "sponsor strip" },
 
   // Catch-all for anything else raster under public/.
-  { test: /\.(png|jpe?g)$/i, max: 1600, quality: 80 },
+  { test: /\.(png|jpe?g)$/i, max: 1600, quality: 82, at: "default" },
 ];
 
 const SKIP_DIRS = new Set(["_originals", "video"]);
+
+/**
+ * Largest average per-channel difference (0-255) tolerated before a paletted
+ * PNG is rejected as visibly degraded. ~1.5 is well under what the eye picks up
+ * on a gradient, while still admitting the flat-colour marks that compress well.
+ */
+const MAX_RMSE = 1.5;
+
+/** Root-mean-square per-channel difference between two encoded images. */
+async function pixelRmse(a, b) {
+  const toRaw = (buf) =>
+    sharp(buf).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  const [ra, rb] = await Promise.all([toRaw(a), toRaw(b)]);
+  if (ra.data.length !== rb.data.length) return Infinity;
+
+  let sum = 0;
+  for (let i = 0; i < ra.data.length; i++) {
+    const d = ra.data[i] - rb.data[i];
+    sum += d * d;
+  }
+  return Math.sqrt(sum / ra.data.length);
+}
 
 function ruleFor(rel) {
   const key = rel.split(path.sep).join("/");
@@ -132,11 +165,33 @@ async function optimize() {
       });
     }
 
-    pipeline = isPng
-      ? pipeline.png({ compressionLevel: 9, palette: true, quality: 90, effort: 8 })
-      : pipeline.jpeg({ quality: rule.quality ?? 80, progressive: true, mozjpeg: true });
+    let output;
+    let note = "";
 
-    const output = await pipeline.toBuffer();
+    if (isPng) {
+      // Palette quantisation shrinks these enormously but can band a smooth
+      // gradient — it is what dulled the gold in the CTR wordmarks last time.
+      // Rather than guess, encode both ways and measure: keep the palette
+      // version only when its pixels are near-identical to the lossless one.
+      const lossless = await pipeline.clone().png({ compressionLevel: 9, effort: 10 }).toBuffer();
+      const paletted = await pipeline
+        .clone()
+        .png({ compressionLevel: 9, effort: 10, palette: true, quality: 90, dither: 1 })
+        .toBuffer();
+
+      const rmse = await pixelRmse(lossless, paletted);
+      if (rmse <= MAX_RMSE && paletted.length < lossless.length) {
+        output = paletted;
+        note = `palette rmse ${rmse.toFixed(2)}`;
+      } else {
+        output = lossless;
+        note = `lossless (rmse ${rmse.toFixed(2)})`;
+      }
+    } else {
+      output = await pipeline
+        .jpeg({ quality: rule.quality ?? 82, progressive: true, mozjpeg: true })
+        .toBuffer();
+    }
 
     // Never make a file bigger; some assets are already well-encoded.
     if (output.length >= original.size && !needsResize) continue;
@@ -150,7 +205,8 @@ async function optimize() {
       rel: rel.split(path.sep).join("/"),
       from: original.size,
       to: chosen.length,
-      dims: needsResize ? `${meta.width}x${meta.height} -> max ${rule.max}` : "recompressed",
+      dims: needsResize ? `${meta.width}x${meta.height} -> ${rule.max}` : "recompressed",
+      note,
     });
 
     if (DRY) continue;
@@ -170,7 +226,7 @@ async function optimize() {
   for (const r of rows) {
     const pct = (100 - (r.to / r.from) * 100).toFixed(0);
     console.log(
-      `${kb(r.from).padStart(9)} -> ${kb(r.to).padStart(8)}  (-${String(pct).padStart(2)}%)  ${r.rel}  [${r.dims}]`
+      `${kb(r.from).padStart(9)} -> ${kb(r.to).padStart(8)}  (-${String(pct).padStart(2)}%)  ${r.rel}  [${r.dims}${r.note ? "; " + r.note : ""}]`
     );
   }
 

@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { motion } from "framer-motion";
 import type { Chapter } from "../../_data/biography";
 import { ChapterFrame } from "./ChapterFrame";
@@ -108,13 +107,12 @@ export function NationalGridChapter({ chapter }: { chapter: Chapter }) {
             <DiagonalWedge color="gold" corner="tl" className="w-20 h-20 opacity-90" style={{ left: -6, top: -6 }} />
             <div className="relative overflow-hidden rounded-2xl clip-diagonal-l shadow-card ring-1 ring-ctr-navy/10 bg-ctr-mist">
               {chapter.image ? (
-                <Image
+                <img
                   src={chapter.image}
                   alt={chapter.imageAlt || ""}
-                  width={1600}
-                  height={1000}
-                  sizes="(min-width: 1024px) 50vw, 100vw"
                   className="h-full max-h-[560px] w-full object-cover"
+                  loading="lazy"
+                  decoding="async"
                 />
               ) : null}
             </div>
@@ -141,7 +139,13 @@ export function NationalGridChapter({ chapter }: { chapter: Chapter }) {
             <div className="mt-16 grid gap-10 lg:grid-cols-2 lg:items-center">
               <Reveal y={30}>
                 <figure className="relative overflow-hidden rounded-2xl shadow-card ring-1 ring-ctr-navy/10">
-                  <Image src={inc.oneNationImage} alt={inc.oneNationAlt} width={1600} height={1000} sizes="(min-width: 1024px) 50vw, 100vw" className="h-auto w-full" />
+                  <img
+  src={inc.oneNationImage}
+  alt={inc.oneNationAlt}
+  className="h-auto w-full"
+  loading="lazy"
+  decoding="async"
+/>
                 </figure>
               </Reveal>
               <Reveal delay={0.08}>
@@ -154,7 +158,13 @@ export function NationalGridChapter({ chapter }: { chapter: Chapter }) {
                   cars — line up together under one national banner, on India&apos;s finest circuits.
                 </p>
                 <div className="mt-6 rounded-2xl bg-white p-5 shadow-card ring-1 ring-ctr-navy/10">
-                  <Image src={inc.carsImage} alt={inc.carsAlt} width={1600} height={900} sizes="(min-width: 1024px) 50vw, 100vw" className="h-auto w-full" />
+                  <img
+  src={inc.carsImage}
+  alt={inc.carsAlt}
+  className="h-auto w-full"
+  loading="lazy"
+  decoding="async"
+/>
                   <p className="mt-3 text-center text-xs font-display uppercase tracking-[0.18em] text-ctr-gold-deep">
                     {inc.oneNationVenue}
                   </p>
@@ -230,13 +240,12 @@ export function NationalGridChapter({ chapter }: { chapter: Chapter }) {
                   <RevealItem key={i}>
                     <figure className="group overflow-hidden rounded-2xl shadow-card ring-1 ring-ctr-navy/10">
                       <div className="relative aspect-[4/3] overflow-hidden">
-                        <Image
+                        <img
                           src={s.image}
                           alt={s.alt}
-                          width={800}
-                          height={600}
-                          sizes="(min-width: 640px) 33vw, 90vw"
                           className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                          loading="lazy"
+                          decoding="async"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-ctr-navy/25 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                       </div>
@@ -253,12 +262,12 @@ export function NationalGridChapter({ chapter }: { chapter: Chapter }) {
       {inc && (
         <div className="relative mt-20 w-full overflow-hidden">
           <div className="relative min-h-[420px] md:min-h-[520px]">
-            <Image
+            <img
               src={inc.familyImage}
               alt={inc.familyAlt}
-              fill
-              sizes="100vw"
-              className="object-cover"
+              className="absolute inset-0 h-full w-full object-cover"
+              loading="lazy"
+              decoding="async"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-ctr-navy-deep via-ctr-navy-deep/55 to-ctr-navy-deep/30" />
             <motion.div

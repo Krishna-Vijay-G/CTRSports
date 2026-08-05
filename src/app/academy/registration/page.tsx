@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import { SITE_NAME, SITE_URL } from "@/lib/site";
 import { RegistrationForm } from "./_components/RegistrationForm";
@@ -31,14 +30,12 @@ export default function RegistrationPage() {
       <header className="border-b border-ctr-navy/10">
         <div className="section-container flex items-center justify-between py-4">
           <Link href="/academy" className="flex items-center gap-3">
-            <Image
+            <img
               src="/images/journey/CTR_yellow.png"
               alt="Chennai Turbo Riders"
-              width={128}
-              height={72}
-              priority
-              sizes="64px"
               className="h-9 w-auto"
+              fetchPriority="high"
+              decoding="async"
             />
             <span className="font-display text-sm font-bold uppercase tracking-wide text-ctr-navy">
               CTR · Registration

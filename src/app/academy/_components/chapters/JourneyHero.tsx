@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef } from "react";
-import Image from "next/image";
 import { motion, useScroll, useTransform } from "framer-motion";
 import type { Chapter } from "../../_data/biography";
 import { HeroBackgroundVideo } from "../HeroBackgroundVideo";
@@ -29,14 +28,13 @@ export function JourneyHero({ chapter }: { chapter: Chapter }) {
         {chapter.video && chapter.poster ? (
           <HeroBackgroundVideo video={chapter.video} poster={chapter.poster} />
         ) : chapter.image ? (
-          <Image
+          <img
             src={chapter.image}
             alt=""
-            fill
-            priority
-            sizes="100vw"
-            className="object-cover"
+            className="absolute inset-0 h-full w-full object-cover"
             aria-hidden
+            fetchPriority="high"
+            decoding="async"
           />
         ) : null}
       </motion.div>
@@ -46,14 +44,13 @@ export function JourneyHero({ chapter }: { chapter: Chapter }) {
       <div className="absolute inset-0 z-0 bg-gradient-to-t from-ctr-navy-deep via-transparent to-ctr-navy-deep/40" />
 
       {/* Eagle watermark top-right */}
-      <Image
+      <img
         src="/images/journey/CTR_yellow.png"
         alt=""
         aria-hidden
-        width={640}
-        height={360}
-        sizes="(min-width: 1024px) 208px, (min-width: 640px) 160px, 112px"
         className="pointer-events-none absolute top-24 right-5 sm:right-10 w-28 sm:w-40 lg:w-52 h-auto opacity-95 drop-shadow-[0_10px_30px_rgba(244,180,0,0.4)] animate-float"
+        loading="lazy"
+        decoding="async"
       />
 
       <motion.div
