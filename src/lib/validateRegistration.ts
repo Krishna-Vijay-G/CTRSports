@@ -1,4 +1,4 @@
-import { ageFromDob, type RegistrationInput } from "@/lib/registrations";
+import { ageFromDob, isGender, type RegistrationInput } from "@/lib/registrations";
 import { isRaceCategoryId } from "@/lib/raceCategories";
 
 export type ValidationResult =
@@ -35,6 +35,11 @@ export function validateRegistrationBody(body: unknown): ValidationResult {
     return { ok: false, error: "Date of birth looks incorrect — please check the year." };
   }
 
+  const gender = raw.gender;
+  if (!isGender(gender)) {
+    return { ok: false, error: "Select a gender." };
+  }
+
   const category = raw.category;
   if (!isRaceCategoryId(category)) {
     return { ok: false, error: "Choose a racing category." };
@@ -52,6 +57,6 @@ export function validateRegistrationBody(body: unknown): ValidationResult {
 
   return {
     ok: true,
-    value: { name, dob: dobRaw, category, phone, email },
+    value: { name, dob: dobRaw, gender, category, phone, email },
   };
 }

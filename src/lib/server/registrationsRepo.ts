@@ -17,13 +17,13 @@ function toRegistration(row: RegistrationRow): Registration {
 // runtime's local timezone, which silently shifts the calendar day off by
 // one when the process runs anywhere but UTC (verified against this app's
 // IST dev host).
-const COLUMNS = "id, name, dob::text AS dob, category, phone, email, created_at";
+const COLUMNS = "id, name, dob::text AS dob, gender, category, phone, email, created_at";
 
 export async function createRegistration(input: RegistrationInput): Promise<Registration> {
   const sql = getSql();
   const rows = (await sql`
-    INSERT INTO race_registrations (name, dob, category, phone, email)
-    VALUES (${input.name}, ${input.dob}, ${input.category}, ${input.phone}, ${input.email})
+    INSERT INTO race_registrations (name, dob, gender, category, phone, email)
+    VALUES (${input.name}, ${input.dob}, ${input.gender}, ${input.category}, ${input.phone}, ${input.email})
     RETURNING ${sql.unsafe(COLUMNS)}
   `) as RegistrationRow[];
 

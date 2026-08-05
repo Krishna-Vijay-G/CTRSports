@@ -107,18 +107,23 @@ export async function migrate(sql) {
   `;
 
   // Entries from the /academy/registration form. `category` is a RaceCategoryId
-  // from src/lib/raceCategories.ts.
+  // from src/lib/raceCategories.ts; `gender` is a Gender from src/lib/registrations.ts.
   await sql`
     CREATE TABLE IF NOT EXISTS race_registrations (
       id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       name       text NOT NULL,
       dob        date NOT NULL,
+      gender     text,
       category   text NOT NULL,
       phone      text NOT NULL,
       email      text NOT NULL,
       created_at timestamptz NOT NULL DEFAULT now()
     )
   `;
+
+  // Nullable on purpose: entries submitted before this column existed have no
+  // gender, and picking a default for them would fabricate data.
+  await sql`ALTER TABLE race_registrations ADD COLUMN IF NOT EXISTS gender text`;
 
   // Each page's scrolling announcement strip. 'main' is the landing page,
   // every other key is a SportId.
