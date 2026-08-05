@@ -30,3 +30,6 @@ next-env.d.ts
 
 # vercel
 .vercel
+
+# camera-original media, kept locally so scripts/optimize-media.mjs --restore works
+/public/_originals/

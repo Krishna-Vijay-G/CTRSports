@@ -1,6 +1,32 @@
 import type { Metadata, Viewport } from "next";
+import { Inter, Oswald, Rajdhani } from "next/font/google";
 import { SITE_NAME, SITE_URL, SOCIAL_PROFILES } from "@/lib/site";
 import "@/styles/globals.css";
+
+/*
+ * Self-hosted through next/font instead of the old CSS @import, which cost two
+ * extra host connections before first paint. Inter and Oswald ship as variable
+ * fonts, so a single file covers every weight the design uses; Rajdhani has no
+ * variable cut, so its four weights are listed explicitly.
+ */
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-body",
+});
+
+const oswald = Oswald({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-display",
+});
+
+const rajdhani = Rajdhani({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+  variable: "--font-heading",
+});
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -61,7 +87,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${inter.variable} ${oswald.variable} ${rajdhani.variable}`}>
       <body className="antialiased">
         <script
           type="application/ld+json"

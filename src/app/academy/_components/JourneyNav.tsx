@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Chapter } from "../_data/biography";
@@ -53,9 +54,13 @@ export function JourneyNav({ chapters }: { chapters: Chapter[] }) {
         <div className="section-container flex items-center justify-between">
           <a href="#hero" className="flex items-center gap-3 group">
             <span className="relative">
-              <img
+              <Image
                 src="/images/journey/CTR_yellow.png"
                 alt="Chennai Turbo Riders"
+                width={128}
+                height={72}
+                priority
+                sizes="72px"
                 className="h-10 w-auto transition-transform duration-300 group-hover:scale-105 drop-shadow-[0_3px_8px_rgba(244,180,0,0.35)]"
               />
             </span>

@@ -1,6 +1,8 @@
 "use client";
 
+import Image from "next/image";
 import { motion, type Variants } from "framer-motion";
+import { SmartImage } from "@/components/ui/SmartImage";
 import type { LandingContent } from "@/lib/landingContent";
 
 const fadeUp: Variants = {
@@ -17,16 +19,28 @@ export function LandingHero({ hero }: { hero: LandingContent["hero"] }) {
   return (
     <section className="relative flex min-h-[92svh] items-end overflow-hidden" id="about">
       <div className="absolute inset-0">
-        <img src={hero.background_image} alt="" aria-hidden className="h-full w-full object-cover" />
+        {/* The page's LCP element — fetched at high priority, never lazily. */}
+        <SmartImage
+          src={hero.background_image}
+          alt=""
+          aria-hidden
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover"
+        />
         <div className="absolute inset-0 bg-gradient-to-t from-carbon-950 via-carbon-950/75 to-carbon-950/35" />
         <div className="absolute inset-0 bg-gradient-to-r from-carbon-950/85 via-carbon-950/25 to-transparent" />
       </div>
 
-      <img
+      <Image
         src="/images/logos/CTR_yellow.png"
         alt=""
         aria-hidden
-        className="pointer-events-none absolute right-4 top-24 w-24 select-none animate-float sm:right-10 sm:w-36 lg:w-44"
+        width={640}
+        height={360}
+        sizes="(min-width: 1024px) 176px, (min-width: 640px) 144px, 96px"
+        className="pointer-events-none absolute right-4 top-24 w-24 select-none animate-float sm:right-10 sm:w-36 lg:w-44 h-auto"
       />
 
       <div className="relative z-10 mx-auto w-full max-w-6xl px-5 pb-14 pt-40 sm:px-6 sm:pb-20">

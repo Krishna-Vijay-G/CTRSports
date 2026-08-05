@@ -1,5 +1,6 @@
 "use client";
 
+import { SmartImage } from "@/components/ui/SmartImage";
 import { motion } from "framer-motion";
 import type { MediaPost } from "@/lib/posts";
 import { formatPostDate } from "@/lib/formatDate";
@@ -265,7 +266,17 @@ function SpotlightTemplate({ post, muted, reducedMotion, kicker, video }: Templa
       <div aria-hidden className="absolute inset-0 overflow-hidden opacity-25">
         {post.media_type === "video" ? (
           post.poster_url ? (
-            <img src={post.poster_url} alt="" className="h-full w-full scale-110 object-cover blur-3xl" />
+            // Blurred to oblivion, so a thumbnail-sized variant is
+            // indistinguishable from the full image and costs almost nothing.
+            <SmartImage
+              src={post.poster_url}
+              alt=""
+              aria-hidden
+              width={64}
+              height={36}
+              sizes="64px"
+              className="h-full w-full scale-110 object-cover blur-3xl"
+            />
           ) : null
         ) : (
           <PostMedia post={post} reducedMotion className="scale-110 blur-3xl" />

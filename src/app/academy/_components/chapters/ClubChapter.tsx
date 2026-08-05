@@ -1,3 +1,4 @@
+import Image from "next/image";
 import type { Chapter } from "../../_data/biography";
 import { ChapterFrame } from "./ChapterFrame";
 import { ChapterHeader } from "../ChapterHeader";
@@ -36,12 +37,16 @@ export function ClubChapter({ chapter }: { chapter: Chapter }) {
               style={{ right: -8, top: -8 }}
             />
             <div className="relative overflow-hidden rounded-2xl clip-diagonal-l shadow-card ring-1 ring-ctr-navy/10">
-              <img
-                src={chapter.image}
-                alt={chapter.imageAlt || ""}
-                loading="lazy"
-                className="h-full max-h-[560px] w-full object-cover"
-              />
+              {chapter.image ? (
+                <Image
+                  src={chapter.image}
+                  alt={chapter.imageAlt || ""}
+                  width={1600}
+                  height={1000}
+                  sizes="(min-width: 1024px) 50vw, 100vw"
+                  className="h-full max-h-[560px] w-full object-cover"
+                />
+              ) : null}
               <DiagonalWedge
                 color="gold"
                 corner="br"

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useRef } from "react";
 import {
   motion,
@@ -110,9 +111,13 @@ export function SportHero({ sport }: { sport: SportMeta }) {
               }
               className="will-change-transform"
             >
-              <img
+              <Image
                 src={sport.logo}
                 alt={`${sport.name} crest`}
+                width={320}
+                height={320}
+                priority
+                sizes="(min-width: 1024px) 320px, (min-width: 640px) 256px, 192px"
                 className="h-48 w-48 object-contain drop-shadow-[0_28px_60px_rgba(0,0,0,0.65)] sm:h-64 sm:w-64 lg:h-80 lg:w-80"
               />
             </motion.div>

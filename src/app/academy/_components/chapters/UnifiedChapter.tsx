@@ -1,3 +1,4 @@
+import Image from "next/image";
 import type { Chapter } from "../../_data/biography";
 import { ChapterFrame } from "./ChapterFrame";
 import { ChapterHeader } from "../ChapterHeader";
@@ -26,10 +27,12 @@ export function UnifiedChapter({ chapter }: { chapter: Chapter }) {
             <RevealItem key={team.name}>
               <figure className="group flex h-full flex-col items-center rounded-2xl bg-white p-6 shadow-card ring-1 ring-ctr-navy/10 transition-all duration-300 hover:-translate-y-2 hover:shadow-card-hover">
                 <div className="flex h-32 w-full items-center justify-center">
-                  <img
+                  <Image
                     src={team.logo}
                     alt={`${team.name} emblem`}
-                    loading="lazy"
+                    width={256}
+                    height={256}
+                    sizes="128px"
                     className="max-h-32 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
                   />
                 </div>

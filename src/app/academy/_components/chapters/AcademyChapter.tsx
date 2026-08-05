@@ -1,3 +1,4 @@
+import Image from "next/image";
 import type { Chapter } from "../../_data/biography";
 import { ChapterFrame } from "./ChapterFrame";
 import { ChapterHeader } from "../ChapterHeader";
@@ -61,10 +62,12 @@ export function AcademyChapter({ chapter }: { chapter: Chapter }) {
               <RevealItem key={tile.label}>
                 <figure className="group overflow-hidden rounded-xl shadow-card ring-1 ring-ctr-navy/10">
                   <div className="relative aspect-[3/4] overflow-hidden">
-                    <img
+                    <Image
                       src={tile.image}
                       alt={tile.alt}
-                      loading="lazy"
+                      width={800}
+                      height={600}
+                      sizes="(min-width: 1024px) 25vw, (min-width: 640px) 45vw, 90vw"
                       className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                     />
                   </div>
