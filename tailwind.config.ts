@@ -38,9 +38,10 @@ const config: Config = {
       },
       fontFamily: {
         // Oswald leads the heavy condensed display face used across the deck.
-        display: ["Oswald", "Rajdhani", "sans-serif"],
-        heading: ["Rajdhani", "Oswald", "sans-serif"],
-        body: ["Inter", "system-ui", "sans-serif"],
+        // The CSS variables are supplied by next/font in app/layout.tsx.
+        display: ["var(--font-display)", "var(--font-heading)", "sans-serif"],
+        heading: ["var(--font-heading)", "var(--font-display)", "sans-serif"],
+        body: ["var(--font-body)", "system-ui", "sans-serif"],
       },
       boxShadow: {
         card: "0 10px 30px -12px rgba(27, 42, 99, 0.22)",

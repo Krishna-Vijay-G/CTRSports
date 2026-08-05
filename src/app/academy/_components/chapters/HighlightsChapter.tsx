@@ -1,3 +1,4 @@
+import Image from "next/image";
 import type { Chapter } from "../../_data/biography";
 import { ChapterFrame } from "./ChapterFrame";
 import { ChapterHeader } from "../ChapterHeader";
@@ -56,12 +57,16 @@ export function HighlightsChapter({ chapter }: { chapter: Chapter }) {
               style={{ right: -6, top: -6 }}
             />
             <div className="relative overflow-hidden rounded-2xl clip-diagonal-l shadow-card ring-1 ring-white/10">
-              <img
-                src={chapter.image}
-                alt={chapter.imageAlt || ""}
-                loading="lazy"
-                className="h-full max-h-[600px] w-full object-cover"
-              />
+              {chapter.image ? (
+                <Image
+                  src={chapter.image}
+                  alt={chapter.imageAlt || ""}
+                  width={1600}
+                  height={1000}
+                  sizes="(min-width: 1024px) 50vw, 100vw"
+                  className="h-full max-h-[600px] w-full object-cover"
+                />
+              ) : null}
               <div className="absolute inset-0 bg-gradient-to-tr from-ctr-navy-deep/40 to-transparent" />
             </div>
           </Reveal>

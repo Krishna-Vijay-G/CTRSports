@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { motion } from "framer-motion";
+import { SmartImage } from "@/components/ui/SmartImage";
 import type { MediaPost } from "@/lib/posts";
 import { cn } from "@/lib/utils";
 
@@ -78,26 +79,41 @@ export function PostMedia({
     );
   }
 
+  // Uploaded media has no stored dimensions, and `fill` would require every
+  // caller's parent to be positioned. Passing a 16:9 intrinsic hint instead
+  // keeps the existing layout contract exactly — the h-full/w-auto classes
+  // still decide the rendered box — while giving the optimizer a size to work
+  // from and reserving space so the media does not shift the page on arrival.
+  const intrinsic = { width: 1920, height: 1080 } as const;
+
   if (kenBurns && !reducedMotion) {
     return (
-      <motion.img
-        src={post.media_url}
-        alt={post.title ?? ""}
+      <motion.div
         initial={{ scale: 1.09 }}
         animate={{ scale: 1 }}
         transition={{ duration: 9, ease: "linear" }}
-        className={cn(sizeClass, fitClass, className)}
-        loading={priority ? "eager" : "lazy"}
-      />
+        className={cn(sizeClass, "overflow-hidden")}
+      >
+        <SmartImage
+          src={post.media_url}
+          alt={post.title ?? ""}
+          {...intrinsic}
+          priority={priority}
+          sizes="100vw"
+          className={cn(sizeClass, fitClass, className)}
+        />
+      </motion.div>
     );
   }
 
   return (
-    <img
+    <SmartImage
       src={post.media_url}
       alt={post.title ?? ""}
+      {...intrinsic}
+      priority={priority}
+      sizes="100vw"
       className={cn(sizeClass, fitClass, className)}
-      loading={priority ? "eager" : "lazy"}
     />
   );
 }

@@ -3,11 +3,12 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { RACE_CATEGORY_LIST, categoryLabel, type RaceCategoryId } from "@/lib/raceCategories";
-import { ageFromDob } from "@/lib/registrations";
+import { GENDER_LIST, ageFromDob, type Gender } from "@/lib/registrations";
 
 type FormState = {
   name: string;
   dob: string;
+  gender: Gender | "";
   category: RaceCategoryId | "";
   phone: string;
   email: string;
@@ -15,7 +16,15 @@ type FormState = {
   company: string;
 };
 
-const EMPTY_FORM: FormState = { name: "", dob: "", category: "", phone: "", email: "", company: "" };
+const EMPTY_FORM: FormState = {
+  name: "",
+  dob: "",
+  gender: "",
+  category: "",
+  phone: "",
+  email: "",
+  company: "",
+};
 
 const fieldClass =
   "mt-2 w-full rounded-xl border border-ctr-navy/15 bg-white px-4 py-3 text-sm text-ctr-navy outline-none transition focus:border-ctr-gold focus:ring-2 focus:ring-ctr-gold/20";
@@ -144,6 +153,39 @@ export function RegistrationForm({ maxDob }: { maxDob: string }) {
               </div>
             </label>
           </div>
+
+          {/* A real radio group rather than a select: three short options are
+              faster to pick from, and it stays keyboard- and screen-reader
+              navigable as a single labelled group. */}
+          <fieldset className="mt-5">
+            <legend className={labelClass}>Gender</legend>
+            <div className="mt-2 grid grid-cols-3 gap-3">
+              {GENDER_LIST.map((option) => {
+                const selected = form.gender === option.id;
+                return (
+                  <label
+                    key={option.id}
+                    className={`flex cursor-pointer items-center justify-center rounded-xl border px-3 py-3 text-sm font-medium transition ${
+                      selected
+                        ? "border-ctr-gold bg-ctr-gold/10 text-ctr-navy shadow-[0_0_0_3px_rgba(244,180,0,0.15)]"
+                        : "border-ctr-navy/15 bg-white text-ctr-body/70 hover:border-ctr-navy/30"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="gender"
+                      value={option.id}
+                      required
+                      checked={selected}
+                      onChange={() => set("gender", option.id)}
+                      className="sr-only"
+                    />
+                    {option.label}
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
 
           <label className="mt-5 block">
             <span className={labelClass}>Category</span>

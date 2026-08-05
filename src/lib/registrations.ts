@@ -1,11 +1,45 @@
 import type { RaceCategoryId } from "@/lib/raceCategories";
 
+/**
+ * Gender options on the form. `id` is what lands in the database, so these
+ * strings must stay stable. (Unlike race categories, which the academy page
+ * also reads, gender is only ever used by this feature — so it lives here with
+ * the rest of the registration shape rather than in a file of its own.)
+ */
+export const GENDER_IDS = ["male", "female", "other"] as const;
+
+export type Gender = (typeof GENDER_IDS)[number];
+
+export const GENDERS: Record<Gender, { id: Gender; label: string }> = {
+  male: { id: "male", label: "Male" },
+  female: { id: "female", label: "Female" },
+  other: { id: "other", label: "Other" },
+};
+
+export const GENDER_LIST = GENDER_IDS.map((id) => GENDERS[id]);
+
+export function isGender(value: unknown): value is Gender {
+  return typeof value === "string" && (GENDER_IDS as readonly string[]).includes(value);
+}
+
+/** Display label for a stored value, tolerating rows saved before this field existed. */
+export function genderLabel(value: string | null | undefined): string {
+  if (!value) return "—";
+  return isGender(value) ? GENDERS[value].label : value;
+}
+
 /** A driver's entry for a racing category. Shape only — see `lib/server/registrationsRepo` for the query. */
 export type Registration = {
   id: string;
   name: string;
   /** ISO date, `YYYY-MM-DD` — age is derived from this rather than stored. */
   dob: string;
+  /**
+   * `null` only for entries submitted before this field was added — the column
+   * is nullable so the migration could not invent a value for existing rows.
+   * Every new submission is required to set it.
+   */
+  gender: Gender | null;
   category: RaceCategoryId;
   phone: string;
   email: string;
@@ -13,7 +47,9 @@ export type Registration = {
   created_at: string;
 };
 
-export type RegistrationInput = Omit<Registration, "id" | "created_at">;
+export type RegistrationInput = Omit<Registration, "id" | "created_at" | "gender"> & {
+  gender: Gender;
+};
 
 /**
  * Whole years old as of `now`, month/day aware. `null` for anything that

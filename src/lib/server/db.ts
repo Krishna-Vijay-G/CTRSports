@@ -147,9 +147,9 @@ export async function ensureSchema() {
 }
 
 /**
- * Just the one table the public registration form writes to — a single round
- * trip, unlike `ensureSchema()`'s full pass. Safe to call on every submission
- * so the route works even if `migrate` was never run for this table.
+ * Just the one table the public registration form writes to — a short pass,
+ * unlike `ensureSchema()`'s full one. Safe to call on every submission so the
+ * route works even if `migrate` was never run for this table.
  */
 export async function ensureRegistrationsTable() {
   const sql = getSql();
@@ -159,10 +159,17 @@ export async function ensureRegistrationsTable() {
       id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       name       text NOT NULL,
       dob        date NOT NULL,
+      gender     text,
       category   text NOT NULL,
       phone      text NOT NULL,
       email      text NOT NULL,
       created_at timestamptz NOT NULL DEFAULT now()
     )
   `;
+
+  // Added after the table shipped, so it has to be backfilled onto existing
+  // deployments too. Deliberately nullable: entries submitted before the field
+  // existed have no gender, and defaulting them to a real option would invent
+  // data. The API requires it of every new submission instead.
+  await sql`ALTER TABLE race_registrations ADD COLUMN IF NOT EXISTS gender text`;
 }

@@ -1,5 +1,6 @@
 import type { LandingContent } from "@/lib/landingContent";
 import { CopyrightBar } from "@/components/ui/CopyrightBar";
+import { SmartImage } from "@/components/ui/SmartImage";
 
 function SocialIcon({ name, className = "h-4 w-4" }: { name: string; className?: string }) {
   const common = {
@@ -65,7 +66,15 @@ export function LandingFooter({
     <footer className="border-t border-white/10">
       <div className="mx-auto flex max-w-6xl flex-col items-center gap-5 px-5 py-10 sm:flex-row sm:justify-between sm:px-6">
         <div className="flex items-center gap-3">
-          <img src={brand.logo_image} alt="" aria-hidden className="h-8 w-auto" />
+          <SmartImage
+            src={brand.logo_image}
+            alt=""
+            aria-hidden
+            width={96}
+            height={54}
+            sizes="32px"
+            className="h-8 w-auto"
+          />
           <span className="font-display text-xs uppercase tracking-[0.2em] text-white/45">
             {brand.name} — {brand.subtitle}
           </span>

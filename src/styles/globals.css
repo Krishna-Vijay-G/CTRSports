@@ -1,4 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Oswald:wght@400;500;600;700&family=Rajdhani:wght@400;500;600;700&display=swap');
+/*
+ * Fonts are loaded with next/font in app/layout.tsx, not with an @import.
+ * The old `@import url(fonts.googleapis.com/...)` was render-blocking: the
+ * browser had to fetch and parse this stylesheet, then open connections to two
+ * more hosts (fonts.googleapis.com, fonts.gstatic.com) before it could paint.
+ * next/font self-hosts the files from our own origin and preloads them.
+ */
 
 @tailwind base;
 @tailwind components;

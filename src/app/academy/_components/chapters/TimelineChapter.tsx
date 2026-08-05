@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { motion } from "framer-motion";
 import type { Chapter } from "../../_data/biography";
 import { ChapterFrame } from "./ChapterFrame";
@@ -31,12 +32,16 @@ export function TimelineChapter({ chapter }: { chapter: Chapter }) {
             mediaLeft ? "clip-diagonal-r" : "clip-diagonal-l"
           )}
         >
-          <img
-            src={chapter.image}
-            alt={chapter.imageAlt || ""}
-            loading="lazy"
-            className="h-full max-h-[560px] w-full object-cover"
-          />
+          {chapter.image ? (
+            <Image
+              src={chapter.image}
+              alt={chapter.imageAlt || ""}
+              width={1600}
+              height={1000}
+              sizes="(min-width: 1024px) 50vw, 100vw"
+              className="h-full max-h-[560px] w-full object-cover"
+            />
+          ) : null}
           <DiagonalWedge
             color="navy"
             corner={mediaLeft ? "bl" : "br"}
