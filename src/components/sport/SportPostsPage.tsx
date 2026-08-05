@@ -1,9 +1,12 @@
 import Link from "next/link";
 import type { MediaPost } from "@/lib/posts";
+import type { MarqueeItem } from "@/lib/marquee";
 import type { SportMeta } from "@/lib/sports";
 import { SportHero } from "@/components/sport/SportHero";
-import { PostBanners } from "@/components/landing/PostBanners";
-import { PostGrid } from "@/components/landing/PostGrid";
+import { PostBanners } from "@/components/post/PostBanners";
+import { PostGrid } from "@/components/post/PostGrid";
+import { CopyrightBar } from "@/components/ui/CopyrightBar";
+import { AnnouncementMarquee } from "@/components/ui/AnnouncementMarquee";
 
 /**
  * One sport's post page: crest, the three most recent posts as banners, and
@@ -12,10 +15,12 @@ import { PostGrid } from "@/components/landing/PostGrid";
 export function SportPostsPage({
   sport,
   posts,
+  marquee,
   year,
 }: {
   sport: SportMeta;
   posts: MediaPost[];
+  marquee: MarqueeItem[];
   year: number;
 }) {
   const bannerPosts = posts.slice(0, 3);
@@ -24,6 +29,7 @@ export function SportPostsPage({
   return (
     <div className="min-h-screen bg-carbon-950 font-body text-white/90">
       <header className="sticky top-0 z-40 border-b border-white/5 bg-carbon-950/70 backdrop-blur-md">
+        <AnnouncementMarquee items={marquee} />
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3 sm:px-6">
           <Link href="/" className="flex items-center gap-3" aria-label="CTR Unified home">
             <img src="/media/ctr-logo.png" alt="CTR Unified logo" className="h-10 w-auto sm:h-12" />
@@ -118,9 +124,7 @@ export function SportPostsPage({
             ← Back to CTR Unified
           </Link>
         </div>
-        <div className="border-t border-white/5 py-4 text-center text-[11px] text-white/30">
-          © {year} <a href="https://krishna-vijay-g.vercel.app" target="_blank" className="hover:text-racing-yellow">CTR Unified.</a> All rights reserved.
-        </div>
+        <CopyrightBar year={year} />
       </footer>
     </div>
   );

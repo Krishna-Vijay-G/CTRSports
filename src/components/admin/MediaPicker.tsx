@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { ACCEPT_ATTRIBUTE } from "@/lib/mediaTypes";
-import { uploadMedia } from "@/lib/uploadMedia";
+import { uploadMedia } from "@/lib/client/uploadMedia";
 import { cn } from "@/lib/utils";
 
 export type MediaValue = {

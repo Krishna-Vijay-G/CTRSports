@@ -1,15 +1,20 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
-import { getSession } from "@/lib/auth";
-import { getLandingContent, saveLandingContent } from "@/lib/siteContent";
+import { getSession } from "@/lib/server/auth";
+import { canManageContent } from "@/lib/adminRoles";
+import { getLandingContent, saveLandingContent } from "@/lib/server/siteContent";
 import { normaliseLandingContent } from "@/lib/normaliseContent";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  if (!(await getSession())) {
+  const session = await getSession();
+  if (!session) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  }
+  if (!canManageContent(session.role)) {
+    return NextResponse.json({ error: "Your role does not manage site content." }, { status: 403 });
   }
 
   try {
@@ -21,8 +26,12 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
-  if (!(await getSession())) {
+  const session = await getSession();
+  if (!session) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  }
+  if (!canManageContent(session.role)) {
+    return NextResponse.json({ error: "Your role does not manage site content." }, { status: 403 });
   }
 
   let body: unknown;

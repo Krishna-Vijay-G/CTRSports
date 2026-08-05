@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
-import { getSession } from "@/lib/auth";
-import { deletePost, getPost, updatePost, type MediaPost } from "@/lib/posts";
-import { deleteObject } from "@/lib/s3";
+import { getSession } from "@/lib/server/auth";
+import type { MediaPost } from "@/lib/posts";
+import { deletePost, getPost, updatePost } from "@/lib/server/postsRepo";
+import { deleteObject } from "@/lib/server/s3";
+import { canManageMedia } from "@/lib/adminRoles";
 import { sportPostsPath } from "@/lib/sports";
 import { validatePostBody } from "@/lib/validatePost";
 
@@ -24,7 +26,8 @@ async function removeKeys(keys: (string | null)[]) {
 }
 
 export async function PUT(request: Request, { params }: Context) {
-  if (!(await getSession())) {
+  const session = await getSession();
+  if (!session) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
 
@@ -46,6 +49,12 @@ export async function PUT(request: Request, { params }: Context) {
     const existing = await getPost(id);
     if (!existing) {
       return NextResponse.json({ error: "Post not found." }, { status: 404 });
+    }
+    // Both the post's current sport and the sport it's being saved as must be
+    // within this role's reach — otherwise a scoped admin could edit a post
+    // out of their section, or move one of their own posts into someone else's.
+    if (!canManageMedia(session.role, existing.sport) || !canManageMedia(session.role, parsed.value.sport)) {
+      return NextResponse.json({ error: "Your role does not manage this sport." }, { status: 403 });
     }
 
     const post = await updatePost(id, parsed.value);
@@ -71,13 +80,22 @@ export async function PUT(request: Request, { params }: Context) {
 }
 
 export async function DELETE(_request: Request, { params }: Context) {
-  if (!(await getSession())) {
+  const session = await getSession();
+  if (!session) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
 
   const { id } = await params;
 
   try {
+    const existing = await getPost(id);
+    if (!existing) {
+      return NextResponse.json({ error: "Post not found." }, { status: 404 });
+    }
+    if (!canManageMedia(session.role, existing.sport)) {
+      return NextResponse.json({ error: "Your role does not manage this sport." }, { status: 403 });
+    }
+
     const removed: MediaPost | null = await deletePost(id);
     if (!removed) {
       return NextResponse.json({ error: "Post not found." }, { status: 404 });

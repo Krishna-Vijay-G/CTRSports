@@ -120,6 +120,15 @@ export const SPORTS: Record<SportId, SportMeta> = {
 
 export const SPORT_LIST: SportMeta[] = SPORT_IDS.map((id) => SPORTS[id]);
 
+/**
+ * Which sports actually have a `/{slug}/post` route built. Every id above is
+ * valid to tag a post with, but only these have somewhere to show it.
+ *
+ * Adding a page means adding its route file AND its id here — the sitemap reads
+ * this list, so leaving it out means the page never gets indexed.
+ */
+export const BUILT_SPORT_PAGES: SportId[] = ["volleyball", "cricket", "academy", "karting"];
+
 export function isSportId(value: unknown): value is SportId {
   return typeof value === "string" && (SPORT_IDS as readonly string[]).includes(value);
 }

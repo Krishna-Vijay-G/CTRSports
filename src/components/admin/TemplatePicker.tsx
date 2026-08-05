@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { MediaPost } from "@/lib/posts";
 import { TEMPLATE_LIST, type TemplateId } from "@/lib/templates";
-import { BannerTemplate } from "@/components/landing/BannerTemplates";
+import { BannerTemplate } from "@/components/post/BannerTemplates";
 import { cn } from "@/lib/utils";
 
 /** Width the preview is rendered at before being scaled down to fit. */
