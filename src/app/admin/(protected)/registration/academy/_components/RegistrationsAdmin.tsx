@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Registration } from "@/lib/registrations";
-import { ageFromDob, genderLabel } from "@/lib/registrations";
+import { ageFromDob, genderLabel, participantTypeLabel } from "@/lib/registrations";
 import { RACE_CATEGORY_LIST, RACE_CATEGORIES, type RaceCategoryId } from "@/lib/raceCategories";
 import { formatPostDateTime } from "@/lib/formatDate";
 import { cn } from "@/lib/utils";
@@ -97,6 +97,7 @@ export function RegistrationsAdmin({ registrations }: { registrations: Registrat
                 <th className="px-4 py-3">Name</th>
                 <th className="px-4 py-3">Age</th>
                 <th className="px-4 py-3">Gender</th>
+                <th className="px-4 py-3">Type</th>
                 <th className="px-4 py-3">Category</th>
                 <th className="px-4 py-3">Phone</th>
                 <th className="px-4 py-3">Email</th>
@@ -110,8 +111,8 @@ export function RegistrationsAdmin({ registrations }: { registrations: Registrat
                   <tr key={registration.id} className="border-b border-white/5 last:border-b-0 hover:bg-white/[0.02]">
                     <td className="px-4 py-3 font-medium text-white">{registration.name}</td>
                     <td className="px-4 py-3 text-white/70">{age !== null ? age : "—"}</td>
-                    {/* Entries from before this field existed show a dash. */}
                     <td className="px-4 py-3 text-white/70">{genderLabel(registration.gender)}</td>
+                    <td className="px-4 py-3 text-white/70">{participantTypeLabel(registration.participant_type)}</td>
                     <td className="px-4 py-3 text-white/70">
                       {RACE_CATEGORIES[registration.category]?.name ?? registration.category}
                     </td>

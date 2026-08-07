@@ -22,6 +22,26 @@ export function isGender(value: unknown): value is Gender {
   return typeof value === "string" && (GENDER_IDS as readonly string[]).includes(value);
 }
 
+export const PARTICIPANT_TYPE_IDS = ["individual", "organization"] as const;
+
+export type ParticipantType = (typeof PARTICIPANT_TYPE_IDS)[number];
+
+export const PARTICIPANT_TYPES: Record<ParticipantType, { id: ParticipantType; label: string }> = {
+  individual: { id: "individual", label: "Individual" },
+  organization: { id: "organization", label: "Organization" },
+};
+
+export const PARTICIPANT_TYPE_LIST = PARTICIPANT_TYPE_IDS.map((id) => PARTICIPANT_TYPES[id]);
+
+export function isParticipantType(value: unknown): value is ParticipantType {
+  return typeof value === "string" && (PARTICIPANT_TYPE_IDS as readonly string[]).includes(value);
+}
+
+export function participantTypeLabel(value: string | null | undefined): string {
+  if (!value) return "—";
+  return isParticipantType(value) ? PARTICIPANT_TYPES[value].label : value;
+}
+
 /** Display label for a stored value, tolerating rows saved before this field existed. */
 export function genderLabel(value: string | null | undefined): string {
   if (!value) return "—";
@@ -40,6 +60,8 @@ export type Registration = {
    * Every new submission is required to set it.
    */
   gender: Gender | null;
+  /** `null` only for entries submitted before this field was added. */
+  participant_type: ParticipantType | null;
   category: RaceCategoryId;
   phone: string;
   email: string;
@@ -47,8 +69,9 @@ export type Registration = {
   created_at: string;
 };
 
-export type RegistrationInput = Omit<Registration, "id" | "created_at" | "gender"> & {
+export type RegistrationInput = Omit<Registration, "id" | "created_at" | "gender" | "participant_type"> & {
   gender: Gender;
+  participant_type: ParticipantType;
 };
 
 /**

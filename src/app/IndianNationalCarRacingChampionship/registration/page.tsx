@@ -7,12 +7,12 @@ export const metadata: Metadata = {
   title: "Race Registration | Chennai Turbo Riders",
   description:
     "Register for the Indian National Car Racing Championship — eight categories across national rounds on India's best circuits.",
-  alternates: { canonical: "/academy/registration" },
+  alternates: { canonical: "/IndianNationalCarRacingChampionship/registration" },
   openGraph: {
     title: "Race Registration | Chennai Turbo Riders",
     description:
       "Register for the Indian National Car Racing Championship — eight categories across national rounds on India's best circuits.",
-    url: `${SITE_URL}/academy/registration`,
+    url: `${SITE_URL}/IndianNationalCarRacingChampionship/registration`,
     siteName: SITE_NAME,
     type: "website",
     locale: "en_IN",
@@ -29,7 +29,7 @@ export default function RegistrationPage() {
     <div className="min-h-screen bg-ctr-paper text-ctr-body">
       <header className="border-b border-ctr-navy/10">
         <div className="section-container flex items-center justify-between py-4">
-          <Link href="/academy" className="flex items-center gap-3">
+          <Link href="/IndianNationalCarRacingChampionship" className="flex items-center gap-3">
             <img
               src="/images/journey/CTR_yellow.png"
               alt="Chennai Turbo Riders"
@@ -42,7 +42,7 @@ export default function RegistrationPage() {
             </span>
           </Link>
           <Link
-            href="/academy"
+            href="/IndianNationalCarRacingChampionship"
             className="font-display text-xs font-semibold uppercase tracking-widest text-ctr-navy/60 transition hover:text-ctr-navy"
           >
             ← Back

@@ -3,12 +3,13 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { RACE_CATEGORY_LIST, categoryLabel, type RaceCategoryId } from "@/lib/raceCategories";
-import { GENDER_LIST, ageFromDob, type Gender } from "@/lib/registrations";
+import { GENDER_LIST, PARTICIPANT_TYPE_LIST, ageFromDob, type Gender, type ParticipantType } from "@/lib/registrations";
 
 type FormState = {
   name: string;
   dob: string;
   gender: Gender | "";
+  participantType: ParticipantType | "";
   category: RaceCategoryId | "";
   phone: string;
   email: string;
@@ -20,6 +21,7 @@ const EMPTY_FORM: FormState = {
   name: "",
   dob: "",
   gender: "",
+  participantType: "",
   category: "",
   phone: "",
   email: "",
@@ -49,10 +51,10 @@ export function RegistrationForm({ maxDob }: { maxDob: string }) {
     setError(null);
 
     try {
-      const response = await fetch("/api/academy/registration", {
+      const response = await fetch("/api/IndianNationalCarRacingChampionship/registration", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, participant_type: form.participantType }),
       });
 
       const data = await response.json().catch(() => ({}) as Record<string, unknown>);
@@ -87,7 +89,7 @@ export function RegistrationForm({ maxDob }: { maxDob: string }) {
           has been received. Our team will reach out at {form.phone.trim()} or {form.email.trim()} with
           next steps.
         </p>
-        <Link href="/academy" className="btn-gold mt-8">
+        <Link href="/IndianNationalCarRacingChampionship" className="btn-gold mt-8">
           Back to Our Story
         </Link>
       </section>
@@ -178,6 +180,36 @@ export function RegistrationForm({ maxDob }: { maxDob: string }) {
                       required
                       checked={selected}
                       onChange={() => set("gender", option.id)}
+                      className="sr-only"
+                    />
+                    {option.label}
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
+
+          <fieldset className="mt-5">
+            <legend className={labelClass}>Participant type</legend>
+            <div className="mt-2 grid grid-cols-2 gap-3">
+              {PARTICIPANT_TYPE_LIST.map((option) => {
+                const selected = form.participantType === option.id;
+                return (
+                  <label
+                    key={option.id}
+                    className={`flex cursor-pointer items-center justify-center rounded-xl border px-3 py-3 text-sm font-medium transition ${
+                      selected
+                        ? "border-ctr-gold bg-ctr-gold/10 text-ctr-navy shadow-[0_0_0_3px_rgba(244,180,0,0.15)]"
+                        : "border-ctr-navy/15 bg-white text-ctr-body/70 hover:border-ctr-navy/30"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="participantType"
+                      value={option.id}
+                      required
+                      checked={selected}
+                      onChange={() => set("participantType", option.id)}
                       className="sr-only"
                     />
                     {option.label}

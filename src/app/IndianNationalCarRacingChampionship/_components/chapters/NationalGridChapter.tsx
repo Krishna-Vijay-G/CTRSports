@@ -135,6 +135,36 @@ export function NationalGridChapter({ chapter }: { chapter: Chapter }) {
               ))}
             </RevealStagger>
 
+            {/* ── Our Vision ── */}
+            {inc.vision?.length ? (
+              <div className="mt-20">
+                <Reveal className="text-center">
+                  <p className="kicker">Our Vision</p>
+                  <h3 className="mt-2 display-title text-[clamp(1.8rem,4vw,3rem)] text-ctr-navy">
+                    New Era of Indian Motorsport
+                  </h3>
+                  <span className="mx-auto mt-4 block h-1 w-16 rounded-full bg-gold-gradient" />
+                </Reveal>
+                <RevealStagger className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+                  {inc.vision.map((v) => (
+                    <RevealItem key={v.label}>
+                      <div className="h-full rounded-2xl border border-ctr-navy/10 bg-white p-6 shadow-card">
+                        <span className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-ctr-navy text-ctr-gold">
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden>
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                          </svg>
+                        </span>
+                        <p className="font-display font-bold uppercase tracking-wide text-ctr-navy text-sm leading-snug">
+                          {v.label}
+                        </p>
+                        <p className="mt-2 text-sm leading-relaxed text-ctr-body/70">{v.description}</p>
+                      </div>
+                    </RevealItem>
+                  ))}
+                </RevealStagger>
+              </div>
+            ) : null}
+
             {/* ── One Nation, One Championship + the grid ── */}
             <div className="mt-16 grid gap-10 lg:grid-cols-2 lg:items-center">
               <Reveal y={30}>
@@ -171,6 +201,39 @@ export function NationalGridChapter({ chapter }: { chapter: Chapter }) {
                 </div>
               </Reveal>
             </div>
+
+            {/* ── Championship Venues ── */}
+            {inc.venues?.length ? (
+              <div className="mt-20">
+                <Reveal>
+                  <p className="kicker">Championship Venues</p>
+                  <h3 className="mt-2 display-title text-[clamp(1.8rem,4vw,3rem)] text-ctr-navy">
+                    3 Iconic Circuits. One Championship.
+                  </h3>
+                </Reveal>
+                <RevealStagger className="mt-8 grid gap-4 sm:grid-cols-3">
+                  {inc.venues.map((venue) => (
+                    <RevealItem key={venue.number}>
+                      <div className="group relative overflow-hidden rounded-2xl bg-ctr-navy p-6 shadow-card transition-all duration-300 hover:-translate-y-1">
+                        <span className="absolute inset-x-0 top-0 h-1 bg-gold-gradient" />
+                        <p className="font-display text-[11px] uppercase tracking-[0.3em] text-ctr-gold mb-2">
+                          Venue {venue.number}
+                        </p>
+                        <p className="font-display font-bold uppercase tracking-wide text-white text-lg leading-snug">
+                          {venue.name}
+                        </p>
+                        <p className="mt-2 flex items-center gap-1.5 text-sm text-white/60 font-display uppercase tracking-wider">
+                          <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
+                            <path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11Z" /><circle cx="12" cy="10" r="2.5" />
+                          </svg>
+                          {venue.city}
+                        </p>
+                      </div>
+                    </RevealItem>
+                  ))}
+                </RevealStagger>
+              </div>
+            ) : null}
 
             {/* ── 2026 Calendar ── */}
             <div className="mt-20">

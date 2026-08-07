@@ -33,8 +33,8 @@ export const RACE_CATEGORIES: Record<RaceCategoryId, RaceCategoryMeta> = {
   "super-stock": { id: "super-stock", name: "Super Stock", rounds: 3, races: 10 },
   "levitas-rookie": { id: "levitas-rookie", name: "Levitas Cup Rookie", rounds: 4, races: 10 },
   "levitas-gentlemen": { id: "levitas-gentlemen", name: "Levitas Cup Gentlemen", rounds: 4, races: 10 },
-  flgb4: { id: "flgb4", name: "Formula LGB F4 (FLGB4)", rounds: 4, races: 10 },
-  "formula-1300": { id: "formula-1300", name: "Formula 1300 – TBA", rounds: 4, races: 10 },
+  flgb4: { id: "flgb4", name: "Formula LGB4", rounds: 4, races: 10 },
+  "formula-1300": { id: "formula-1300", name: "Novice Cup (F1300)", rounds: 4, races: 10 },
 };
 
 export const RACE_CATEGORY_LIST: RaceCategoryMeta[] = RACE_CATEGORY_IDS.map(

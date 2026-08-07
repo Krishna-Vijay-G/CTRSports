@@ -125,6 +125,26 @@ export async function migrate(sql) {
   // gender, and picking a default for them would fabricate data.
   await sql`ALTER TABLE race_registrations ADD COLUMN IF NOT EXISTS gender text`;
 
+  // Individual vs Organisation — nullable so old rows are not backfilled.
+  await sql`ALTER TABLE race_registrations ADD COLUMN IF NOT EXISTS participant_type text`;
+
+  // Per-category age limits. Seeded with the eight INCRC category IDs so the
+  // admin can UPDATE min_age / max_age directly in the DB.
+  await sql`
+    CREATE TABLE IF NOT EXISTS race_categories (
+      id      text PRIMARY KEY,
+      min_age smallint,
+      max_age smallint
+    )
+  `;
+
+  await sql`
+    INSERT INTO race_categories (id) VALUES
+      ('super-touring'), ('touring'), ('junior-touring'), ('super-stock'),
+      ('levitas-rookie'), ('levitas-gentlemen'), ('flgb4'), ('formula-1300')
+    ON CONFLICT (id) DO NOTHING
+  `;
+
   // Each page's scrolling announcement strip. 'main' is the landing page,
   // every other key is a SportId.
   await sql`

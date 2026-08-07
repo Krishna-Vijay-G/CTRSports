@@ -4,14 +4,14 @@ import { SPORTS } from "@/lib/sports";
 
 export const revalidate = 60;
 
-export const metadata = sportPostMetadata("academy");
+export const metadata = sportPostMetadata("karting");
 
 export default async function Page() {
   return (
     <SportPostsPage
-      sport={SPORTS.academy}
-      posts={await loadPosts("academy")}
-      marquee={await loadMarquee("academy")}
+      sport={SPORTS.karting}
+      posts={await loadPosts("karting")}
+      marquee={await loadMarquee("karting")}
       year={new Date().getFullYear()}
     />
   );

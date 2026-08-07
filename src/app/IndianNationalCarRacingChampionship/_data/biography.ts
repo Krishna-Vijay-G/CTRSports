@@ -99,6 +99,7 @@ export interface IncrcContent {
   tagline: string;
   season: string;
   seasonKicker: string;
+  vision: { label: string; description: string }[];
   oneNationImage: string;
   oneNationAlt: string;
   oneNationVenue: string;
@@ -108,6 +109,7 @@ export interface IncrcContent {
   familyAlt: string;
   familyLead: string;
   familyQuote: string;
+  venues: { number: string; name: string; city: string }[];
   rounds: RoundItem[];
   signingTitle: string;
   signingText: string;
@@ -337,6 +339,12 @@ export const chapters: Chapter[] = [
       tagline: "One Nation · One Championship",
       season: "The 2026 Season",
       seasonKicker: "FMSCI Indian National Car Racing Championship",
+      vision: [
+        { label: "Elevate Indian Motorsport", description: "Raise the standard of competitive racing across all categories on India's finest circuits." },
+        { label: "Inspire the Next Generation", description: "Nurture and develop the next wave of Indian racing champions from grassroots to national level." },
+        { label: "Build a World-Class Racing Ecosystem", description: "Create a self-sustaining motorsport infrastructure with safety, broadcast and fan engagement at its core." },
+        { label: "Position India as a Global Destination", description: "Establish India as a premier motorsport destination, attracting international talent and investment." },
+      ],
       oneNationImage: "/images/journey/incrc/one-nation.jpg",
       oneNationAlt:
         "One Nation, One Championship — 3D render of the Kari Motor Speedway circuit, presented by CTR × JK Tyre × FMSCI.",
@@ -349,11 +357,16 @@ export const chapters: Chapter[] = [
         "Media, teams, marshals and officials standing arm-in-arm on the grid at sunset.",
       familyLead: "Entertainment isn't created by one organiser.",
       familyQuote: "It is powered by an entire motorsport family.",
+      venues: [
+        { number: "01", name: "Kari Motor Speedway", city: "Coimbatore" },
+        { number: "02", name: "Bren Raceway", city: "Bengaluru" },
+        { number: "03", name: "Madras International Circuit", city: "Chennai" },
+      ],
       rounds: [
         { round: "01", dates: "11–13 September 2026", venue: "Kari Motor Speedway", city: "Coimbatore" },
         { round: "02", dates: "23–25 October 2026", venue: "Kari Motor Speedway", city: "Coimbatore" },
         { round: "03", dates: "13–15 November 2026", venue: "Bren Raceway", city: "Bengaluru" },
-        { round: "04", dates: "11–13 December 2026", venue: "To Be Announced…", city: "", tba: true },
+        { round: "04", dates: "11–13 December 2026", venue: "Madras International Circuit", city: "Chennai" },
       ],
       signingTitle: "A Landmark Partnership",
       signingText:
@@ -366,7 +379,7 @@ export const chapters: Chapter[] = [
       stats: [
         { value: "7", label: "Racing Categories" },
         { value: "4", label: "Championship Rounds" },
-        { value: "2", label: "Host Circuits" },
+        { value: "3", label: "Iconic Circuits" },
         { value: "2026", label: "Inaugural Season" },
       ],
     },
@@ -535,7 +548,7 @@ export const chapters: Chapter[] = [
     kicker: "2026 Season · Registration Open",
     title: "Race With CTR",
     lead: "Eight categories. National rounds on India's best circuits. Whether it's your first race or your next championship, there's a grid here for you.",
-    ctas: [{ label: "Register Now", href: "/academy/registration", kind: "gold" }],
+    ctas: [{ label: "Register Now", href: "/IndianNationalCarRacingChampionship/registration", kind: "gold" }],
   },
 
   // 12 — CTR FINAL LAP ───────────────────────────────────────

@@ -160,7 +160,7 @@ export const DEFAULT_LANDING_CONTENT: LandingContent = {
       team_name: "Grassroots Racing Series",
       description:
         "The karting league identifies young drivers early and builds race intelligence through structured progression.",
-      website_url: "/karting/post",
+      website_url: "/karting",
       logo_image: "/media/ctr-logo.png",
       visit_label: "View Posts",
     },
@@ -170,7 +170,7 @@ export const DEFAULT_LANDING_CONTENT: LandingContent = {
       team_name: "National Circuit Program",
       description:
         "A professional national ladder connecting karting graduates to full circuit competition under one unified banner.",
-      website_url: "/academy",
+      website_url: "/IndianNationalCarRacingChampionship",
       logo_image: "/media/ctr-national-racing.png",
       visit_label: "Visit",
     },
