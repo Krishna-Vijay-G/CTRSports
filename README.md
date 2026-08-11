@@ -45,10 +45,54 @@ Two halves, on purpose.
 | Thing | Where it lives | How it changes |
 | --- | --- | --- |
 | Sport cards — logo, title, text, details, order, visibility | `ctr_sports` table | `/admin`, live immediately |
-| Everything else — brand, hero, about copy, nav, socials, SEO | `src/config/site.ts` | edit the file, redeploy |
+| Brand, hero, about copy, nav, CTA band, socials, SEO | `src/config/site.ts` | edit the file, redeploy |
+| Photography | `src/config/images.ts` | edit the file, redeploy |
 
 If a piece of copy starts changing weekly, move it into the database. Until
 then, a code change and a deploy is the cheaper mechanism.
+
+> **The photography is placeholder stock.** Every photo on the page is an
+> Unsplash URL in `src/config/images.ts`, standing in until the real CTR shoot is
+> uploaded to S3. Swapping one is a one-line change — replace the URL. The sport
+> *crests* are already real and come from the database.
+>
+> Card photos are picked from the sport's **title**, not its position in the
+> list (`sportPhoto`), so reordering in the admin cannot put a racing car on the
+> cricket card. A title no rule matches still gets a photo, just an arbitrary one.
+
+## Design
+
+Dark theme. One large rounded card holds every section, with the page colour
+showing around its edge. Depth comes from three surface steps, never from
+shadows, which do not read on a dark background:
+
+| Token | Use |
+| --- | --- |
+| `page` | behind the card |
+| `surface` | the card itself |
+| `panel` | anything nested inside it (sport cards, chips, the hero's programme card) |
+| `line` | every border |
+| `fg` / `fg-muted` / `fg-faint` | type, in descending emphasis |
+
+`accent` is the one bright colour — CTR's racing yellow — and it carries every
+primary button, badge and the call-to-action band. Changing the site's accent is
+that one line in `tailwind.config.ts`.
+
+**`accent-ink` is the only colour allowed on top of `accent`.** Yellow needs
+near-black type over it; the light `fg` default is unreadable there. Anything
+placed on an accent surface — the CTA band's headline, a pill's label, a button's
+arrow knob — has to say so explicitly.
+
+Logos are the one exception to the dark palette: sport crests keep a **white**
+backing wherever they appear, because they carry their own dark ink and go muddy
+on a near-black tile.
+
+The admin is darker still (`bg-carbon-950`) so it never reads as part of the
+public site.
+
+Headlines use Plus Jakarta Sans, sentence case. The nav is laid over the hero
+rather than pinned — the page lives inside a clipped, rounded card, and a sticky
+child cannot escape that clipping.
 
 ---
 
@@ -59,17 +103,19 @@ src/
   app/
     layout.tsx              root: fonts, metadata, JSON-LD
     (site)/                 the public site — one folder per page
-      page.tsx              the landing page
-      _components/          sections used by that page only
+      page.tsx              the landing page: the white card that holds it all
+      _components/          Hero, AboutSection, SportsSection, CtaBand, SplashScreen
     admin/
       login/                signed-out; sits outside (protected) so it stays reachable
       (protected)/          everything behind the session check
     api/admin/              login, logout, sports CRUD, logo upload
   components/               reused across pages
     layout/                 SiteHeader, SiteFooter
-    ui/                     Reveal, SectionHeading, SocialIcon
+    ui/                     ActionButton, Reveal, SectionHeading, SocialIcon
     admin/                  AdminShell, LogoField
-  config/site.ts            all hardcoded page content
+  config/
+    site.ts                 all hardcoded page copy
+    images.ts               all photography (currently placeholders)
   lib/
     sports.ts               the Sport type, limits, input normalisation
     utils.ts                cn()
@@ -88,9 +134,11 @@ src/app/(site)/cricket/
   _components/…            anything only this page uses
 ```
 
-Render `<SiteHeader />` and `<SiteFooter />` from `src/components/layout/` and it
-matches the rest of the site for free. Add its link to `NAV_LINKS` and an entry
-to `src/app/sitemap.ts`.
+Wrap it in the same `bg-paper` → white rounded card the landing page uses, give
+each section the `.shell` class for the shared horizontal rhythm, and render
+`<SiteFooter />` from `src/components/layout/`. `<SiteHeader />` expects a dark
+photo behind it — it is built to sit over a hero. Add the page's link to
+`NAV_LINKS` and an entry to `src/app/sitemap.ts`.
 
 The rule of thumb: a component used by one page lives in that page's
 `_components/`. The moment a second page wants it, move it to

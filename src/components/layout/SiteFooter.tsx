@@ -1,4 +1,4 @@
-import { BRAND, SITE, SOCIALS } from "@/config/site";
+import { BRAND, NAV_LINKS, SITE, SOCIALS } from "@/config/site";
 import { SocialIcon } from "@/components/ui/SocialIcon";
 
 /**
@@ -7,25 +7,40 @@ import { SocialIcon } from "@/components/ui/SocialIcon";
  */
 export function SiteFooter({ year }: { year: number }) {
   return (
-    <footer className="border-t border-white/10">
-      <div className="section-shell flex flex-col items-center gap-5 py-10 sm:flex-row sm:justify-between">
-        <div className="flex items-center gap-3">
+    <footer id="footer" className="border-t border-line">
+      <div className="shell flex flex-col gap-8 py-10 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2.5">
           <img
             src={BRAND.logo}
             alt=""
             aria-hidden
-            width={32}
-            height={32}
+            width={36}
+            height={36}
             loading="lazy"
             decoding="async"
-            className="h-8 w-auto"
+            className="h-9 w-auto"
           />
-          <span className="font-display text-xs uppercase tracking-[0.2em] text-white/45">
-            {BRAND.name} — {BRAND.subtitle}
+          <span className="flex flex-col leading-tight">
+            <strong className="font-display text-base font-extrabold tracking-tight text-fg">
+              {BRAND.name}
+            </strong>
+            <span className="text-xs text-fg-faint">{BRAND.subtitle}</span>
           </span>
         </div>
 
-        <div className="flex items-center gap-3">
+        <nav className="flex flex-wrap items-center gap-x-7 gap-y-2">
+          {NAV_LINKS.map((link) => (
+            <a
+              key={link.href}
+              href={link.href}
+              className="text-sm font-medium text-fg-muted transition hover:text-fg"
+            >
+              {link.label}
+            </a>
+          ))}
+        </nav>
+
+        <div className="flex items-center gap-2">
           {SOCIALS.map((social) => (
             <a
               key={social.label}
@@ -33,7 +48,7 @@ export function SiteFooter({ year }: { year: number }) {
               target="_blank"
               rel="noreferrer"
               aria-label={social.label}
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 text-white/55 transition hover:border-racing-yellow/50 hover:text-racing-yellow"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-line text-fg-muted transition hover:border-accent hover:bg-accent hover:text-accent-ink"
             >
               <SocialIcon name={social.icon} />
             </a>
@@ -41,7 +56,7 @@ export function SiteFooter({ year }: { year: number }) {
         </div>
       </div>
 
-      <div className="border-t border-white/5 py-4 text-center text-[11px] text-white/30">
+      <div className="border-t border-line py-4 text-center text-xs text-fg-faint">
         © {year} {SITE.name}. All rights reserved.
       </div>
     </footer>

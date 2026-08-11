@@ -24,7 +24,9 @@ export function AdminShell({
   }
 
   return (
-    <div className="min-h-screen">
+    // Its own near-black, a step darker than the site, so the admin never
+    // reads as part of the public pages.
+    <div className="min-h-screen bg-carbon-950 font-body text-white/90">
       <header className="border-b border-white/10">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-5 py-4 sm:px-6">
           <div className="flex min-w-0 items-center gap-3">

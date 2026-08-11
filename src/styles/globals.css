@@ -19,58 +19,77 @@
     scroll-behavior: smooth;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    /* Clears the sticky header when an anchor link jumps down the page. */
-    scroll-padding-top: 6rem;
+    /* Clears the top of the card when an anchor link jumps down the page. */
+    scroll-padding-top: 2rem;
+    color-scheme: dark;
   }
 
   body {
-    @apply bg-carbon-950 font-body text-white/90;
+    @apply bg-page font-body text-fg;
     overflow-x: hidden;
   }
 
   ::selection {
     background: rgba(247, 214, 25, 0.35);
-    color: #0a0a0a;
+    color: #f3f5f7;
   }
 
   ::-webkit-scrollbar {
-    width: 8px;
+    width: 10px;
   }
   ::-webkit-scrollbar-track {
-    background: #111111;
+    background: #050506;
   }
   ::-webkit-scrollbar-thumb {
-    background: #f7d619;
-    border-radius: 4px;
+    background: #2c313a;
+    border-radius: 5px;
+    border: 2px solid #050506;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #d4bb0a;
+    background: #3d4450;
   }
 
+  /* Accent, so the ring is visible on the site and in the admin alike. */
   :focus-visible {
     outline: 3px solid #f7d619;
     outline-offset: 2px;
-    border-radius: 2px;
+    border-radius: 4px;
   }
 }
 
 @layer components {
-  /* The one horizontal rhythm every section shares. */
-  .section-shell {
-    @apply mx-auto w-full max-w-6xl px-5 sm:px-6;
+  /* The one horizontal rhythm every section inside the card shares. */
+  .shell {
+    @apply mx-auto w-full max-w-[1180px] px-5 sm:px-8;
   }
 
-  .kicker {
-    @apply font-display text-xs font-bold uppercase tracking-[0.24em] text-racing-yellow;
+  /* Big sentence-case headline. Sizes come from the caller. */
+  .headline {
+    @apply font-display font-extrabold leading-[1.06] tracking-[-0.02em] text-fg;
   }
 
-  .btn-yellow {
-    @apply inline-flex items-center gap-2 rounded-full bg-racing-yellow px-7 py-3 font-display text-sm
-      font-semibold uppercase tracking-wider text-carbon-950 transition-all duration-300
-      hover:-translate-y-0.5 hover:shadow-[0_14px_34px_-10px_rgba(247,214,25,0.55)] active:translate-y-0;
+  .body-copy {
+    @apply text-[15px] leading-relaxed text-fg-muted;
   }
 
-  /* Shared by every text input in the admin dashboard. */
+  /* Raised block inside the card — the design's basic building block. */
+  .panel-card {
+    @apply rounded-panel border border-line bg-panel;
+  }
+
+  /* Small outlined chip that labels a section. */
+  .pill-label {
+    @apply inline-flex items-center rounded-full border border-line bg-panel px-4 py-1.5
+      text-[11px] font-semibold tracking-wide text-fg-muted;
+  }
+
+  /* Chip laid over a photo. */
+  .photo-chip {
+    @apply inline-flex items-center rounded-full bg-black/70 px-3 py-1.5 text-[11px]
+      font-semibold text-white backdrop-blur-sm;
+  }
+
+  /* ── Admin only. ── */
   .admin-field {
     @apply w-full rounded-xl border border-white/10 bg-carbon-900 px-4 py-2.5 text-sm text-white
       outline-none transition placeholder:text-white/25 focus:border-racing-yellow/60;
@@ -78,6 +97,12 @@
 
   .admin-label {
     @apply block font-display text-[11px] font-bold uppercase tracking-[0.18em] text-white/50;
+  }
+
+  .btn-yellow {
+    @apply inline-flex items-center gap-2 rounded-full bg-racing-yellow px-7 py-3 font-display text-sm
+      font-semibold uppercase tracking-wider text-carbon-950 transition-all duration-300
+      hover:-translate-y-0.5 hover:shadow-[0_14px_34px_-10px_rgba(247,214,25,0.55)] active:translate-y-0;
   }
 }
 

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { SPLASH } from "@/config/site";
 
 /**
- * Covers the page while the hero image loads, then fades out and unmounts.
+ * Covers the page while the hero photo loads, then fades out and unmounts.
  *
  * The configured duration is an upper bound, not a timer: the splash leaves as
  * soon as `load` fires, with a short floor so it does not flicker into nothing
@@ -33,7 +33,7 @@ export function SplashScreen() {
       hideTimer = window.setTimeout(() => setVisible(false), wait + FADE_MS);
     };
 
-    // `load` waits for the hero image and the stylesheet, which is exactly the
+    // `load` waits for the hero photo and the stylesheet, which is exactly the
     // moment the page behind this is worth revealing.
     if (document.readyState === "complete") {
       dismiss();
@@ -57,20 +57,19 @@ export function SplashScreen() {
   return (
     <div
       aria-label={SPLASH.ariaLabel}
-      className={`fixed inset-0 z-[999] grid place-content-center justify-items-center gap-3 transition-opacity duration-500 ${
+      className={`fixed inset-0 z-[999] grid place-content-center justify-items-center gap-4 bg-page transition-opacity duration-500 ${
         fading ? "pointer-events-none opacity-0" : "opacity-100"
       }`}
-      style={{ background: "radial-gradient(circle at center, #191919 0%, #060606 62%)" }}
     >
       <img
         src={SPLASH.logo}
         alt="CTR Unified logo"
         fetchPriority="high"
         decoding="async"
-        className="w-[min(240px,46vw)] animate-float"
+        className="w-[min(190px,42vw)] animate-float"
       />
-      <p className="font-display text-sm uppercase tracking-[0.3em] text-racing-yellow">
-        {SPLASH.title}
+      <p className="font-display text-sm font-bold tracking-[0.24em] text-fg-faint">
+        {SPLASH.title.toUpperCase()}
       </p>
     </div>
   );

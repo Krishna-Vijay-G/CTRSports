@@ -40,7 +40,7 @@ export function LoginForm() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-5 py-16">
+    <main className="flex min-h-screen items-center justify-center bg-carbon-950 px-5 py-16 font-body text-white/90">
       <div className="w-full max-w-md">
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
           <img src={BRAND.logo} alt={BRAND.name} className="h-16 w-auto" />
