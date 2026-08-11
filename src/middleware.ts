@@ -82,11 +82,29 @@ function isFile(pathname: string): boolean {
   return /\.[a-z0-9]+$/i.test(pathname);
 }
 
-/** Renders the app's not-found page with a real 404, rather than a bare body. */
-function notFound(request: NextRequest) {
-  const url = request.nextUrl.clone();
-  url.pathname = "/404";
-  return NextResponse.rewrite(url);
+/**
+ * A 404 answered here, rather than rewritten to a path that does not exist.
+ *
+ * The obvious way to write this is `rewrite("/404")` and let the framework's own
+ * not-found page render. Do not: what happens to a rewrite whose target matches
+ * no route is decided by whatever is running the app. `next start` resolves it
+ * to the not-found page; a platform router that resolves rewrites against the
+ * build manifest before the app ever sees them answers with ITS not-found page
+ * instead — a plain-text error with a support ID, which is worse than useless
+ * because it looks like the deployment is broken.
+ *
+ * Nobody legitimate ever sees these paths: they are the admin's mount point and
+ * the admin's API, asked for on a host that does not serve them. A deterministic
+ * 404 on every platform beats a pretty one on some of them.
+ */
+function notFound() {
+  return new NextResponse("Not Found", {
+    status: 404,
+    headers: {
+      "content-type": "text/plain; charset=utf-8",
+      "x-robots-tag": "noindex",
+    },
+  });
 }
 
 export function middleware(request: NextRequest) {
@@ -95,9 +113,9 @@ export function middleware(request: NextRequest) {
   // The mount point is not an address. Asked for directly, on any host, it does
   // not exist — which is what stops the admin being reachable at a second URL,
   // and what stops it being reachable AT ALL from the public domain.
-  if (pathname === MOUNT || pathname.startsWith(`${MOUNT}/`)) return notFound(request);
+  if (pathname === MOUNT || pathname.startsWith(`${MOUNT}/`)) return notFound();
 
-  return isAdminHost(request) ? adminHost(request, pathname) : publicHost(request, pathname);
+  return isAdminHost(request) ? adminHost(request, pathname) : publicHost(pathname);
 }
 
 function adminHost(request: NextRequest, pathname: string) {
@@ -122,9 +140,9 @@ function adminHost(request: NextRequest, pathname: string) {
   return NextResponse.rewrite(url);
 }
 
-function publicHost(request: NextRequest, pathname: string) {
+function publicHost(pathname: string) {
   // The admin's API is part of the admin. Absent here, like the screens.
-  return pathname.startsWith("/api/admin") ? notFound(request) : NextResponse.next();
+  return pathname.startsWith("/api/admin") ? notFound() : NextResponse.next();
 }
 
 export const config = {
