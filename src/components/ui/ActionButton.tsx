@@ -13,11 +13,16 @@ export function ActionButton({
   children,
   variant = "accent",
   className,
+  target,
+  rel,
 }: {
   href: string;
   children: React.ReactNode;
   variant?: "accent" | "outline" | "white";
   className?: string;
+  /** For the buttons that leave this site — everything in-page omits both. */
+  target?: string;
+  rel?: string;
 }) {
   const shell = {
     accent: "bg-accent text-accent-ink hover:bg-accent-dark",
@@ -36,6 +41,8 @@ export function ActionButton({
   return (
     <a
       href={href}
+      target={target}
+      rel={rel}
       className={cn(
         "group inline-flex items-center gap-2.5 rounded-full py-1.5 pl-6 pr-1.5 text-sm font-semibold",
         "transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0",

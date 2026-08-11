@@ -34,13 +34,21 @@ one page. What it writes goes to two places:
 | brand, splash, nav, banners, about, section headings, CTA band, socials — copy *and* photography | the page document | `ctr_content`, one JSONB row |
 | the sport cards: crest, photo, title, text, details, order, visibility | a row per card | `ctr_sports` |
 
-Only two things stay in code, both in `src/config/site.ts`: the canonical URL
+Two things stay in code, both in `src/config/site.ts`: the canonical URL
 (`SITE`) and the search/social metadata (`SEO`). Metadata is generated per route
 rather than per request, so editing it in the admin would not reliably take
 effect until the next deploy — clearer as a code change.
 
 Saving calls `revalidatePath("/")`, so an edit is live at once; the page
 otherwise revalidates every 60s.
+
+**`/incrc` is the exception.** The championship's own copy — vision, venues,
+rounds, the signing — lives in `src/app/(site)/incrc/_data/incrc.ts`, not the
+database. Making it editable means an admin screen for rounds, venues, vision
+cards and signing photos, which is a bigger job than the page. It is one plain
+object so that moving it into `ctr_content` later is a normalise function and
+nothing else. Only the brand, navigation and footer on that page come from the
+database, so the chrome stays in step with the landing page.
 
 ### Using the editor
 
@@ -145,9 +153,13 @@ src/
     (site)/                 the public site — one folder per page
       page.tsx              the landing page: loads content + sports, JSON-LD
       _components/
-        banner/             the carousel and the four banner templates
+        banner/             the carousel and the banner templates
         sections/           AboutSection, SportsSection, CtaBand
         SplashScreen.tsx
+      incrc/                the Indian National Car Racing Championship
+        page.tsx            metadata, SportsEvent JSON-LD, the section order
+        _data/incrc.ts      the championship's copy — the one page not in the DB
+        _components/        one file per section of that page
     admin/
       login/                signed-out; outside (protected) so it stays reachable
       (protected)/          everything behind the session check
@@ -168,7 +180,7 @@ src/
                             Badge, Dialog, icons — nothing app-specific
       Fields, ImageField, MediaPicker, LandingPreview, AdminShell
   config/
-    site.ts                 SITE + SEO — the only hardcoded content left
+    site.ts                 SITE + SEO — the deployment constants
     images.ts               placeholder photo URLs, used as seeds/defaults only
   lib/
     banners.ts              the Banner type, the templates, normalisation
@@ -196,8 +208,16 @@ src/app/(site)/cricket/
 
 Wrap it in the same `bg-page` → `bg-surface` rounded card the landing page uses,
 give each section `.shell` for the shared horizontal rhythm, and render
-`<SiteFooter content={…} />`. `<SiteHeader />` expects a dark photo behind it —
-it is built to sit over a hero.
+`<SiteFooter content={…} />`. `<SiteHeader />` is laid over the top of whatever
+the page opens with, so that opening panel owns the top padding the header needs.
+
+Two things a sub-page has to do that the landing page does not:
+
+- **Fix the navigation.** The stored nav links are bare anchors written for the
+  landing page (`#about`, `#sports`), and they scroll nowhere on another route.
+  `/incrc` rewrites the ones it does not have to `/#about` and leaves the ones it
+  does (`#top`, `#footer`) alone — see `sendHome` in its `page.tsx`.
+- **Add a line to `src/app/sitemap.ts`.**
 
 A component used by one page lives in that page's `_components/`. The moment a
 second page wants it, move it to `src/components/`.
