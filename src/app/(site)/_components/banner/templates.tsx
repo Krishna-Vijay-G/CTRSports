@@ -53,7 +53,7 @@ function SpotlightBanner({ banner }: BannerProps) {
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-black/40" />
       <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/10 to-transparent" />
 
-      <div className="relative z-10 mx-auto flex h-full max-w-[1180px] flex-col justify-end px-5 pb-10 pt-28 sm:px-8 lg:max-w-[52%] lg:pe-0 lg:ps-8">
+      <div className="relative z-10 mx-auto flex h-full max-w-[1560px] flex-col justify-end px-5 pb-10 pt-28 sm:px-8 lg:max-w-[52%] lg:pe-0 lg:ps-8">
         <motion.h2
           {...rise}
           className="headline whitespace-pre-line text-[clamp(2.25rem,5.4vw,3.75rem)] text-white"
@@ -137,7 +137,7 @@ function SplitBanner({ banner }: BannerProps) {
           still be dark at the nav's own line, not just at the very top edge. */}
       <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-black/85 via-black/45 to-transparent" />
 
-      <div className="relative z-10 mx-auto flex h-full max-w-[1180px] flex-col justify-center px-5 pb-10 pt-28 sm:px-8 lg:max-w-none lg:pe-[52%] lg:ps-10">
+      <div className="relative z-10 mx-auto flex h-full max-w-[1560px] flex-col justify-center px-5 pb-10 pt-28 sm:px-8 lg:max-w-none lg:pe-[52%] lg:ps-10">
         <motion.h2
           {...rise}
           className="headline whitespace-pre-line text-[clamp(2rem,4.4vw,3.25rem)] text-white"

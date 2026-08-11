@@ -71,7 +71,9 @@ export function AdminShell({
     // md:h-screen + overflow-hidden so the editor and the preview each scroll on
     // their own instead of the whole document scrolling as one.
     <div className="min-h-screen bg-background font-ui text-foreground md:flex md:h-screen md:gap-2 md:overflow-hidden md:p-2">
-      <aside className="flex flex-col gap-2 border-b border-border bg-card p-2 md:w-52 md:shrink-0 md:rounded-lg md:border md:border-border">
+      {/* Wider at xl: the section rows carry a drag handle and an eye, and the
+          labels are what gives way when they do not fit. */}
+      <aside className="flex flex-col gap-2 border-b border-border bg-card p-2 md:w-52 md:shrink-0 md:rounded-lg md:border md:border-border xl:w-60">
         {/* Filled by the open screen. Takes the height the account block leaves. */}
         <div id={RAIL_SLOT_ID} className="min-h-0 md:flex-1 md:overflow-y-auto" />
 

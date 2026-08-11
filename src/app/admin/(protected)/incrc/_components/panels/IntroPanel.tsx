@@ -1,23 +1,61 @@
 "use client";
 
 import { MAX_PARTNERS, type IncrcContent, type Partner } from "@/lib/incrcContent";
-import { ButtonFields, Field, Panel, TextArea } from "@/components/admin/Fields";
+import { ButtonFields, Field, Note, Panel, Row, TextArea } from "@/components/admin/Fields";
 import { ImageField } from "@/components/admin/ImageField";
 import { Repeater } from "@/components/admin/Repeater";
 
 type Intro = IncrcContent["intro"];
+type Meta = IncrcContent["meta"];
 
+/**
+ * The introduction — and, with it, the championship's own details.
+ *
+ * The name and the Instagram handle are not a section of the page, so they have
+ * no tab of their own. They live here because this is the section that says who
+ * the championship is: the name it is introduced by, and the follow button
+ * sitting in this very block. The quote banner further down uses the same
+ * handle, and the browser tab and search result use the same name.
+ */
 export function IntroPanel({
   value,
   onChange,
+  meta,
+  onMetaChange,
 }: {
   value: Intro;
   onChange: (next: Intro) => void;
+  meta: Meta;
+  onMetaChange: (next: Meta) => void;
 }) {
   const set = (patch: Partial<Intro>) => onChange({ ...value, ...patch });
+  const setMeta = (patch: Partial<Meta>) => onMetaChange({ ...meta, ...patch });
 
   return (
     <>
+      <Panel title="Championship" hint="the name the page is known by">
+        <div className="space-y-3">
+          <Field label="Full name" value={meta.name} onChange={(name) => setMeta({ name })} />
+          <Row>
+            <Field
+              label="Short name"
+              value={meta.short}
+              onChange={(short) => setMeta({ short })}
+              hint="INCRC"
+            />
+            <Field
+              label="Tagline"
+              value={meta.tagline}
+              onChange={(tagline) => setMeta({ tagline })}
+            />
+          </Row>
+          <Note>
+            These do not appear in the introduction itself — they are the browser tab, the search
+            result and the structured data, and the short name labels each round.
+          </Note>
+        </div>
+      </Panel>
+
       <Panel title="Copy">
         <div className="space-y-3">
           <Field
@@ -47,6 +85,21 @@ export function IntroPanel({
             onHref={(ctaHref) => set({ ctaHref })}
           />
         </div>
+      </Panel>
+
+      <Panel title="Instagram" hint="the follow button, in two places">
+        <Row>
+          <Field label="Handle" value={meta.handle} onChange={(handle) => setMeta({ handle })} />
+          <Field
+            label="Address"
+            value={meta.instagram}
+            onChange={(instagram) => setMeta({ instagram })}
+          />
+        </Row>
+        <Note className="mt-3">
+          The button beside the copy above, and the one over the quote banner further down the
+          page. Both read from here, so they can never disagree.
+        </Note>
       </Panel>
 
       <Repeater<Partner>

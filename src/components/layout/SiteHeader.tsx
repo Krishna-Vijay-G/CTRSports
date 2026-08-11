@@ -32,7 +32,7 @@ export function SiteHeader({
         does the wrapping, so there is only ever one <nav> in the markup — a
         second, hidden copy would be read out twice by a screen reader.
       */}
-      <div className="mx-auto flex max-w-[1180px] flex-wrap items-center justify-between gap-x-6 gap-y-3 px-5 py-5 sm:px-8">
+      <div className="mx-auto flex max-w-[1560px] flex-wrap items-center justify-between gap-x-6 gap-y-3 px-5 py-5 sm:px-8">
         <a
           href="#top"
           className="order-1 flex items-center gap-2.5"

@@ -98,14 +98,18 @@ export type Post = {
 };
 
 export type IncrcContent = {
-  /** Identity — used by the page title, the JSON-LD and the follow button. */
+  /**
+   * Identity — used by the page title, the JSON-LD and the follow button.
+   *
+   * Not a section of its own. It is edited under the introduction, which is the
+   * section that names the championship and carries the first follow button.
+   */
   meta: {
     name: string;
     short: string;
     tagline: string;
     handle: string;
     instagram: string;
-    registerHref: string;
   };
   /** The rotating panels at the top. Modelled in src/lib/banners.ts. */
   banners: Banner[];
@@ -152,9 +156,6 @@ export const DEFAULT_INCRC_CONTENT: IncrcContent = {
     tagline: "One Nation · One Championship",
     handle: "@incrc_",
     instagram: "https://www.instagram.com/incrc_",
-    // This site has no entry form of its own — the form, its validation and its
-    // API live on the older CTR site — so this points there.
-    registerHref: "https://chennaiturboriders.in/IndianNationalCarRacingChampionship/registration",
   },
 
   banners: [
@@ -531,7 +532,6 @@ export function normaliseIncrcContent(input: unknown): IncrcContent {
       tagline: text(meta.tagline, d.meta.tagline),
       handle: text(meta.handle, d.meta.handle),
       instagram: link(meta.instagram, d.meta.instagram),
-      registerHref: link(meta.registerHref, d.meta.registerHref),
     },
 
     banners: normaliseBanners(root.banners, d.banners),

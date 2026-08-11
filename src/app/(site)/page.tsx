@@ -55,8 +55,10 @@ export default async function LandingPage() {
       <SplashScreen splash={content.splash} />
 
       <div id="top" className="min-h-screen bg-page p-2 sm:p-3">
-        {/* overflow-hidden is what clips the banner photo to the card's radius. */}
-        <div className="mx-auto max-w-[1440px] overflow-hidden rounded-card bg-surface">
+        {/* overflow-hidden is what clips the banner photo to the card's radius.
+            1920 so a full-HD window is filled rather than framed in page colour;
+            past that the card centres and the margin grows. */}
+        <div className="mx-auto max-w-[1920px] overflow-hidden rounded-card bg-surface">
           <main id="main-content">
             <BannerCarousel
               banners={content.banners}

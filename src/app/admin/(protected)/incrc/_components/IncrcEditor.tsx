@@ -14,9 +14,7 @@ import { TABS, type TabId } from "./sections";
 import { CalendarPanel } from "./panels/CalendarPanel";
 import { FamilyPanel } from "./panels/FamilyPanel";
 import { GridPanel } from "./panels/GridPanel";
-import { IdentityPanel } from "./panels/IdentityPanel";
 import { IntroPanel } from "./panels/IntroPanel";
-import { LayoutPanel } from "./panels/LayoutPanel";
 import { MarqueePanel } from "./panels/MarqueePanel";
 import { PartnershipPanel } from "./panels/PartnershipPanel";
 import { PostsPanel } from "./panels/PostsPanel";
@@ -42,14 +40,26 @@ import { VisionPanel } from "./panels/VisionPanel";
  * The header and footer around the preview come from the LANDING document,
  * read-only here: they are edited at /admin/landing, and showing them makes the
  * preview the real page rather than a body with nothing around it.
+ *
+ * The running order is the sidebar. Dragging a section there moves it on the
+ * page and the eye beside it takes it off — the list you pick a tab from and the
+ * list the page is built from are one list, so there is nothing to keep in step
+ * and no layout screen to go and find.
  */
 
 /** The right-hand column's standing explanation of the screen. */
 const NOTES = [
   "Pick a tab in the sidebar. The middle of the screen is the real page, drawn from what you have typed.",
+  "Drag a section by its handle to move it up or down the page. The eye beside it takes it off.",
+  "A section that is off is left out of the page entirely, so a link in the navigation pointing at it has nowhere to go.",
+  "Banners carry the header, so they are always first and are not part of the order. Empty the banner list and the header becomes a plain bar.",
   "Nothing on the site changes until you press Save.",
   "The header and footer around the preview are edited on the Landing page.",
 ];
+
+/** The banners are not a section of the page, so they never move. */
+const FIXED: TabId[] = ["banners"];
+
 export function IncrcEditor({
   initialContent,
   chrome,
@@ -94,6 +104,45 @@ export function IncrcEditor({
     setJustSaved(false);
   }
 
+  /**
+   * The sidebar's list, in the order the page runs.
+   *
+   * The two fixed tabs first, then one row per section of the document carrying
+   * its own on/off state — which is what tells the rail it may be dragged.
+   */
+  const railItems = [
+    ...FIXED.flatMap((id) => TABS.filter((entry) => entry.id === id)),
+    ...draft.sections.flatMap((entry) => {
+      const match = TABS.find((item) => item.id === entry.id);
+      return match ? [{ ...match, visible: entry.visible }] : [];
+    }),
+  ];
+
+  /** Moves a section to the place another one currently holds. */
+  function reorderSections(fromId: TabId, toId: TabId) {
+    const from = draft.sections.findIndex((entry) => entry.id === fromId);
+    const to = draft.sections.findIndex((entry) => entry.id === toId);
+    if (from < 0 || to < 0 || from === to) return;
+
+    const next = [...draft.sections];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    setPart("sections", next);
+  }
+
+  /**
+   * On or off the page. Off is left out of the render entirely — not hidden with
+   * CSS — so the section's anchor genuinely goes with it.
+   */
+  function toggleSection(id: TabId) {
+    setPart(
+      "sections",
+      draft.sections.map((entry) =>
+        entry.id === id ? { ...entry, visible: !entry.visible } : entry
+      )
+    );
+  }
+
   async function handleSave() {
     setBusy(true);
     setError(null);
@@ -134,16 +183,6 @@ export function IncrcEditor({
   /** One case per tab. Adding a section adds a line here and a panel file. */
   function panel() {
     switch (active) {
-      case "layout":
-        return (
-          <LayoutPanel
-            value={draft.sections}
-            onChange={(v) => setPart("sections", v)}
-            onOpen={setActive}
-          />
-        );
-      case "identity":
-        return <IdentityPanel value={draft.meta} onChange={(v) => setPart("meta", v)} />;
       case "banners":
         return (
           <BannersPanel
@@ -156,7 +195,14 @@ export function IncrcEditor({
       case "marquee":
         return <MarqueePanel value={draft.marquee} onChange={(v) => setPart("marquee", v)} />;
       case "intro":
-        return <IntroPanel value={draft.intro} onChange={(v) => setPart("intro", v)} />;
+        return (
+          <IntroPanel
+            value={draft.intro}
+            onChange={(v) => setPart("intro", v)}
+            meta={draft.meta}
+            onMetaChange={(v) => setPart("meta", v)}
+          />
+        );
       case "stats":
         return <StatsPanel value={draft.stats} onChange={(v) => setPart("stats", v)} />;
       case "vision":
@@ -197,7 +243,13 @@ export function IncrcEditor({
   return (
     <div className="flex min-h-0 flex-col gap-2 md:h-full lg:flex-row">
       <AdminRailSlot>
-        <SectionRail items={TABS} active={active} onSelect={setActive} />
+        <SectionRail
+          items={railItems}
+          active={active}
+          onSelect={setActive}
+          onReorder={reorderSections}
+          onToggleVisible={toggleSection}
+        />
       </AdminRailSlot>
 
       <div
@@ -247,10 +299,10 @@ export function IncrcEditor({
           <div className="space-y-1.5 rounded-md border border-border bg-background/60 px-2.5 py-2">
             <Badge variant="outline">Off</Badge>
             <p className="text-[11px] leading-relaxed text-muted-fg">
-              This section is not on the page. Switch it on under Page layout.
+              This section is not on the page, which is why the preview does not move.
             </p>
-            <Button variant="outline" size="xs" onClick={() => setActive("layout")}>
-              Layout
+            <Button variant="outline" size="xs" onClick={() => toggleSection(tab.id)}>
+              Put it back
             </Button>
           </div>
         ) : null}

@@ -58,9 +58,11 @@
 }
 
 @layer components {
-  /* The one horizontal rhythm every section inside the card shares. */
+  /* The one horizontal rhythm every section inside the card shares.
+     Sized against the card's own 1920 cap, so the margin either side of the
+     content stays in the same proportion it had at 1440. */
   .shell {
-    @apply mx-auto w-full max-w-[1180px] px-5 sm:px-8;
+    @apply mx-auto w-full max-w-[1560px] px-5 sm:px-8;
   }
 
   /* Big sentence-case headline. Sizes come from the caller. */

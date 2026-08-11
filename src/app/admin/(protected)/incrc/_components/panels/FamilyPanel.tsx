@@ -51,6 +51,11 @@ export function FamilyPanel({
               The flag between the two rules. Off leaves a plain rule.
             </span>
           </div>
+
+          <Note>
+            The follow button under the quote uses the same Instagram handle as the introduction,
+            and is edited there.
+          </Note>
         </div>
       </Panel>
     </>

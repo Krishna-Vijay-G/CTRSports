@@ -3,7 +3,6 @@ import type { RailItem } from "@/components/admin/SectionRail";
 import {
   CalendarIcon,
   ChartIcon,
-  FlagIcon,
   HandshakeIcon,
   ImagesIcon,
   LayersIcon,
@@ -11,7 +10,6 @@ import {
   MegaphoneIcon,
   NewsIcon,
   RowsIcon,
-  StackIcon,
   StarIcon,
   TextIcon,
   TicketIcon,
@@ -21,23 +19,24 @@ import {
 /**
  * The INCRC editor's table of contents.
  *
- * Two of these are not sections of the page:
- *
- *   layout   — the running order. Which sections are on the page, and in what
- *              order. This is the one that adds and removes them.
- *   identity — the championship's name, handle and entry link, which are used by
- *              several sections and by the page's metadata rather than by any
- *              one of them.
+ * One of these is not a section of the page: the banners carry the header, so
+ * they are always first and are never part of the running order. The
+ * championship's own name and handle have no tab either — they are edited under
+ * the introduction, the section that uses them.
  *
  * The rest line up one-to-one with INCRC_SECTION_IDS, and their `preview` is
  * that id — which is also the `data-preview` the page renders, so opening a tab
  * scrolls the preview to the thing it edits.
  *
+ * The order below is only the order a stored document is normalised into. What
+ * the page actually runs is `content.sections`, which the sidebar drags around —
+ * there is no layout screen, because that list and this one are the same list.
+ *
  * Adding a section to the page means a line here, a `case` in IncrcEditor's
  * switch, a panel file, and an id in INCRC_SECTION_IDS.
  */
 
-export type TabId = IncrcSectionId | "layout" | "identity" | "banners";
+export type TabId = IncrcSectionId | "banners";
 
 export type Tab = RailItem<TabId> & {
   /** The heading above the fields. */
@@ -47,20 +46,6 @@ export type Tab = RailItem<TabId> & {
 };
 
 export const TABS: Tab[] = [
-  {
-    id: "layout",
-    short: "Layout",
-    title: "Page layout",
-    hint: "Which sections are on the page, and the order they run in.",
-    Icon: StackIcon,
-  },
-  {
-    id: "identity",
-    short: "Name",
-    title: "Championship identity",
-    hint: "The name, the handle and where entries go. Used across the page.",
-    Icon: FlagIcon,
-  },
   {
     id: "banners",
     short: "Banners",
