@@ -57,7 +57,7 @@ export default async function LandingPage() {
         {/* overflow-hidden is what clips the banner photo to the card's radius. */}
         <div className="mx-auto max-w-[1440px] overflow-hidden rounded-card bg-surface">
           <main id="main-content">
-            <BannerCarousel content={content} sports={sports} />
+            <BannerCarousel content={content} />
             <AboutSection about={content.about} />
             <SportsSection heading={content.sportsSection} sports={sports} />
             <CtaBand band={content.ctaBand} sports={sports} />

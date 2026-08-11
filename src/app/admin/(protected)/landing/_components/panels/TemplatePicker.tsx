@@ -12,8 +12,8 @@ import { CheckIcon } from "@/components/admin/ui/icons";
  * Picks a banner layout.
  *
  * Each option shows a diagram of the arrangement rather than a name alone —
- * "Split" means nothing until you have seen it, and a four-line wireframe says
- * it faster than a sentence does. The names and descriptions come from
+ * "Split" means nothing until you have seen it, and a wireframe says it faster
+ * than a sentence does. The names and descriptions come from
  * BANNER_TEMPLATE_META, so adding a template to src/lib/banners.ts puts it here
  * without touching this file; only the diagram below has to be drawn.
  */
@@ -42,14 +42,6 @@ const DIAGRAMS: Record<BannerTemplate, React.ReactNode> = {
       <rect x="5" y="18" width="13" height="2.5" rx="1" className="fill-foreground/40" />
     </>
   ),
-  showcase: (
-    <>
-      <rect x="0" y="0" width="56" height="34" rx="2" className="fill-muted-fg/25" />
-      <rect x="5" y="19" width="22" height="4" rx="1" className="fill-foreground/80" />
-      <rect x="5" y="25" width="14" height="2.5" rx="1" className="fill-foreground/40" />
-      <rect x="34" y="8" width="18" height="18" rx="2" className="fill-foreground/70" />
-    </>
-  ),
 };
 
 export function TemplatePicker({
@@ -62,7 +54,7 @@ export function TemplatePicker({
   className?: string;
 }) {
   return (
-    <div className={cn("grid grid-cols-2 gap-1.5", className)}>
+    <div className={cn("grid grid-cols-3 gap-1.5", className)}>
       {BANNER_TEMPLATES.map((template) => {
         const meta = BANNER_TEMPLATE_META[template];
         const selected = template === value;

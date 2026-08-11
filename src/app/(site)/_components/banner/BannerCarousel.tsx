@@ -4,7 +4,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { BANNER_INTERVAL, type Banner } from "@/lib/banners";
 import type { LandingContent } from "@/lib/landingContent";
-import type { Sport } from "@/lib/sports";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { usePreviewMode } from "@/components/ui/PreviewMode";
 import { TEMPLATES } from "./templates";
@@ -24,11 +23,9 @@ import { TEMPLATES } from "./templates";
  */
 export function BannerCarousel({
   content,
-  sports,
   activeIndex,
 }: {
   content: LandingContent;
-  sports: Sport[];
   activeIndex?: number;
 }) {
   const { banners } = content;
@@ -77,7 +74,7 @@ export function BannerCarousel({
             aria-roledescription="slide"
             aria-label={`${current + 1} of ${banners.length}`}
           >
-            {TEMPLATES[banner.template]({ banner, sports })}
+            {TEMPLATES[banner.template]({ banner })}
           </motion.div>
         ) : null}
       </AnimatePresence>

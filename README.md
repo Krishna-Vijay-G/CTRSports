@@ -91,11 +91,10 @@ decides how those are arranged:
 | Spotlight | Full-bleed photo, copy along the bottom-left |
 | Centre | Copy centred over a darkened photo |
 | Split | Copy in a panel on the left, photo on the right |
-| Showcase | Spotlight, plus a card listing the first few sports |
 
 Templates rather than settings, deliberately. One layout with toggles for
 alignment, overlay strength and button position has combinations that look
-broken; four named arrangements each look right, and picking one is a single
+broken; a few named arrangements each look right, and picking one is a single
 decision. Every template fills exactly the same box, so switching between them —
 or rotating to a banner with more copy in it — never moves the page.
 
@@ -103,15 +102,17 @@ Banners rotate every 6.5s and pause while the pointer rests on them. A single
 banner does not rotate and shows no dots. Opening a banner in the admin holds
 the preview on that one, so what you are editing is what you are looking at.
 
-Adding a fifth template is a component in
+Adding a template is a component in
 `src/app/(site)/_components/banner/templates.tsx`, its id in `BANNER_TEMPLATES`
 and a line in `BANNER_TEMPLATE_META` (`src/lib/banners.ts`), plus a diagram in
 `TemplatePicker`. The admin's picker is generated from that metadata.
 
 > Banners replaced a single `hero` object in the document. `normaliseLandingContent`
-> folds an old stored hero into one Showcase banner rather than falling back to
-> the defaults and throwing the copy away. That path can go once no document has
-> a hero: `select key from ctr_content where content ? 'hero';`
+> folds an old stored hero into one Spotlight banner rather than falling back to
+> the defaults and throwing the copy away — the old hero's floating card of
+> sports had no equivalent to fold into, so that part of the copy is dropped.
+> That path can go once no document has a hero:
+> `select key from ctr_content where content ? 'hero';`
 
 #### The sport cards
 

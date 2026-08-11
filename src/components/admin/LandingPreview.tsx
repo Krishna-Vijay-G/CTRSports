@@ -98,7 +98,7 @@ export function LandingPreview({
             <div className="overflow-hidden rounded-card bg-surface">
               {/* The wrappers are what `focus` scrolls to. */}
               <div data-preview="banners">
-                <BannerCarousel content={content} sports={visible} activeIndex={bannerIndex} />
+                <BannerCarousel content={content} activeIndex={bannerIndex} />
               </div>
               <div data-preview="about">
                 <AboutSection about={content.about} />

@@ -2,29 +2,23 @@
 
 import { motion } from "framer-motion";
 import type { Banner, BannerTemplate } from "@/lib/banners";
-import type { Sport } from "@/lib/sports";
-import { ActionButton, ArrowIcon } from "@/components/ui/ActionButton";
+import { ActionButton } from "@/components/ui/ActionButton";
 
 /**
- * The four banner layouts, and the lookup that picks between them.
+ * The banner layouts, and the lookup that picks between them.
  *
  * Every template takes exactly the same props and fills the same box, so
  * switching one for another changes nothing but the arrangement — no template
  * can be taller than another and make the page jump as the banners rotate.
  *
- * Adding a fifth is: write the component, add it to TEMPLATES, add its id to
+ * Adding one is: write the component, add it to TEMPLATES, add its id to
  * BANNER_TEMPLATES and a line to BANNER_TEMPLATE_META in src/lib/banners.ts.
  * The admin's picker is generated from that metadata, so it appears on its own.
  */
 
 export type BannerProps = {
   banner: Banner;
-  /** Only `showcase` uses these — the others ignore them. */
-  sports: Sport[];
 };
-
-/** How many sports the showcase card lists. */
-const CARD_ROWS = 3;
 
 /** The copy rises as a banner comes in. Slower than a hover, quicker than a page load. */
 const rise = {
@@ -171,83 +165,10 @@ function SplitBanner({ banner }: BannerProps) {
   );
 }
 
-/* ───────────────────────────── Showcase ───────────────────────────── */
-
-function ShowcaseBanner({ banner, sports }: BannerProps) {
-  const rows = sports.slice(0, CARD_ROWS);
-
-  return (
-    <>
-      <SpotlightBanner banner={banner} sports={sports} />
-
-      {/* The card is real data straight from the database, so it stays true as
-          the sports are edited and disappears cleanly when there are none.
-          Hidden below lg, where it would cover the headline. */}
-      {rows.length > 0 ? (
-        <motion.div
-          initial={{ opacity: 0, y: 26 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, delay: 0.28, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="absolute right-8 top-1/2 z-10 hidden w-[330px] -translate-y-1/2 rounded-panel bg-surface p-4 lg:block"
-        >
-          <p className="font-display text-base font-bold text-fg">Our programmes</p>
-          <p className="mt-0.5 text-xs text-fg-faint">The disciplines CTR runs today</p>
-
-          <ul className="mt-3 space-y-1 rounded-xl border border-line p-2">
-            {rows.map((sport) => (
-              <li key={sport.id} className="flex items-center gap-2.5 rounded-lg px-1.5 py-1.5">
-                {/* White backing: these crests carry their own dark ink and go
-                    muddy on a near-black tile. */}
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white">
-                  {sport.logo_url ? (
-                    <img
-                      src={sport.logo_url}
-                      alt=""
-                      aria-hidden
-                      loading="lazy"
-                      decoding="async"
-                      className="h-full w-full object-contain p-1"
-                    />
-                  ) : (
-                    <span className="font-display text-xs font-bold text-accent-ink">
-                      {sport.title.slice(0, 1)}
-                    </span>
-                  )}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13px] font-semibold text-fg">
-                    {sport.title}
-                  </span>
-                  {sport.text ? (
-                    <span className="block truncate text-[11px] text-fg-faint">{sport.text}</span>
-                  ) : null}
-                </span>
-              </li>
-            ))}
-          </ul>
-
-          <div className="mt-3 flex justify-end">
-            <a
-              href="#sports"
-              className="group inline-flex items-center gap-2 rounded-full bg-accent py-1 pl-4 pr-1 text-xs font-semibold text-accent-ink transition hover:bg-accent-dark"
-            >
-              See all
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent-ink text-accent">
-                <ArrowIcon className="transition-transform duration-300 group-hover:translate-x-0.5" />
-              </span>
-            </a>
-          </div>
-        </motion.div>
-      ) : null}
-    </>
-  );
-}
-
 /* ───────────────────────────── The lookup ───────────────────────────── */
 
 export const TEMPLATES: Record<BannerTemplate, (props: BannerProps) => React.ReactNode> = {
   spotlight: SpotlightBanner,
   centre: CentreBanner,
   split: SplitBanner,
-  showcase: ShowcaseBanner,
 };

@@ -201,9 +201,11 @@ function banners(root: Record<string, unknown>): Banner[] {
     [
       {
         id: "banner-1",
-        // Showcase is the template that looks like the old hero did, card of
-        // sports and all, so the page does not visibly change on upgrade.
-        template: "showcase",
+        // Spotlight is the template the old hero's headline-and-photo layout
+        // maps onto. The old hero also had a floating card of sports
+        // (cardTitle/cardSubtitle/...); that card no longer exists on any
+        // template, so those fields are simply not carried across.
+        template: "spotlight",
         image: hero.background,
         title: hero.headline,
         subtitle: hero.proof,

@@ -6,7 +6,7 @@
  * decides how those four are arranged. Several banners rotate in place.
  *
  * The templates are the point. Rather than one layout with a dozen toggles for
- * alignment, overlay strength and where the button goes, there are four named
+ * alignment, overlay strength and where the button goes, there are a few named
  * arrangements that are each known to look right. Picking one is a single
  * decision, and no combination of settings can produce something broken.
  *
@@ -19,7 +19,7 @@
 
 import { BANNER_PHOTOS } from "@/config/images";
 
-export const BANNER_TEMPLATES = ["spotlight", "centre", "split", "showcase"] as const;
+export const BANNER_TEMPLATES = ["spotlight", "centre", "split"] as const;
 export type BannerTemplate = (typeof BANNER_TEMPLATES)[number];
 
 export type Banner = {
@@ -49,10 +49,6 @@ export const BANNER_TEMPLATE_META: Record<
   split: {
     name: "Split",
     description: "Copy in a panel on the left, photo on the right. Reads well on a bright photo.",
-  },
-  showcase: {
-    name: "Showcase",
-    description: "Spotlight, plus a card listing the first few sports over the right.",
   },
 };
 
@@ -84,7 +80,7 @@ export function blankBanner(id: string): Banner {
 export const DEFAULT_BANNERS: Banner[] = [
   {
     id: "banner-1",
-    template: "showcase",
+    template: "spotlight",
     image: BANNER_PHOTOS[0],
     title: "One Nation. One Championship.",
     subtitle: "Six programmes competing under one banner.",
@@ -178,6 +174,9 @@ export function normaliseBanners(value: unknown, fallback: Banner[]): Banner[] {
 
       return {
         id,
+        // A stored "showcase" — the template this used to be paired with a
+        // floating card — falls back to spotlight along with anything else
+        // unrecognised, which is what makes removing a template safe.
         template: isBannerTemplate(entry.template) ? entry.template : "spotlight",
         image: image(entry.image, BANNER_PHOTOS[0]),
         title: text(entry.title, BODY_MAX),
