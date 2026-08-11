@@ -12,7 +12,7 @@ export default async function SportsAdminPage() {
   const sports = await listAllSports();
 
   return (
-    <>
+    <div className="h-full overflow-y-auto px-4 py-5 sm:px-6">
       <div className="mb-4">
         <h1 className="text-lg font-bold text-white">Sports</h1>
         <p className="text-[11px] text-white/35">
@@ -21,6 +21,6 @@ export default async function SportsAdminPage() {
       </div>
 
       <SportsAdmin initialSports={sports} />
-    </>
+    </div>
   );
 }

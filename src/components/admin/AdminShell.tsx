@@ -38,7 +38,9 @@ export function AdminShell({
   return (
     // Its own near-black, a step darker than the site, so the admin never reads
     // as part of the public pages.
-    <div className="min-h-screen bg-carbon-950 font-body text-white/90 md:flex">
+    // md:h-screen + overflow-hidden so the form and the preview each scroll on
+    // their own instead of the whole document scrolling as one.
+    <div className="min-h-screen bg-carbon-950 font-body text-white/90 md:flex md:h-screen md:overflow-hidden">
       <aside className="border-b border-white/10 md:flex md:min-h-screen md:w-56 md:shrink-0 md:flex-col md:border-b-0 md:border-r">
         <div className="flex items-center gap-2.5 px-4 py-4">
           <img src="/images/brand/ctr-logo.webp" alt="" aria-hidden className="h-8 w-auto shrink-0" />
@@ -90,7 +92,9 @@ export function AdminShell({
         </div>
       </aside>
 
-      <main className="min-w-0 flex-1 px-4 py-5 sm:px-6">{children}</main>
+      {/* No padding: each screen sets its own, because the landing editor
+          fills the space edge to edge and the sports list does not. */}
+      <main className="min-w-0 flex-1 md:overflow-hidden">{children}</main>
     </div>
   );
 }

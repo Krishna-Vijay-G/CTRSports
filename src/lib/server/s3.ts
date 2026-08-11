@@ -1,6 +1,12 @@
 import "server-only";
 
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { ListObjectsV2Command, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+
+/**
+ * Everything this project writes lives under one prefix, which is what keeps
+ * the media library from listing another site's uploads — the bucket is shared.
+ */
+export const MEDIA_PREFIX = "ctr-unified/media/";
 
 const BUCKET = process.env.S3_BUCKET;
 const REGION = process.env.S3_REGION;
@@ -46,6 +52,41 @@ export function publicUrl(key: string): string {
  * Uploads and returns the public URL. Objects are written under a content-hashed
  * or uuid key and never overwritten, so `immutable` is honest.
  */
+export type MediaObject = {
+  key: string;
+  url: string;
+  size: number;
+  /** ISO string — the client only ever displays or sorts it. */
+  uploadedAt: string;
+};
+
+/**
+ * Everything under MEDIA_PREFIX, newest first.
+ *
+ * S3 returns keys in lexicographic order and ours are uuids, so the ordering
+ * that comes back is effectively random — the sort here is what makes the
+ * library show the thing you just uploaded at the top. One page of up to
+ * `limit` is plenty for a media picker; there is no paging UI to drive more.
+ */
+export async function listMedia(limit = 200): Promise<MediaObject[]> {
+  const response = await getClient().send(
+    new ListObjectsV2Command({ Bucket: BUCKET, Prefix: MEDIA_PREFIX, MaxKeys: 1000 })
+  );
+
+  return (response.Contents ?? [])
+    .filter((object): object is typeof object & { Key: string } => Boolean(object.Key))
+    // A "directory marker" is a zero-byte object ending in / — not an image.
+    .filter((object) => !object.Key.endsWith("/"))
+    .sort((a, b) => (b.LastModified?.getTime() ?? 0) - (a.LastModified?.getTime() ?? 0))
+    .slice(0, limit)
+    .map((object) => ({
+      key: object.Key,
+      url: publicUrl(object.Key),
+      size: object.Size ?? 0,
+      uploadedAt: (object.LastModified ?? new Date(0)).toISOString(),
+    }));
+}
+
 export async function uploadObject(key: string, body: Buffer, contentType: string): Promise<string> {
   await getClient().send(
     new PutObjectCommand({

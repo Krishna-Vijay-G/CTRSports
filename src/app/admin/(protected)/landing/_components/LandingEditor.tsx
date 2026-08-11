@@ -9,8 +9,10 @@ import {
   type LandingContent,
   type SocialIconName,
 } from "@/lib/landingContent";
+import type { Sport } from "@/lib/sports";
 import { Field, Panel, Row, TextArea } from "@/components/admin/Fields";
 import { ImageField } from "@/components/admin/ImageField";
+import { LandingPreview } from "@/components/admin/LandingPreview";
 
 /**
  * Edits the whole landing-page document in one form.
@@ -18,10 +20,19 @@ import { ImageField } from "@/components/admin/ImageField";
  * One draft, one Save. The document is small and always written as a whole, so
  * per-panel saves would only create ways for two fields to disagree.
  *
- * Laid out as two columns of panels from `lg:` up, so the whole page is roughly
- * one screen of scrolling instead of a single tall column.
+ * Laid out as a side panel of fields with a live preview of the real page
+ * beside it: every keystroke re-renders the preview from the draft, so nothing
+ * has to be saved to see what it looks like.
  */
-export function LandingEditor({ initialContent }: { initialContent: LandingContent }) {
+export function LandingEditor({
+  initialContent,
+  sports,
+  year,
+}: {
+  initialContent: LandingContent;
+  sports: Sport[];
+  year: number;
+}) {
   const [draft, setDraft] = useState<LandingContent>(initialContent);
   const [saved, setSaved] = useState<LandingContent>(initialContent);
   const [busy, setBusy] = useState(false);
@@ -86,9 +97,13 @@ export function LandingEditor({ initialContent }: { initialContent: LandingConte
   }
 
   return (
-    <form onSubmit={handleSubmit}>
+    <div className="flex h-full min-h-0">
+      <form
+        onSubmit={handleSubmit}
+        className="flex min-w-0 flex-1 flex-col overflow-y-auto lg:w-[560px] lg:max-w-[560px] lg:flex-none lg:border-r lg:border-white/10"
+      >
       {/* Sticky, so Save is reachable from anywhere in the form. */}
-      <div className="sticky top-0 z-10 -mx-4 mb-4 flex flex-wrap items-center gap-3 border-b border-white/10 bg-carbon-950/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+      <div className="sticky top-0 z-10 flex flex-wrap items-center gap-3 border-b border-white/10 bg-carbon-950/95 px-4 py-3 backdrop-blur">
         <div className="mr-auto">
           <h1 className="text-lg font-bold text-white">Landing page</h1>
           <p className="text-[11px] text-white/35">
@@ -122,16 +137,16 @@ export function LandingEditor({ initialContent }: { initialContent: LandingConte
         </button>
       </div>
 
+      <div className="space-y-3 p-4">
       {error ? (
         <p
           role="alert"
-          className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300"
+          className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300"
         >
           {error}
         </p>
       ) : null}
 
-      <div className="grid gap-3 lg:grid-cols-2">
         <Panel title="Brand" hint="header, footer and splash">
           <Row>
             <Field
@@ -168,7 +183,7 @@ export function LandingEditor({ initialContent }: { initialContent: LandingConte
           </Row>
         </Panel>
 
-        <Panel title="Hero" span>
+        <Panel title="Hero">
           <Row>
             <TextArea
               label="Headline"
@@ -252,7 +267,7 @@ export function LandingEditor({ initialContent }: { initialContent: LandingConte
           </Row>
         </Panel>
 
-        <Panel title="About" span>
+        <Panel title="About">
           <Row>
             <Field
               label="Chip label"
@@ -370,14 +385,29 @@ export function LandingEditor({ initialContent }: { initialContent: LandingConte
           </Row>
         </Panel>
 
-        <Panel title="Socials" hint="footer icons" span>
+        <Panel title="Socials" hint="footer icons">
           <SocialsEditor
             socials={draft.socials}
             onChange={(socials) => setSection("socials", socials)}
           />
         </Panel>
+        </div>
+      </form>
+
+      {/*
+        Hidden below lg: at that width the panel already fills the screen, and a
+        preview shrunk to what is left would be unreadable rather than useful.
+      */}
+      <div className="hidden min-w-0 flex-1 overflow-y-auto bg-black lg:block">
+        <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-white/10 bg-carbon-950/95 px-4 py-2 backdrop-blur">
+          <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/45">
+            Live preview
+          </span>
+          <span className="text-[10px] text-white/25">updates as you type · not yet saved</span>
+        </div>
+        <LandingPreview content={draft} sports={sports} year={year} />
       </div>
-    </form>
+    </div>
   );
 }
 

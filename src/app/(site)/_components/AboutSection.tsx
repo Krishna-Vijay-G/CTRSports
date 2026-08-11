@@ -1,3 +1,5 @@
+"use client";
+
 import { paragraphs, type LabelledPhoto, type LandingContent } from "@/lib/landingContent";
 import { ActionButton } from "@/components/ui/ActionButton";
 import { Reveal } from "@/components/ui/Reveal";

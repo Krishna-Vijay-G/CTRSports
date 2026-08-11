@@ -25,16 +25,19 @@ const config: Config = {
           dark: "#E0BF06",
           ink: "#0A0A0A",
         },
-        // Surfaces, darkest first.
-        page: "#050506",
-        surface: "#0F1114",
-        panel: "#181B20",
-        line: "#262A31",
-        // Type.
+        // Surfaces, darkest first. The steps between them are deliberately
+        // wide: on a dark page a 2-3% difference reads as one flat expanse, so
+        // each level is far enough apart to be told apart at a glance.
+        page: "#000000",
+        surface: "#0C0E11",
+        panel: "#1B2027",
+        line: "#39414D",
+        // Type. `muted` and `faint` are both well clear of the 4.5:1 floor
+        // against `panel`, which is the darkest thing they ever sit on.
         fg: {
-          DEFAULT: "#F3F5F7",
-          muted: "#A2AAB6",
-          faint: "#6E7784",
+          DEFAULT: "#FFFFFF",
+          muted: "#C2C9D4",
+          faint: "#98A1AF",
         },
 
         // Admin only.

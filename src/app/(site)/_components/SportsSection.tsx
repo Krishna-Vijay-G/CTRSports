@@ -1,3 +1,5 @@
+"use client";
+
 import type { LandingContent } from "@/lib/landingContent";
 import { Reveal } from "@/components/ui/Reveal";
 import { SectionHeading } from "@/components/ui/SectionHeading";

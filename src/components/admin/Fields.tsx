@@ -36,9 +36,15 @@ export function Panel({
   );
 }
 
-/** Two fields side by side from `sm:` up. The editor's default row. */
+/**
+ * Two fields side by side. The editor's default row.
+ *
+ * Keyed off `lg:` rather than `sm:` because that is exactly where the editor
+ * becomes a fixed-width side panel; below it the panel is full width and two
+ * columns would be too narrow to read a URL in.
+ */
 export function Row({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={cn("grid gap-3 sm:grid-cols-2", className)}>{children}</div>;
+  return <div className={cn("grid gap-3 lg:grid-cols-2", className)}>{children}</div>;
 }
 
 export function Field({

@@ -41,9 +41,19 @@ otherwise revalidates every 60s.
 
 ### Using the landing editor
 
-One form, one **Save**, laid out as two columns of panels so the whole page is
-about a screen of scrolling. The Save bar is sticky. An edited-but-unsaved form
-is badged **Unsaved**. **Load defaults** fills the form from
+Fields on the left, a **live preview of the real page** on the right. Every
+keystroke re-renders the preview from the draft, so nothing has to be saved to
+see what it looks like.
+
+The preview is the same components the public route uses, not a mock, so it
+cannot drift from the site. Two differences: the splash screen is left out
+(it is `position: fixed` and would cover the admin), and `PreviewMode` disables
+scroll-triggered reveals, which would otherwise never fire inside a pane that
+does not scroll past the window. The preview is hidden below `lg`, where shrinking
+it further would make it unreadable rather than useful.
+
+One form, one **Save**; the Save bar is sticky. An edited-but-unsaved form is
+badged **Unsaved**. **Load defaults** fills the form from
 `DEFAULT_LANDING_CONTENT` without writing anything — you still have to Save.
 
 Blank is allowed and meaningful: clearing a button label removes that button,
@@ -86,7 +96,7 @@ src/
   components/               reused across pages
     layout/                 SiteHeader, SiteFooter
     ui/                     ActionButton, Reveal, SectionHeading, SocialIcon
-    admin/                  AdminShell, Fields, ImageField
+    admin/                  AdminShell, Fields, ImageField, MediaPicker, LandingPreview
   config/
     site.ts                 SITE + SEO — the only hardcoded content left
     images.ts               placeholder photo URLs, used as seeds/defaults only
@@ -98,8 +108,9 @@ src/
   styles/globals.css        base styles + the shared classes
 ```
 
-Public components take their content as **props** — none of them import config
-or reach for the database. `src/app/(site)/page.tsx` is the only place that
+Public components take their content as **props**, and are client components so
+the admin's preview can render them — none of them import config or reach for
+the database. `src/app/(site)/page.tsx` is the only place that
 loads, so a section can be reused on another page against different content.
 
 ### Adding a page
@@ -137,11 +148,17 @@ shadows, which do not read on a dark background:
 
 | Token | Use |
 | --- | --- |
-| `page` | behind the card |
+| `page` | behind the card — pure black |
 | `surface` | the card itself |
 | `panel` | anything nested inside it |
 | `line` | every border |
 | `fg` / `fg-muted` / `fg-faint` | type, in descending emphasis |
+
+The steps between the surfaces are deliberately wide. On a dark page a 2–3%
+difference reads as one flat expanse, so each level sits far enough from its
+neighbour to be told apart at a glance, and `line` is bright enough to actually
+draw a card's edge. `fg-muted` and `fg-faint` both clear the 4.5:1 contrast floor
+against `panel`, the darkest surface they ever sit on.
 
 `accent` is the one bright colour — CTR's racing yellow — and it carries every
 primary button, badge and the call-to-action band. Changing the site's accent is
@@ -169,10 +186,22 @@ child cannot escape that clipping.
 Every image is a plain `<img>`. Nothing is resized at request time, so what is
 stored is what a visitor downloads.
 
-**Uploads** (admin) are converted to WebP and capped in the browser by
-`src/lib/client/toWebp.ts` before they are sent, so the bytes in S3 are already
-the bytes the page serves. The upload route needs no image library. Without S3
-configured, the admin falls back to pasting a URL.
+**Every image on the site is uploadable.** Each image field offers three routes:
+
+- **Upload** — converted to WebP and capped in the browser by
+  `src/lib/client/toWebp.ts` *before* it is sent, so the bytes in S3 are already
+  the bytes the page serves, and the upload route needs no image library
+- **Library** — browse everything already uploaded and pick one
+- **paste a URL** — the only route when S3 is not configured
+
+Objects go to `ctr-unified/media/<uuid>.<ext>`. The prefix matters: the bucket is
+shared with another CTR site, and it is what keeps the library from listing that
+site's uploads. Each key is a fresh uuid and is never overwritten, which is what
+makes the immutable cache header on them honest.
+
+The library has no delete. An object may still be referenced by content the
+picker cannot see, and a broken image on the live site is worse than an untidy
+bucket — remove things in the S3 console if it matters.
 
 **Files in `public/images`** are compressed by a script:
 
@@ -228,6 +257,7 @@ taking the page down. It also strips anything that is not a `/path` or an
 | `PUT /api/admin/sports/:id` | save one (never touches `sort_order`) |
 | `DELETE /api/admin/sports/:id` | remove one |
 | `POST /api/admin/upload` | one image, multipart |
+| `GET /api/admin/media` | everything in the bucket, newest first |
 
 Reordering is `PATCH` on the collection rather than a `/sports/reorder` path
 because a static sibling of `[id]` does **not** reliably win the route match

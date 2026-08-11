@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/server/auth";
-import { isS3Configured, uploadObject } from "@/lib/server/s3";
+import { MEDIA_PREFIX, isS3Configured, uploadObject } from "@/lib/server/s3";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -64,7 +64,9 @@ export async function POST(request: Request) {
   }
 
   try {
-    const key = `ctrsports/logos/${randomUUID()}.${extension}`;
+    // A fresh uuid every time: objects are never overwritten, which is what
+    // makes the immutable cache header on them honest.
+    const key = `${MEDIA_PREFIX}${randomUUID()}.${extension}`;
     const buffer = Buffer.from(await file.arrayBuffer());
     const url = await uploadObject(key, buffer, file.type);
 
