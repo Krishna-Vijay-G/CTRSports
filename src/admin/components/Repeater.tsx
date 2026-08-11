@@ -1,0 +1,278 @@
+"use client";
+
+import { useState } from "react";
+import { cn } from "@/lib/utils";
+import { Badge } from "@/admin/ui/Badge";
+import { Button } from "@/admin/ui/Button";
+import { CaretDownIcon, DragIcon, PlusIcon, TrashIcon } from "@/admin/ui/icons";
+import { Note, Panel } from "@/admin/components/Fields";
+
+/**
+ * A list of the same thing, edited: add, reorder, remove.
+ *
+ * Nearly every panel in this admin is one of these — stats, vision cards,
+ * venues, rounds, photographs, bulletin rows, posts. Writing the add/move/remove
+ * plumbing per panel is where those screens drift apart, so it is written once
+ * here and each panel supplies only its fields.
+ *
+ * Two shapes, chosen by whether `summary` is given:
+ *
+ *   without it — every entry is open. Right for short lists (three venues) where
+ *                seeing them all at once is the whole point.
+ *   with it    — entries collapse to one line and open one at a time. Right for
+ *                long lists (a dozen posts) that would otherwise be a mile of
+ *                form.
+ *
+ * Reordering is a drag handle plus arrow buttons. The buttons are not a
+ * fallback: HTML5 drag does not work on touch at all, so they are the only way
+ * on a phone.
+ */
+
+export type RepeaterProps<T> = {
+  title: string;
+  /** The label on the add button — "Add venue", not "Add". */
+  addLabel: string;
+  items: T[];
+  max: number;
+  onChange: (next: T[]) => void;
+  /** Builds a new, empty entry. */
+  blank: () => T;
+  /** Stable React key. Falls back to the index for lists that carry no id. */
+  keyOf?: (item: T, index: number) => string;
+  /** Collapses the list. Omit to keep every entry open. */
+  summary?: (item: T, index: number) => { title: string; hint?: string; image?: string };
+  /** What the list says when it is empty. */
+  empty?: string;
+  /** A line of explanation under the list. */
+  note?: React.ReactNode;
+  /** The fields for one entry. `patch` merges into it. */
+  children: (item: T, index: number, patch: (patch: Partial<T>) => void) => React.ReactNode;
+};
+
+export function Repeater<T>({
+  title,
+  addLabel,
+  items,
+  max,
+  onChange,
+  blank,
+  keyOf,
+  summary,
+  empty,
+  note,
+  children,
+}: RepeaterProps<T>) {
+  const collapsible = Boolean(summary);
+  const [open, setOpen] = useState<number | null>(collapsible ? 0 : null);
+  const [dragging, setDragging] = useState<number | null>(null);
+
+  function patchAt(index: number, patch: Partial<T>) {
+    onChange(items.map((item, i) => (i === index ? { ...item, ...patch } : item)));
+  }
+
+  /** Moves an entry, and carries the open row and the drag with it. */
+  function moveTo(from: number, to: number) {
+    if (to < 0 || to >= items.length || from === to) return;
+
+    const next = [...items];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    onChange(next);
+
+    if (open === from) setOpen(to);
+    if (dragging === from) setDragging(to);
+  }
+
+  function add() {
+    onChange([...items, blank()]);
+    if (collapsible) setOpen(items.length);
+  }
+
+  function remove(index: number) {
+    onChange(items.filter((_, i) => i !== index));
+    // The row below slides up into this slot, so the open row is the same index
+    // unless it was the last one.
+    if (open !== null && open >= index) setOpen(open > index ? open - 1 : null);
+  }
+
+  return (
+    <Panel title={title} hint={`${items.length} of ${max}`}>
+      {items.length === 0 ? (
+        <p className="rounded-md border border-dashed border-input px-4 py-8 text-center text-xs text-muted-fg">
+          {empty ?? "Nothing here yet."}
+        </p>
+      ) : (
+        <ul className="space-y-1.5">
+          {items.map((item, index) => {
+            const expanded = !collapsible || open === index;
+            const head = summary?.(item, index);
+
+            return (
+              <li
+                key={keyOf?.(item, index) ?? index}
+                draggable={dragging === index}
+                onDragEnter={() => (dragging === null ? undefined : moveTo(dragging, index))}
+                onDragOver={(event) => event.preventDefault()}
+                onDragEnd={() => setDragging(null)}
+                className={cn(
+                  "rounded-md border bg-background/60 transition-colors",
+                  dragging === index ? "border-primary/60 opacity-40" : "border-border",
+                  expanded && collapsible && "border-input bg-background"
+                )}
+              >
+                <div className="flex items-center gap-2 p-1.5">
+                  <button
+                    type="button"
+                    aria-label={`Reorder ${index + 1}. Use the arrow keys.`}
+                    onPointerDown={() => setDragging(index)}
+                    onPointerUp={() => setDragging(null)}
+                    onKeyDown={(event) => {
+                      if (event.key === "ArrowUp") {
+                        event.preventDefault();
+                        moveTo(index, index - 1);
+                      } else if (event.key === "ArrowDown") {
+                        event.preventDefault();
+                        moveTo(index, index + 1);
+                      }
+                    }}
+                    className="flex size-7 shrink-0 cursor-grab items-center justify-center rounded text-muted-fg/60 transition hover:bg-muted hover:text-foreground active:cursor-grabbing"
+                  >
+                    <DragIcon className="size-4" />
+                  </button>
+
+                  {head?.image ? (
+                    <span className="h-9 w-14 shrink-0 overflow-hidden rounded border border-border bg-background">
+                      <img src={head.image} alt="" className="h-full w-full object-cover" />
+                    </span>
+                  ) : null}
+
+                  {head ? (
+                    <button
+                      type="button"
+                      onClick={() => setOpen(expanded ? null : index)}
+                      aria-expanded={expanded}
+                      className="min-w-0 flex-1 text-left"
+                    >
+                      <span className="block truncate text-[13px] font-medium text-foreground">
+                        {head.title || `Item ${index + 1}`}
+                      </span>
+                      {head.hint ? (
+                        <span className="block truncate text-[11px] text-muted-fg">{head.hint}</span>
+                      ) : null}
+                    </button>
+                  ) : (
+                    <Badge variant="outline" className="mr-auto">
+                      {index + 1} of {items.length}
+                    </Badge>
+                  )}
+
+                  {collapsible ? (
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => setOpen(expanded ? null : index)}
+                      aria-expanded={expanded}
+                      aria-label={expanded ? "Close" : "Edit"}
+                    >
+                      <CaretDownIcon className={cn("transition-transform", expanded && "rotate-180")} />
+                    </Button>
+                  ) : (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => moveTo(index, index - 1)}
+                        disabled={index === 0}
+                        aria-label="Move up"
+                      >
+                        <CaretDownIcon className="rotate-180" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => moveTo(index, index + 1)}
+                        disabled={index === items.length - 1}
+                        aria-label="Move down"
+                      >
+                        <CaretDownIcon />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => remove(index)}
+                        aria-label="Remove"
+                        className="hover:text-destructive"
+                      >
+                        <TrashIcon />
+                      </Button>
+                    </>
+                  )}
+                </div>
+
+                {expanded ? (
+                  <div
+                    className={cn(
+                      "space-y-3 border-t border-border p-3",
+                      !collapsible && "border-dashed"
+                    )}
+                  >
+                    {children(item, index, (patch) => patchAt(index, patch))}
+
+                    {collapsible ? (
+                      <div className="flex items-center gap-1.5 border-t border-border pt-3">
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => moveTo(index, index - 1)}
+                          disabled={index === 0}
+                          aria-label="Move up"
+                        >
+                          <CaretDownIcon className="rotate-180" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => moveTo(index, index + 1)}
+                          disabled={index === items.length - 1}
+                          aria-label="Move down"
+                        >
+                          <CaretDownIcon />
+                        </Button>
+                        <Badge variant="outline">
+                          {index + 1} of {items.length}
+                        </Badge>
+
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => remove(index)}
+                          className="ml-auto"
+                        >
+                          <TrashIcon />
+                          Remove
+                        </Button>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={add}
+        disabled={items.length >= max}
+        className="mt-3"
+      >
+        <PlusIcon />
+        {addLabel}
+      </Button>
+
+      {note ? <Note className="mt-3">{note}</Note> : null}
+    </Panel>
+  );
+}

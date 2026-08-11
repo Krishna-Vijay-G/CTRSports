@@ -91,12 +91,12 @@ export const DEFAULT_LANDING_CONTENT: LandingContent = {
     photos: ABOUT_PHOTOS.map((entry) => ({ ...entry })),
   },
   sportsSection: {
-    label: "Sports in CTR Unified",
-    title: "Every discipline, one standard of preparation",
+    label: "Home of CTR",
+    title: "Every sport, one standard of preparation",
   },
   ctaBand: {
     label: "One Team",
-    title: "Multiple sports. One unified banner.",
+    title: "One Nation, One Championship.",
     body: "Cricket, volleyball, hockey, pickleball and motorsport — developed under a single organisation.",
     ctaLabel: "See the Programmes",
     ctaHref: "#sports",

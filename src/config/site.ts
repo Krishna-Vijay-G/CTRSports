@@ -11,8 +11,23 @@
  * See src/lib/landingContent.ts for the editable document and its defaults.
  */
 
+/**
+ * The public origin, e.g. https://example.com — no trailing slash.
+ *
+ * From the environment, never from the source: the domain is a property of the
+ * deployment, and a repository that names it has to be edited to be moved. Every
+ * canonical URL, the sitemap, the Open Graph tags and the JSON-LD are built from
+ * this one value.
+ *
+ * Falls back to the local dev origin, which is right for `npm run dev` and wrong
+ * everywhere else — so set SITE_URL in production. It is read at build time for
+ * statically rendered metadata, so set it before `next build`, not only at run
+ * time.
+ */
+const url = (process.env.SITE_URL ?? "http://localhost:3000").replace(/\/+$/, "");
+
 export const SITE = {
-  url: "https://ctrsports.in",
+  url,
   name: "CTR Unified",
   locale: "en_IN",
 } as const;
