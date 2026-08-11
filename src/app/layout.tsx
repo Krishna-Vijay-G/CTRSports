@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Plus_Jakarta_Sans } from "next/font/google";
-import { BRAND, SITE, SOCIALS } from "@/config/site";
+import { SEO, SITE } from "@/config/site";
 import "@/styles/globals.css";
 
 /*
@@ -28,27 +28,15 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE.url),
-  title: "CTR Unified — One Nation. One Championship.",
-  description:
-    "CTR Unified is a multi-sport organization bringing athletes, teams, and sporting communities together under one platform — from cricket and volleyball to Formula 4 racing and emerging sports.",
-  keywords: [
-    "CTR Unified",
-    "CTR Sports",
-    "Chennai Turbo Riders",
-    "multi-sport organization",
-    "Formula 4",
-    "cricket",
-    "volleyball",
-    "field hockey",
-    "pickleball",
-    "motorsport India",
-  ],
+  title: SEO.title,
+  description: SEO.description,
+  keywords: [...SEO.keywords],
   authors: [{ name: SITE.name }],
-  icons: { icon: BRAND.logo },
+  icons: { icon: SEO.logo },
   alternates: { canonical: "/" },
   openGraph: {
-    title: "CTR Unified — One Nation. One Championship.",
-    description: "One Nation. One Championship.",
+    title: SEO.title,
+    description: SEO.description,
     url: SITE.url,
     siteName: SITE.name,
     type: "website",
@@ -56,19 +44,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "CTR Unified — One Nation. One Championship.",
-    description: "One Nation. One Championship.",
+    title: SEO.title,
+    description: SEO.description,
   },
-};
-
-const jsonLd = {
-  "@context": "https://schema.org",
-  "@type": "SportsOrganization",
-  name: SITE.name,
-  alternateName: "CTR Sports Collective",
-  url: SITE.url,
-  logo: `${SITE.url}${BRAND.logo}`,
-  sameAs: SOCIALS.map((social) => social.href),
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -76,17 +54,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${inter.variable} ${jakarta.variable}`}>
       <body className="antialiased">
         {/*
-          The hero photo is the LCP element and currently lives on a third-party
-          host. Opening that connection during HTML parse saves the DNS + TLS
-          round-trips it would otherwise cost. Drop this once the photography
-          moves to S3 behind our own domain — see src/config/images.ts.
+          The hero photo is the LCP element and, until real photography is
+          uploaded, lives on a third-party host. Opening that connection during
+          HTML parse saves the DNS + TLS round-trips it would otherwise cost.
+          Drop this once the photography is served from our own domain.
         */}
         <link rel="preconnect" href="https://images.unsplash.com" crossOrigin="" />
-
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-        />
         {children}
       </body>
     </html>

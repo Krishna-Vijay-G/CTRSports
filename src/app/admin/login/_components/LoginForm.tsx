@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { BRAND } from "@/config/site";
+import { SEO, SITE } from "@/config/site";
 
 export function LoginForm() {
   const router = useRouter();
@@ -43,7 +43,7 @@ export function LoginForm() {
     <main className="flex min-h-screen items-center justify-center bg-carbon-950 px-5 py-16 font-body text-white/90">
       <div className="w-full max-w-md">
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <img src={BRAND.logo} alt={BRAND.name} className="h-16 w-auto" />
+          <img src={SEO.logo} alt={SITE.name} className="h-16 w-auto" />
           <div>
             <h1 className="font-display text-2xl font-bold uppercase tracking-wide text-white">
               Admin

@@ -1,4 +1,4 @@
-import { CTA_BAND } from "@/config/site";
+import type { LandingContent } from "@/lib/landingContent";
 import { ActionButton } from "@/components/ui/ActionButton";
 import { Reveal } from "@/components/ui/Reveal";
 import type { Sport } from "@/lib/sports";
@@ -22,7 +22,13 @@ const SCATTER = [
   "right-[27%] top-[10%] h-9 w-9 -rotate-12",
 ];
 
-export function CtaBand({ sports }: { sports: Sport[] }) {
+export function CtaBand({
+  band,
+  sports,
+}: {
+  band: LandingContent["ctaBand"];
+  sports: Sport[];
+}) {
   const crests = sports.filter((sport) => sport.logo_url).slice(0, SCATTER.length);
 
   return (
@@ -43,18 +49,18 @@ export function CtaBand({ sports }: { sports: Sport[] }) {
 
           <div className="relative z-10 mx-auto max-w-2xl">
             <span className="inline-flex items-center rounded-full bg-accent-ink px-4 py-1.5 text-[11px] font-semibold tracking-wide text-white">
-              {CTA_BAND.label}
+              {band.label}
             </span>
 
-            <h2 className="headline mt-5 text-[clamp(1.6rem,3.4vw,2.5rem)] text-accent-ink">{CTA_BAND.title}</h2>
+            <h2 className="headline mt-5 text-[clamp(1.6rem,3.4vw,2.5rem)] text-accent-ink">{band.title}</h2>
 
             <p className="mx-auto mt-4 max-w-lg text-sm leading-relaxed text-accent-ink/70">
-              {CTA_BAND.body}
+              {band.body}
             </p>
 
             <div className="mt-7 flex justify-center">
-              <ActionButton href={CTA_BAND.cta.href} variant="white">
-                {CTA_BAND.cta.label}
+              <ActionButton href={band.ctaHref} variant="white">
+                {band.ctaLabel}
               </ActionButton>
             </div>
           </div>

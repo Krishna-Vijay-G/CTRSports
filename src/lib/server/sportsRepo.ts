@@ -15,6 +15,7 @@ type Row = {
   text: string;
   details: string;
   logo_url: string;
+  photo_url: string;
   sort_order: number;
   is_visible: boolean;
 };
@@ -26,6 +27,7 @@ function toSport(row: Row): Sport {
     text: row.text,
     details: row.details,
     logo_url: row.logo_url,
+    photo_url: row.photo_url,
     sort_order: row.sort_order,
     is_visible: row.is_visible,
   };
@@ -35,7 +37,7 @@ function toSport(row: Row): Sport {
 export async function listAllSports(): Promise<Sport[]> {
   const sql = getSql();
   const rows = (await sql`
-    SELECT id, title, text, details, logo_url, sort_order, is_visible
+    SELECT id, title, text, details, logo_url, photo_url, sort_order, is_visible
       FROM ctr_sports
      ORDER BY sort_order ASC, title ASC
   `) as Row[];
@@ -47,7 +49,7 @@ export async function listAllSports(): Promise<Sport[]> {
 export async function listVisibleSports(): Promise<Sport[]> {
   const sql = getSql();
   const rows = (await sql`
-    SELECT id, title, text, details, logo_url, sort_order, is_visible
+    SELECT id, title, text, details, logo_url, photo_url, sort_order, is_visible
       FROM ctr_sports
      WHERE is_visible = true
      ORDER BY sort_order ASC, title ASC
@@ -75,10 +77,10 @@ export async function createSport(input: unknown): Promise<Sport> {
   const sport = normaliseSportInput(input);
 
   const rows = (await sql`
-    INSERT INTO ctr_sports (title, text, details, logo_url, sort_order, is_visible)
+    INSERT INTO ctr_sports (title, text, details, logo_url, photo_url, sort_order, is_visible)
     VALUES (${sport.title}, ${sport.text}, ${sport.details}, ${sport.logo_url},
-            ${sport.sort_order}, ${sport.is_visible})
-    RETURNING id, title, text, details, logo_url, sort_order, is_visible
+            ${sport.photo_url}, ${sport.sort_order}, ${sport.is_visible})
+    RETURNING id, title, text, details, logo_url, photo_url, sort_order, is_visible
   `) as Row[];
 
   return toSport(rows[0]);
@@ -101,10 +103,11 @@ export async function updateSport(id: string, input: unknown): Promise<Sport | n
            text       = ${sport.text},
            details    = ${sport.details},
            logo_url   = ${sport.logo_url},
+           photo_url  = ${sport.photo_url},
            is_visible = ${sport.is_visible},
            updated_at = now()
      WHERE id = ${id}
-    RETURNING id, title, text, details, logo_url, sort_order, is_visible
+    RETURNING id, title, text, details, logo_url, photo_url, sort_order, is_visible
   `) as Row[];
 
   return rows[0] ? toSport(rows[0]) : null;

@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, type Variants } from "framer-motion";
-import { HERO } from "@/config/site";
+import type { LandingContent } from "@/lib/landingContent";
 import { ActionButton, ArrowIcon } from "@/components/ui/ActionButton";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import type { Sport } from "@/lib/sports";
@@ -27,7 +27,8 @@ const CARD_ROWS = 3;
  * it stays true as the list is edited, and disappears cleanly if the list is
  * empty.
  */
-export function Hero({ sports }: { sports: Sport[] }) {
+export function Hero({ content, sports }: { content: LandingContent; sports: Sport[] }) {
+  const { hero } = content;
   const crests = sports.filter((sport) => sport.logo_url).slice(0, CREST_COUNT);
   const cardRows = sports.slice(0, CARD_ROWS);
 
@@ -35,7 +36,7 @@ export function Hero({ sports }: { sports: Sport[] }) {
     <section className="relative overflow-hidden rounded-card">
       {/* The page's LCP element — fetched at high priority, never lazily. */}
       <img
-        src={HERO.background}
+        src={hero.background}
         alt=""
         aria-hidden
         fetchPriority="high"
@@ -48,7 +49,7 @@ export function Hero({ sports }: { sports: Sport[] }) {
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-black/40" />
       <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/10 to-transparent" />
 
-      <SiteHeader />
+      <SiteHeader content={content} />
 
       <div className="relative z-10 mx-auto flex min-h-[600px] max-w-[1180px] flex-col justify-end px-5 pb-8 pt-28 sm:px-8 sm:pb-10 lg:min-h-[680px]">
         <div className="lg:max-w-[52%]">
@@ -59,12 +60,20 @@ export function Hero({ sports }: { sports: Sport[] }) {
             variants={fadeUp}
             className="headline whitespace-pre-line text-[clamp(2.25rem,5.4vw,3.75rem)] text-white"
           >
-            {HERO.headline}
+            {hero.headline}
           </motion.h1>
 
-          <motion.div custom={1} initial="hidden" animate="visible" variants={fadeUp} className="mt-7">
-            <ActionButton href={HERO.cta.href}>{HERO.cta.label}</ActionButton>
-          </motion.div>
+          {hero.ctaLabel ? (
+            <motion.div
+              custom={1}
+              initial="hidden"
+              animate="visible"
+              variants={fadeUp}
+              className="mt-7"
+            >
+              <ActionButton href={hero.ctaHref}>{hero.ctaLabel}</ActionButton>
+            </motion.div>
+          ) : null}
         </div>
 
         {crests.length > 0 ? (
@@ -93,7 +102,7 @@ export function Hero({ sports }: { sports: Sport[] }) {
               ))}
             </div>
             <p className="max-w-[15rem] text-xs leading-snug text-white/70 sm:max-w-none sm:text-sm">
-              {HERO.proof}
+              {hero.proof}
             </p>
           </motion.div>
         ) : null}
@@ -107,8 +116,8 @@ export function Hero({ sports }: { sports: Sport[] }) {
           transition={{ duration: 0.7, delay: 0.45, ease: [0.25, 0.46, 0.45, 0.94] }}
           className="absolute right-8 top-1/2 z-10 hidden w-[330px] -translate-y-1/2 rounded-panel bg-surface p-4 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.45)] lg:block"
         >
-          <p className="font-display text-base font-bold text-fg">{HERO.card.title}</p>
-          <p className="mt-0.5 text-xs text-fg-faint">{HERO.card.subtitle}</p>
+          <p className="font-display text-base font-bold text-fg">{hero.cardTitle}</p>
+          <p className="mt-0.5 text-xs text-fg-faint">{hero.cardSubtitle}</p>
 
           <ul className="mt-3 space-y-1 rounded-xl border border-line p-2">
             {cardRows.map((sport) => (
@@ -126,7 +135,7 @@ export function Hero({ sports }: { sports: Sport[] }) {
                       className="h-full w-full object-contain p-1"
                     />
                   ) : (
-                    <span className="font-display text-xs font-bold text-fg-faint">
+                    <span className="font-display text-xs font-bold text-accent-ink">
                       {sport.title.slice(0, 1)}
                     </span>
                   )}
@@ -143,17 +152,19 @@ export function Hero({ sports }: { sports: Sport[] }) {
             ))}
           </ul>
 
-          <div className="mt-3 flex justify-end">
-            <a
-              href={HERO.card.ctaHref}
-              className="group inline-flex items-center gap-2 rounded-full bg-accent py-1 pl-4 pr-1 text-xs font-semibold text-accent-ink transition hover:bg-accent-dark"
-            >
-              {HERO.card.ctaLabel}
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent-ink text-accent">
-                <ArrowIcon className="transition-transform duration-300 group-hover:translate-x-0.5" />
-              </span>
-            </a>
-          </div>
+          {hero.cardCtaLabel ? (
+            <div className="mt-3 flex justify-end">
+              <a
+                href={hero.cardCtaHref}
+                className="group inline-flex items-center gap-2 rounded-full bg-accent py-1 pl-4 pr-1 text-xs font-semibold text-accent-ink transition hover:bg-accent-dark"
+              >
+                {hero.cardCtaLabel}
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent-ink text-accent">
+                  <ArrowIcon className="transition-transform duration-300 group-hover:translate-x-0.5" />
+                </span>
+              </a>
+            </div>
+          ) : null}
         </motion.div>
       ) : null}
     </section>

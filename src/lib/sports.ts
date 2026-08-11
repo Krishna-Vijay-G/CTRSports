@@ -1,8 +1,9 @@
 /**
- * The one database-backed thing on the site: a sport card.
+ * A sport card: one row of `ctr_sports`, edited at /admin/sports.
  *
- * Four editable fields, on purpose — logo, title, text, details. Anything more
- * belongs in src/config/site.ts, where it is a code change and a deploy.
+ * The rest of the landing page is a single JSONB document — see
+ * src/lib/landingContent.ts. Sports are rows instead because they are a list
+ * that gets added to, reordered and deleted, which is what a table is for.
  *
  * Shared by the server (repo, API routes) and the browser (admin dashboard), so
  * nothing in here may import `server-only`.
@@ -16,8 +17,10 @@ export type Sport = {
   text: string;
   /** The paragraph under that. */
   details: string;
-  /** Absolute URL (S3) or a /public path. */
+  /** Crest. Absolute URL (S3) or a /public path. */
   logo_url: string;
+  /** The photograph behind the crest on the card. Same rules as logo_url. */
+  photo_url: string;
   /** Ascending. Ties fall back to title. */
   sort_order: number;
   /** Unchecked hides the card from the landing page without deleting it. */
@@ -30,6 +33,7 @@ export const BLANK_SPORT: Omit<Sport, "id"> = {
   text: "",
   details: "",
   logo_url: "",
+  photo_url: "",
   sort_order: 0,
   is_visible: true,
 };
@@ -39,6 +43,7 @@ export const LIMITS = {
   text: 120,
   details: 600,
   logo_url: 500,
+  photo_url: 500,
 } as const;
 
 /**
@@ -54,6 +59,8 @@ export const SEED_SPORTS: Omit<Sport, "id">[] = [
     details:
       "Explosive hand-speed, compact court strategy, and doubles chemistry define CTR's pickleball identity.",
     logo_url: "/images/sports/pickleball.webp",
+    photo_url:
+      "https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?auto=format&fit=crop&w=800&q=72",
     sort_order: 10,
     is_visible: true,
   },
@@ -63,6 +70,8 @@ export const SEED_SPORTS: Omit<Sport, "id">[] = [
     details:
       "Vertical athleticism and controlled transition play power our volleyball program across elite competitions.",
     logo_url: "/images/sports/volleyball.webp",
+    photo_url:
+      "https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?auto=format&fit=crop&w=800&q=72",
     sort_order: 20,
     is_visible: true,
   },
@@ -72,6 +81,8 @@ export const SEED_SPORTS: Omit<Sport, "id">[] = [
     details:
       "Structured batting depth, precision bowling plans, and relentless fielding standards anchor this unit.",
     logo_url: "/images/sports/cricket.webp",
+    photo_url:
+      "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&w=800&q=72",
     sort_order: 30,
     is_visible: true,
   },
@@ -81,6 +92,8 @@ export const SEED_SPORTS: Omit<Sport, "id">[] = [
     details:
       "Pace-driven pressing and disciplined circle execution make our hockey program sharp and competitive.",
     logo_url: "/images/sports/hockey.webp",
+    photo_url:
+      "https://images.unsplash.com/photo-1580748141549-71748dbe0bdc?auto=format&fit=crop&w=800&q=72",
     sort_order: 40,
     is_visible: true,
   },
@@ -90,6 +103,8 @@ export const SEED_SPORTS: Omit<Sport, "id">[] = [
     details:
       "From telemetry to racecraft, the F4 pathway develops next-generation circuit talent with measurable rigor.",
     logo_url: "/images/sports/formula-4.webp",
+    photo_url:
+      "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=800&q=72",
     sort_order: 50,
     is_visible: true,
   },
@@ -99,6 +114,8 @@ export const SEED_SPORTS: Omit<Sport, "id">[] = [
     details:
       "A professional national ladder connecting karting graduates to full circuit competition under one unified banner.",
     logo_url: "/images/sports/national-racing.webp",
+    photo_url:
+      "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=800&q=72",
     sort_order: 60,
     is_visible: true,
   },
@@ -136,7 +153,8 @@ export function normaliseSportInput(input: unknown): Omit<Sport, "id"> {
     title: str(record.title, LIMITS.title),
     text: str(record.text, LIMITS.text),
     details: str(record.details, LIMITS.details),
-    logo_url: normaliseLogoUrl(record.logo_url),
+    logo_url: normaliseImageUrl(record.logo_url),
+    photo_url: normaliseImageUrl(record.photo_url),
     sort_order: Number.isFinite(order) ? Math.trunc(order) : 0,
     // Anything other than an explicit `false` means visible.
     is_visible: record.is_visible !== false,
@@ -144,12 +162,12 @@ export function normaliseSportInput(input: unknown): Omit<Sport, "id"> {
 }
 
 /**
- * A logo is either a /public path or an http(s) URL. Anything else — a bare
+ * An image is either a /public path or an http(s) URL. Anything else — a bare
  * filename, a `javascript:` payload, a protocol-relative `//host` — becomes
  * empty, which the card renders as a plain placeholder instead of a broken or
  * dangerous image.
  */
-export function normaliseLogoUrl(value: unknown): string {
+export function normaliseImageUrl(value: unknown): string {
   if (typeof value !== "string") return "";
 
   const trimmed = value.trim().slice(0, LIMITS.logo_url);

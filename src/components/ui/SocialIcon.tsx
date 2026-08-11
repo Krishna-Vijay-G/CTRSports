@@ -1,4 +1,4 @@
-import type { SocialIconName } from "@/config/site";
+import type { SocialIconName } from "@/lib/landingContent";
 
 /**
  * Hand-drawn so the footer costs no icon library. Anything unrecognised falls

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { LogoField } from "@/components/admin/LogoField";
+import { ImageField } from "@/components/admin/ImageField";
 import { LIMITS, type Sport } from "@/lib/sports";
 import { cn } from "@/lib/utils";
 
@@ -61,6 +61,7 @@ export function SportRow({
     draft.text !== sport.text ||
     draft.details !== sport.details ||
     draft.logo_url !== sport.logo_url ||
+    draft.photo_url !== sport.photo_url ||
     draft.is_visible !== sport.is_visible;
 
   function set<K extends keyof Sport>(key: K, value: Sport[K]) {
@@ -296,11 +297,23 @@ export function SportRow({
             />
           </label>
 
-          <LogoField
-            value={draft.logo_url}
-            onChange={(url) => set("logo_url", url)}
-            disabled={busy}
-          />
+          <div>
+            <ImageField
+              label="Crest"
+              value={draft.logo_url}
+              onChange={(url) => set("logo_url", url)}
+              disabled={busy}
+              hint="Shown as a badge over the photo."
+            />
+            <ImageField
+              label="Photo"
+              value={draft.photo_url}
+              onChange={(url) => set("photo_url", url)}
+              disabled={busy}
+              className="mt-3"
+              hint="The picture behind the crest."
+            />
+          </div>
         </div>
 
         {error ? (

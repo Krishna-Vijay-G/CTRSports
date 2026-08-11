@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { SPLASH } from "@/config/site";
+import type { LandingContent } from "@/lib/landingContent";
 
 /**
  * Covers the page while the hero photo loads, then fades out and unmounts.
@@ -14,9 +14,11 @@ import { SPLASH } from "@/config/site";
 
 /** Below this it reads as a flash rather than an intro. */
 const MIN_VISIBLE_MS = 350;
+/** Hard cap, so a stalled asset can never strand a visitor here. */
+const MAX_VISIBLE_MS = 1800;
 const FADE_MS = 500;
 
-export function SplashScreen() {
+export function SplashScreen({ splash }: { splash: LandingContent["splash"] }) {
   const [visible, setVisible] = useState(true);
   const [fading, setFading] = useState(false);
 
@@ -42,7 +44,7 @@ export function SplashScreen() {
     }
 
     // Hard cap, so one stalled asset can never strand a visitor on the splash.
-    const cap = window.setTimeout(dismiss, SPLASH.maxVisibleMs);
+    const cap = window.setTimeout(dismiss, MAX_VISIBLE_MS);
 
     return () => {
       window.removeEventListener("load", dismiss);
@@ -56,20 +58,20 @@ export function SplashScreen() {
 
   return (
     <div
-      aria-label={SPLASH.ariaLabel}
+      aria-label={`Loading ${splash.title}`}
       className={`fixed inset-0 z-[999] grid place-content-center justify-items-center gap-4 bg-page transition-opacity duration-500 ${
         fading ? "pointer-events-none opacity-0" : "opacity-100"
       }`}
     >
       <img
-        src={SPLASH.logo}
-        alt="CTR Unified logo"
+        src={splash.logo}
+        alt={`${splash.title} logo`}
         fetchPriority="high"
         decoding="async"
         className="w-[min(190px,42vw)] animate-float"
       />
       <p className="font-display text-sm font-bold tracking-[0.24em] text-fg-faint">
-        {SPLASH.title.toUpperCase()}
+        {splash.title.toUpperCase()}
       </p>
     </div>
   );
