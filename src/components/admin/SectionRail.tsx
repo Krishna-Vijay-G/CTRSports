@@ -5,9 +5,11 @@ import { cn } from "@/lib/utils";
 /**
  * Which part of a page is being edited.
  *
- * A rail of icons from `lg:` up, and a scrolling row of the same buttons above
- * the fields below that — the same markup either way, so there is only one list
- * for a screen reader to read and only one set of labels to keep in step.
+ * Lives at the top of the admin sidebar, above the screen switcher — a plain
+ * list of rows in the same shape as the links below it, so the whole left column
+ * reads as one thing rather than two lists that happen to touch. Below `md:` the
+ * same rows become a scrolling chip row, which is the sidebar's own behaviour at
+ * that width.
  *
  * Shared by every editor. It knows nothing about what the entries mean; each
  * screen supplies its own list.
@@ -15,8 +17,10 @@ import { cn } from "@/lib/utils";
 
 export type RailItem<Id extends string> = {
   id: Id;
-  /** Must fit a 68px-wide column — one short word. */
+  /** Fallback label, used where an entry has no `title`. */
   short: string;
+  /** The label the rail shows. Long ones truncate. */
+  title?: string;
   hint: string;
   Icon: (props: React.SVGProps<SVGSVGElement>) => React.ReactElement;
 };
@@ -33,8 +37,10 @@ export function SectionRail<Id extends string>({
   return (
     <nav
       aria-label="Page sections"
-      className="flex shrink-0 gap-1 overflow-x-auto rounded-lg border border-border bg-card p-1.5 lg:w-[68px] lg:flex-col lg:overflow-x-visible lg:overflow-y-auto"
+      className="flex gap-1 overflow-x-auto md:flex-col md:overflow-x-visible"
     >
+      <p className="hidden px-2 py-1 text-[11px] font-medium text-muted-fg md:block">Sections</p>
+
       {items.map((item) => {
         const selected = item.id === active;
         const { Icon } = item;
@@ -47,15 +53,15 @@ export function SectionRail<Id extends string>({
             aria-current={selected ? "true" : undefined}
             title={item.hint}
             className={cn(
-              "flex shrink-0 flex-col items-center gap-1 rounded-md px-1.5 py-2 text-[10px] font-medium outline-none transition",
+              "flex shrink-0 items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] font-medium outline-none transition",
               "focus-visible:ring-[3px] focus-visible:ring-ring/40",
               selected
                 ? "bg-muted text-foreground"
                 : "text-muted-fg hover:bg-muted/60 hover:text-foreground"
             )}
           >
-            <Icon className="size-[18px]" />
-            <span className="whitespace-nowrap">{item.short}</span>
+            <Icon className="size-4 shrink-0" />
+            <span className="truncate whitespace-nowrap">{item.title ?? item.short}</span>
           </button>
         );
       })}

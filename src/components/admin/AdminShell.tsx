@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { Button, ButtonLink } from "@/components/admin/ui/Button";
 import { ExternalIcon, FlagIcon, ImagesIcon, SignOutIcon } from "@/components/admin/ui/icons";
@@ -13,6 +15,11 @@ import { ExternalIcon, FlagIcon, ImagesIcon, SignOutIcon } from "@/components/ad
  * page colour showing all the way around it. That inset is what separates the
  * navigation from the work without a hard full-height rule down the screen.
  *
+ * One left column holds both lists, and they are stacked by how often they are
+ * used: the open screen's sections at the top, where the hand goes all day, and
+ * the screen switcher and account buttons at the foot, out of the way. The
+ * sections come from the page itself — see AdminRailSlot below.
+ *
  * A fixed column from `md:` up and a scrolling chip row below that, which keeps
  * the whole editor above the fold on a laptop without breaking on a phone.
  */
@@ -22,6 +29,27 @@ const NAV = [
   { href: "/admin/landing", label: "Landing page", icon: ImagesIcon },
   { href: "/admin/incrc", label: "INCRC", icon: FlagIcon },
 ];
+
+const RAIL_SLOT_ID = "admin-rail-slot";
+
+/**
+ * Puts a screen's own list of sections at the top of the sidebar.
+ *
+ * The list belongs to the editor — it is the editor that knows which section is
+ * open and what happens when one is picked — but it belongs *visually* to the
+ * sidebar, so it is rendered here through a portal rather than passed down
+ * through the layout, which cannot hand props to a page.
+ *
+ * Nothing is drawn until the slot exists, so the first paint is the sidebar
+ * without its sections; it fills in on hydration.
+ */
+export function AdminRailSlot({ children }: { children: React.ReactNode }) {
+  const [host, setHost] = useState<HTMLElement | null>(null);
+
+  useEffect(() => setHost(document.getElementById(RAIL_SLOT_ID)), []);
+
+  return host ? createPortal(children, host) : null;
+}
 
 export function AdminShell({
   username,
@@ -44,25 +72,14 @@ export function AdminShell({
     // their own instead of the whole document scrolling as one.
     <div className="min-h-screen bg-background font-ui text-foreground md:flex md:h-screen md:gap-2 md:overflow-hidden md:p-2">
       <aside className="flex flex-col gap-2 border-b border-border bg-card p-2 md:w-52 md:shrink-0 md:rounded-lg md:border md:border-border">
-        <div className="flex items-center gap-2.5 rounded-md px-2 py-1.5">
-          <img
-            src="/images/brand/ctr-logo.webp"
-            alt=""
-            aria-hidden
-            className="h-7 w-auto shrink-0"
-          />
-          <div className="min-w-0">
-            <p className="truncate text-[13px] font-medium leading-tight text-foreground">
-              {username}
-            </p>
-            <p className="truncate text-[11px] leading-tight text-muted-fg">Site admin</p>
-          </div>
-        </div>
+        {/* Filled by the open screen. Takes the height the account block leaves. */}
+        <div id={RAIL_SLOT_ID} className="min-h-0 md:flex-1 md:overflow-y-auto" />
 
-        <div className="h-px bg-border" />
+        {/* Everything below here sits at the foot of the column. */}
+        <div className="hidden h-px bg-border md:block" />
 
-        <nav className="flex gap-1 overflow-x-auto md:flex-1 md:flex-col md:overflow-visible">
-          <p className="hidden px-2 py-1 text-[11px] font-medium text-muted-fg md:block">Edit</p>
+        <nav className="flex gap-1 overflow-x-auto md:flex-col md:overflow-visible">
+          <p className="hidden px-2 py-1 text-[11px] font-medium text-muted-fg md:block">Pages</p>
 
           {NAV.map((item) => {
             const active = pathname === item.href || pathname?.startsWith(`${item.href}/`);
@@ -87,6 +104,21 @@ export function AdminShell({
         </nav>
 
         <div className="hidden h-px bg-border md:block" />
+
+        <div className="flex items-center gap-2.5 rounded-md px-2 py-1.5">
+          <img
+            src="/images/brand/ctr-logo.webp"
+            alt=""
+            aria-hidden
+            className="h-7 w-auto shrink-0"
+          />
+          <div className="min-w-0">
+            <p className="truncate text-[13px] font-medium leading-tight text-foreground">
+              {username}
+            </p>
+            <p className="truncate text-[11px] leading-tight text-muted-fg">Site admin</p>
+          </div>
+        </div>
 
         <div className="flex gap-1 md:flex-col">
           <ButtonLink

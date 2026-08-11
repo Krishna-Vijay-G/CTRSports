@@ -36,9 +36,9 @@ export type PreviewAnchor = "banners" | "about" | "sports" | "cta" | "footer";
 
 export type Section = {
   id: SectionId;
-  /** The rail's label. Must fit a 68px-wide column — one short word. */
+  /** One short word. Kept for the narrowest layouts. */
   short: string;
-  /** The heading above the fields. */
+  /** The heading above the fields, and the sidebar's label. */
   title: string;
   hint: string;
   /**

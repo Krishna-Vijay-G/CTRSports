@@ -5,7 +5,8 @@ import { DEFAULT_INCRC_CONTENT, type IncrcContent } from "@/lib/incrcContent";
 import type { LandingContent } from "@/lib/landingContent";
 import { Badge } from "@/components/admin/ui/Badge";
 import { Button } from "@/components/admin/ui/Button";
-import { ErrorNote } from "@/components/admin/Fields";
+import { AdminRailSlot } from "@/components/admin/AdminShell";
+import { EditorAside } from "@/components/admin/EditorAside";
 import { IncrcPreview } from "@/components/admin/IncrcPreview";
 import { SectionRail } from "@/components/admin/SectionRail";
 import { BannersPanel } from "@/components/admin/banners/BannersPanel";
@@ -28,10 +29,12 @@ import { VisionPanel } from "./panels/VisionPanel";
 /**
  * The whole /incrc page, edited on one screen.
  *
- * Three columns: a rail of tabs, the fields for the one that is open, and a live
- * preview of the real page. Only one tab's fields are mounted at a time, which
- * is what keeps the middle column short enough to take in at a glance instead of
- * scrolling a form the length of the page.
+ * The list of tabs goes into the sidebar (see AdminRailSlot), which leaves this
+ * screen three columns: the fields for the open tab, the live preview in the
+ * middle, and everything about the page as a whole down the right. Only one
+ * tab's fields are mounted at a time, which is what keeps the fields short
+ * enough to take in at a glance instead of scrolling a form the length of the
+ * page.
  *
  * One document, one Save — unlike the landing editor, nothing on this page is a
  * database row of its own, so there is only ever one thing to write.
@@ -40,6 +43,13 @@ import { VisionPanel } from "./panels/VisionPanel";
  * read-only here: they are edited at /admin/landing, and showing them makes the
  * preview the real page rather than a body with nothing around it.
  */
+
+/** The right-hand column's standing explanation of the screen. */
+const NOTES = [
+  "Pick a tab in the sidebar. The middle of the screen is the real page, drawn from what you have typed.",
+  "Nothing on the site changes until you press Save.",
+  "The header and footer around the preview are edited on the Landing page.",
+];
 export function IncrcEditor({
   initialContent,
   chrome,
@@ -186,58 +196,26 @@ export function IncrcEditor({
 
   return (
     <div className="flex min-h-0 flex-col gap-2 md:h-full lg:flex-row">
-      <SectionRail items={TABS} active={active} onSelect={setActive} />
+      <AdminRailSlot>
+        <SectionRail items={TABS} active={active} onSelect={setActive} />
+      </AdminRailSlot>
 
       <div
         ref={columnRef}
-        className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card md:overflow-y-auto lg:w-[480px] lg:max-w-[480px] lg:flex-none"
+        className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card md:overflow-y-auto lg:w-[520px] lg:flex-none xl:w-[600px]"
       >
-        {/* Sticky, so Save is reachable wherever the fields have got to. */}
+        {/* Sticky, so it is clear what the fields belong to however far down them
+            you have got. */}
         <div className="sticky top-0 z-10 flex items-center gap-2.5 border-b border-border bg-card/95 px-4 py-2.5 backdrop-blur">
           <Icon className="size-5 shrink-0 text-muted-fg" />
 
-          <div className="mr-auto min-w-0">
+          <div className="min-w-0">
             <h1 className="truncate font-medium tracking-tight text-foreground">{tab.title}</h1>
             <p className="truncate text-[11px] text-muted-fg">{tab.hint}</p>
           </div>
-
-          {dirty ? (
-            <Badge variant="default">Unsaved</Badge>
-          ) : justSaved ? (
-            <span className="shrink-0 text-[11px] text-muted-fg">Saved</span>
-          ) : null}
-
-          <Button onClick={handleSave} disabled={busy}>
-            {busy ? "Saving…" : "Save"}
-          </Button>
         </div>
 
-        <div className="space-y-2.5 bg-background/40 p-3">
-          {error ? <ErrorNote>{error}</ErrorNote> : null}
-
-          {off ? (
-            <div className="flex items-center gap-2.5 rounded-md border border-border bg-background/60 px-3 py-2">
-              <Badge variant="outline">Off</Badge>
-              <span className="min-w-0 flex-1 text-[11px] leading-relaxed text-muted-fg">
-                This section is not on the page. Switch it on under Page layout.
-              </span>
-              <Button variant="outline" size="xs" onClick={() => setActive("layout")}>
-                Layout
-              </Button>
-            </div>
-          ) : null}
-
-          {panel()}
-
-          <div className="flex items-center gap-3 px-1 pt-1">
-            <Button variant="ghost" size="xs" onClick={loadDefaults} disabled={busy}>
-              Load defaults
-            </Button>
-            <p className="text-[11px] leading-relaxed text-muted-fg/70">
-              Refills every section with the built-in copy. Nothing is written until you Save.
-            </p>
-          </div>
-        </div>
+        <div className="bg-background/40 p-3">{panel()}</div>
       </div>
 
       {/*
@@ -252,6 +230,31 @@ export function IncrcEditor({
         bannerIndex={bannerIndex}
         className="hidden lg:block lg:min-w-0 lg:flex-1"
       />
+
+      {/* order-first below lg, where there is no preview and Save would otherwise
+          sit under the whole form. */}
+      <EditorAside
+        dirty={dirty}
+        justSaved={justSaved}
+        busy={busy}
+        error={error}
+        onSave={handleSave}
+        onLoadDefaults={loadDefaults}
+        notes={NOTES}
+        className="order-first shrink-0 lg:order-none lg:w-52 xl:w-60"
+      >
+        {off ? (
+          <div className="space-y-1.5 rounded-md border border-border bg-background/60 px-2.5 py-2">
+            <Badge variant="outline">Off</Badge>
+            <p className="text-[11px] leading-relaxed text-muted-fg">
+              This section is not on the page. Switch it on under Page layout.
+            </p>
+            <Button variant="outline" size="xs" onClick={() => setActive("layout")}>
+              Layout
+            </Button>
+          </div>
+        ) : null}
+      </EditorAside>
     </div>
   );
 }
