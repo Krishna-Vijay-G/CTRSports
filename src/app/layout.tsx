@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Plus_Jakarta_Sans } from "next/font/google";
+import { IBM_Plex_Sans, Inter, Plus_Jakarta_Sans } from "next/font/google";
 import { SEO, SITE } from "@/config/site";
 import "@/styles/globals.css";
 
@@ -17,6 +17,18 @@ const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-display",
+});
+
+/*
+ * The admin's face, and only the admin's. A humanist sans with a tall x-height
+ * that stays legible at the 13-14px the tool is built at, and visibly not the
+ * site's own type — the editor should never be mistaken for the page it edits.
+ */
+const plex = IBM_Plex_Sans({
+  subsets: ["latin"],
+  display: "swap",
+  weight: ["400", "500", "600"],
+  variable: "--font-ui",
 });
 
 export const viewport: Viewport = {
@@ -51,10 +63,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${jakarta.variable}`}>
+    <html lang="en" className={`${inter.variable} ${jakarta.variable} ${plex.variable}`}>
       <body className="antialiased">
         {/*
-          The hero photo is the LCP element and, until real photography is
+          The first banner photo is the LCP element and, until real photography is
           uploaded, lives on a third-party host. Opening that connection during
           HTML parse saves the DNS + TLS round-trips it would otherwise cost.
           Drop this once the photography is served from our own domain.

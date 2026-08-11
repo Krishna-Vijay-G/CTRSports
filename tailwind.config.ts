@@ -13,7 +13,15 @@ import type { Config } from "tailwindcss";
  * and the call-to-action band. `accent-ink` is the only thing that may sit ON
  * accent — near-black, because yellow needs dark type over it.
  *
- * The `carbon` and `racing` scales exist only for the admin.
+ * The second block of colours is the ADMIN's, and it is a different design
+ * altogether: a monochrome tool palette in the manner of Reactive Resume, where
+ * depth is one step of grey at a time and the absence of colour is the point.
+ * Two exceptions, both meaningful: `primary` is CTR's yellow so the one action
+ * that writes to the database is unmistakable, and `destructive` is red.
+ *
+ * The two sets never mix. Site components use page/surface/panel/accent; admin
+ * components use background/card/muted/primary. Anything using both would look
+ * like neither.
  */
 const config: Config = {
   content: ["./src/**/*.{ts,tsx}"],
@@ -40,22 +48,30 @@ const config: Config = {
           faint: "#98A1AF",
         },
 
-        // Admin only.
-        racing: {
-          yellow: "#F7D619",
-          "yellow-dark": "#D4BB0A",
-        },
-        carbon: {
-          950: "#0A0A0A",
-          900: "#111111",
-          800: "#1A1A1A",
-          700: "#222222",
-        },
+        /* ─────────────────────────── Admin only ───────────────────────────
+           Warm achromatic greys, one step apart. Elevation is a lighter grey,
+           never a shadow; separation is a 10%-white hairline, which sits on any
+           of these surfaces without banding the way a solid grey would. */
+        background: "#212121",
+        foreground: "#FBFBFB",
+        card: { DEFAULT: "#2C2C2C", fg: "#FBFBFB" },
+        // Hover states, inactive tabs, and anything deliberately receding.
+        muted: { DEFAULT: "#3C3C3C", fg: "#ADADAD" },
+        // The one bright colour in the admin: the action that writes.
+        primary: { DEFAULT: "#F7D619", fg: "#1A1A1A" },
+        secondary: { DEFAULT: "#3C3C3C", fg: "#FBFBFB" },
+        destructive: "#F0605F",
+        border: "rgb(255 255 255 / 0.10)",
+        input: "rgb(255 255 255 / 0.16)",
+        ring: "#8E8E8E",
       },
       fontFamily: {
         // Supplied by next/font in src/app/layout.tsx.
         display: ["var(--font-display)", "system-ui", "sans-serif"],
         body: ["var(--font-body)", "system-ui", "sans-serif"],
+        // The admin's only face. A different family from the site's on purpose:
+        // the tool should never read as part of the thing it edits.
+        ui: ["var(--font-ui)", "system-ui", "sans-serif"],
       },
       borderRadius: {
         card: "28px",

@@ -20,11 +20,21 @@ function photo(id: string, width: number, quality = 72): string {
 }
 
 /**
- * Full stadium under floodlights. Bright enough to read as a photograph rather
- * than a black panel, with enough contrast left in the corners that the white
- * headline still sits on it once the hero's gradients are applied.
+ * The banner photographs, in the order the default banners use them.
+ *
+ * All three are bright enough to read as photographs rather than black panels,
+ * with enough contrast left in the corners that white type still sits on them
+ * once a banner template's gradients are applied. The first is also the fallback
+ * for any banner whose photo is blank or unusable.
  */
-export const HERO_PHOTO = photo("photo-1522778119026-d647f0596c20", 1800, 76);
+export const BANNER_PHOTOS = [
+  /** Full stadium under floodlights. */
+  photo("photo-1522778119026-d647f0596c20", 1800, 76),
+  /** Sprinters off the blocks. */
+  photo("photo-1461896836934-ffe607ba8211", 1800, 76),
+  /** Circuit racing at dusk. */
+  photo("photo-1552519507-da3b142c6e3d", 1800, 76),
+];
 
 /** The two photos flanking the about copy. */
 export const ABOUT_PHOTOS = [

@@ -2,11 +2,11 @@ import { SITE } from "@/config/site";
 import { getLandingContentSafe } from "@/lib/server/contentRepo";
 import { listVisibleSportsSafe } from "@/lib/server/sportsRepo";
 import { SiteFooter } from "@/components/layout/SiteFooter";
-import { AboutSection } from "./_components/AboutSection";
-import { CtaBand } from "./_components/CtaBand";
-import { Hero } from "./_components/Hero";
+import { BannerCarousel } from "./_components/banner/BannerCarousel";
 import { SplashScreen } from "./_components/SplashScreen";
-import { SportsSection } from "./_components/SportsSection";
+import { AboutSection } from "./_components/sections/AboutSection";
+import { CtaBand } from "./_components/sections/CtaBand";
+import { SportsSection } from "./_components/sections/SportsSection";
 
 /**
  * The landing page: who CTR is, and which sports it runs.
@@ -54,10 +54,10 @@ export default async function LandingPage() {
       <SplashScreen splash={content.splash} />
 
       <div id="top" className="min-h-screen bg-page p-2 sm:p-3">
-        {/* overflow-hidden is what clips the hero photo to the card's radius. */}
+        {/* overflow-hidden is what clips the banner photo to the card's radius. */}
         <div className="mx-auto max-w-[1440px] overflow-hidden rounded-card bg-surface">
           <main id="main-content">
-            <Hero content={content} sports={sports} />
+            <BannerCarousel content={content} sports={sports} />
             <AboutSection about={content.about} />
             <SportsSection heading={content.sportsSection} sports={sports} />
             <CtaBand band={content.ctaBand} sports={sports} />

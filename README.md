@@ -26,10 +26,13 @@ edit everything.
 **Every word and picture on the landing page comes from the database.** Nothing
 a person would want to reword needs a deploy.
 
-| Screen | Edits | Stored in |
+`/admin/landing` edits all of it — there is one admin screen, because there is
+one page. What it writes goes to two places:
+
+| Part | Edits | Stored in |
 | --- | --- | --- |
-| `/admin/landing` | brand, splash, hero, hero card, nav, about, section headings, CTA band, socials — copy *and* photography | `ctr_content`, one JSONB row |
-| `/admin/sports` | the sport cards: crest, photo, title, text, details, order, visibility | `ctr_sports`, one row each |
+| brand, splash, nav, banners, about, section headings, CTA band, socials — copy *and* photography | the page document | `ctr_content`, one JSONB row |
+| the sport cards: crest, photo, title, text, details, order, visibility | a row per card | `ctr_sports` |
 
 Only two things stay in code, both in `src/config/site.ts`: the canonical URL
 (`SITE`) and the search/social metadata (`SEO`). Metadata is generated per route
@@ -39,42 +42,96 @@ effect until the next deploy — clearer as a code change.
 Saving calls `revalidatePath("/")`, so an edit is live at once; the page
 otherwise revalidates every 60s.
 
-### Using the landing editor
+### Using the editor
 
-Fields on the left, a **live preview of the real page** on the right. Every
-keystroke re-renders the preview from the draft, so nothing has to be saved to
-see what it looks like.
+Three columns: a **rail of sections** down the left, the **fields** for the one
+that is open, and a **live preview of the real page** on the right.
+
+Only one section's fields exist at a time. That is the whole reason for the rail —
+the page has eight parts and a form containing all of them is a long scroll, so
+the editor shows one and the rail says which. Opening a section also scrolls the
+preview to the matching part of the page.
 
 The preview is the same components the public route uses, not a mock, so it
 cannot drift from the site. Two differences: the splash screen is left out
 (it is `position: fixed` and would cover the admin), and `PreviewMode` disables
 scroll-triggered reveals, which would otherwise never fire inside a pane that
-does not scroll past the window. The preview is hidden below `lg`, where shrinking
-it further would make it unreadable rather than useful.
+does not scroll past the window. The preview is hidden below `lg`, where the rail
+becomes a row of chips above the fields and shrinking the preview into what is
+left would make it unreadable rather than useful.
 
-One form, one **Save**; the Save bar is sticky. An edited-but-unsaved form is
-badged **Unsaved**. **Load defaults** fills the form from
+Every keystroke re-renders the preview from the draft, unsaved sport cards
+included, so nothing has to be written to see what it looks like.
+
+**Two save models, on purpose**, because the two things are stored differently:
+
+- the page document is written whole, by the one **Save** in the sticky bar
+- each sport card is its own row, so each has its own **Save card**
+
+An edited-but-unsaved draft is badged **Unsaved**, in the bar for the document
+and on the strip for a card. **Load defaults** fills the form from
 `DEFAULT_LANDING_CONTENT` without writing anything — you still have to Save.
 
 Blank is allowed and meaningful: clearing a button label removes that button,
 clearing the nav links removes the nav. Images are the exception — a blank or
 unusable image URL falls back to the default rather than rendering broken.
 
-### Using the sports editor
+Adding a section to the page means a line in `_components/sections.tsx`, a
+`case` in `LandingEditor`'s switch, and a panel file. Nothing else knows sections
+exist.
 
-One compact strip per sport; click to open its editor, one at a time. A draft is
-kept while the row is closed, so collapsing mid-edit loses nothing — but nothing
-is written until **Save** (an unsaved row is badged).
+#### Banners
 
-Reordering saves on its own, immediately:
+The top of the page is a rotating set of banners, not one fixed hero. A banner
+is a photo, a title, a line of subtext, one link — and a **template**, which
+decides how those are arranged:
+
+| Template | Arrangement |
+| --- | --- |
+| Spotlight | Full-bleed photo, copy along the bottom-left |
+| Centre | Copy centred over a darkened photo |
+| Split | Copy in a panel on the left, photo on the right |
+| Showcase | Spotlight, plus a card listing the first few sports |
+
+Templates rather than settings, deliberately. One layout with toggles for
+alignment, overlay strength and button position has combinations that look
+broken; four named arrangements each look right, and picking one is a single
+decision. Every template fills exactly the same box, so switching between them —
+or rotating to a banner with more copy in it — never moves the page.
+
+Banners rotate every 6.5s and pause while the pointer rests on them. A single
+banner does not rotate and shows no dots. Opening a banner in the admin holds
+the preview on that one, so what you are editing is what you are looking at.
+
+Adding a fifth template is a component in
+`src/app/(site)/_components/banner/templates.tsx`, its id in `BANNER_TEMPLATES`
+and a line in `BANNER_TEMPLATE_META` (`src/lib/banners.ts`), plus a diagram in
+`TemplatePicker`. The admin's picker is generated from that metadata.
+
+> Banners replaced a single `hero` object in the document. `normaliseLandingContent`
+> folds an old stored hero into one Showcase banner rather than falling back to
+> the defaults and throwing the copy away. That path can go once no document has
+> a hero: `select key from ctr_content where content ? 'hero';`
+
+#### The sport cards
+
+One compact strip per sport; click to open its editor, one at a time. The draft
+lives in the editor, not the row, so collapsing mid-edit loses nothing and the
+preview shows the card as it is being typed — but nothing is written until
+**Save card**.
+
+Reordering is the exception and saves on its own, immediately:
 
 - **drag the handle** (the six dots) — the list rearranges as you pass over rows
 - **↑ / ↓ buttons** — for touch, where HTML5 drag does not work
 - **arrow keys** while the handle has focus — for keyboards
 
 Order is stored as `sort_order`, spaced by ten, and rewritten from scratch on
-every move. Saving a row deliberately does *not* write `sort_order`, so a form
+every move. Saving a card deliberately does *not* write `sort_order`, so a form
 opened before someone else dragged the list cannot put it back.
+
+`/admin/sports` used to be a screen of its own and is now a redirect to
+`/admin/landing`, so old bookmarks still land somewhere useful.
 
 ---
 
@@ -86,21 +143,34 @@ src/
     layout.tsx              root: fonts, metadata, preconnect
     (site)/                 the public site — one folder per page
       page.tsx              the landing page: loads content + sports, JSON-LD
-      _components/          Hero, AboutSection, SportsSection, CtaBand, SplashScreen
+      _components/
+        banner/             the carousel and the four banner templates
+        sections/           AboutSection, SportsSection, CtaBand
+        SplashScreen.tsx
     admin/
       login/                signed-out; outside (protected) so it stays reachable
       (protected)/          everything behind the session check
-        landing/            the page-content editor
-        sports/             the sport cards
+        landing/            the one editor — the whole page, cards included
+          _components/
+            LandingEditor   the three columns, the draft, the Save
+            sections.tsx    the table of contents: one entry per part of the page
+            SectionNav      the rail
+            panels/         one file per section's fields
+            sports/         the card list and its rows
+        sports/             a redirect to landing, for old bookmarks
     api/admin/              login, logout, content, sports CRUD, image upload
   components/               reused across pages
     layout/                 SiteHeader, SiteFooter
     ui/                     ActionButton, Reveal, SectionHeading, SocialIcon
-    admin/                  AdminShell, Fields, ImageField, MediaPicker, LandingPreview
+    admin/
+      ui/                   the admin's design system: Button, Card, Input,
+                            Badge, Dialog, icons — nothing app-specific
+      Fields, ImageField, MediaPicker, LandingPreview, AdminShell
   config/
     site.ts                 SITE + SEO — the only hardcoded content left
     images.ts               placeholder photo URLs, used as seeds/defaults only
   lib/
+    banners.ts              the Banner type, the templates, normalisation
     landingContent.ts       the page document: type, defaults, normalisation
     sports.ts               the Sport type, limits, input normalisation
     client/toWebp.ts        browser-side image conversion
@@ -135,8 +205,14 @@ second page wants it, move it to `src/components/`.
 
 Add a folder under `src/app/admin/(protected)/` and a line to `NAV` in
 `src/components/admin/AdminShell.tsx`. Build the form out of `Panel` / `Row` /
-`Field` / `TextArea` from `src/components/admin/Fields.tsx` so it matches the
-existing screens without restating any classes.
+`Field` / `TextArea` / `ButtonFields` / `Note` from
+`src/components/admin/Fields.tsx`, and anything else out of
+`src/components/admin/ui/`, so it matches the existing screens without restating
+any classes.
+
+`NAV` has one entry today. The column stays because the next site will add to
+it — a section of the landing page is *not* one of these; that is a line in
+`sections.tsx`.
 
 ---
 
@@ -172,12 +248,40 @@ Logos are the one exception to the dark palette: sport crests keep a **white**
 backing wherever they appear, because they carry their own dark ink and go muddy
 on a near-black tile.
 
-The admin is darker still (`bg-carbon-950`) so it never reads as part of the
-public site.
-
-Headlines use Plus Jakarta Sans, sentence case. The nav is laid over the hero
+Headlines use Plus Jakarta Sans, sentence case. The nav is laid over the banners
 rather than pinned — the page lives inside a clipped, rounded card, and a sticky
 child cannot escape that clipping.
+
+### The admin is a different design
+
+Not a darker version of the site — a **monochrome tool UI**, after Reactive
+Resume. Warm achromatic greys one step apart, hairline borders, tight radii,
+IBM Plex Sans, and no shadows at all: elevation is a lighter grey and a
+10%-white edge, which sits on any surface without the banding a solid grey
+would give.
+
+| Token | Use |
+| --- | --- |
+| `background` | the workspace |
+| `card` | sidebar, panels, the editor column |
+| `muted` | hover states and anything receding; `muted-fg` for secondary type |
+| `border` / `input` | 10% and 16% white — hairlines and field edges |
+| `primary` | CTR yellow, `primary-fg` near-black |
+| `destructive` | delete only |
+
+**Colour is the exception, not the theme.** `primary` carries the action that
+writes to the database and nothing else; `destructive` carries delete. Every
+other control is `outline`, `secondary` or `ghost` — grey. That is what makes
+the one yellow button findable on a screen full of fields.
+
+The two palettes never mix. Site components use `page` / `surface` / `panel` /
+`accent`; admin components use `background` / `card` / `muted` / `primary`.
+Anything using both would look like neither, and a different typeface on each
+means the editor is never mistaken for the page it edits.
+
+Everything in `src/components/admin/ui/` is generic — `Button`, `Card`, `Input`,
+`Badge`, `Dialog`, `icons`. Nothing in there knows about landing pages or
+sports. Build new admin screens out of them rather than restating classes.
 
 ---
 
@@ -186,13 +290,23 @@ child cannot escape that clipping.
 Every image is a plain `<img>`. Nothing is resized at request time, so what is
 stored is what a visitor downloads.
 
-**Every image on the site is uploadable.** Each image field offers three routes:
+**Every image on the site is uploadable.** Each image field offers four routes:
 
-- **Upload** — converted to WebP and capped in the browser by
-  `src/lib/client/toWebp.ts` *before* it is sent, so the bytes in S3 are already
-  the bytes the page serves, and the upload route needs no image library
+- **drop a file on the tile**, or **click the tile** to browse — the tile is the
+  biggest thing in the field because uploading is the commonest thing done to it
+- **Upload** — the same thing as a labelled button. Either way the file is
+  converted to WebP and capped in the browser by `src/lib/client/toWebp.ts`
+  *before* it is sent, so the bytes in S3 are already the bytes the page serves,
+  and the upload route needs no image library
 - **Library** — browse everything already uploaded and pick one
 - **paste a URL** — the only route when S3 is not configured
+
+**Clear** empties the field, which falls the image back to its built-in default
+rather than leaving a broken `<img>`.
+
+Crests are shown on a **white** tile (`variant="logo"`), the same backing they
+get on the site: they carry their own dark ink and vanish against a near-black
+one.
 
 Objects go to `ctr-unified/media/<uuid>.<ext>`. The prefix matters: the bucket is
 shared with another CTR site, and it is what keeps the library from listing that
@@ -217,8 +331,9 @@ the largest size the asset is drawn at × 3 for retina. Originals are kept in
 `public/_originals/` (git-ignored).
 
 > **The photography is still placeholder stock.** The defaults in
-> `src/config/images.ts` are Unsplash URLs, seeded into the database on first
-> migrate. Replace them through the admin — no code change needed.
+> `src/config/images.ts` are Unsplash URLs — `BANNER_PHOTOS` for the banners,
+> `ABOUT_PHOTOS` and `SPORT_PHOTOS` seeded into the database on first migrate.
+> Replace them through the admin — no code change needed.
 
 ---
 

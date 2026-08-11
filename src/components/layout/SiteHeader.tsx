@@ -3,7 +3,7 @@
 import type { LandingContent } from "@/lib/landingContent";
 
 /**
- * The nav bar. It is laid over the hero photo rather than pinned to the
+ * The nav bar. It is laid over the banners rather than pinned to the
  * viewport, so it is transparent and its type is white — there is always a dark
  * photo behind it.
  *

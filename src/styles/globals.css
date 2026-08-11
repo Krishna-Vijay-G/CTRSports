@@ -89,21 +89,11 @@
       font-semibold text-white backdrop-blur-sm;
   }
 
-  /* ── Admin only. ── */
-  .admin-field {
-    @apply w-full rounded-xl border border-white/10 bg-carbon-900 px-4 py-2.5 text-sm text-white
-      outline-none transition placeholder:text-white/25 focus:border-racing-yellow/60;
-  }
-
-  .admin-label {
-    @apply block font-display text-[11px] font-bold uppercase tracking-[0.18em] text-white/50;
-  }
-
-  .btn-yellow {
-    @apply inline-flex items-center gap-2 rounded-full bg-racing-yellow px-7 py-3 font-display text-sm
-      font-semibold uppercase tracking-wider text-carbon-950 transition-all duration-300
-      hover:-translate-y-0.5 hover:shadow-[0_14px_34px_-10px_rgba(247,214,25,0.55)] active:translate-y-0;
-  }
+  /*
+   * The admin has no shared classes here at all: every one of its surfaces and
+   * controls is a component under src/components/admin/ui/. Adding one to this
+   * file would give the same button two places to be changed.
+   */
 }
 
 /* Respect reduced motion — kill the looping motifs. */

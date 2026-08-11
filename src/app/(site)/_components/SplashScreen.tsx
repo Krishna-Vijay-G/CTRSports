@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import type { LandingContent } from "@/lib/landingContent";
 
 /**
- * Covers the page while the hero photo loads, then fades out and unmounts.
+ * Covers the page while the first banner photo loads, then fades out and unmounts.
  *
  * The configured duration is an upper bound, not a timer: the splash leaves as
  * soon as `load` fires, with a short floor so it does not flicker into nothing
@@ -35,7 +35,7 @@ export function SplashScreen({ splash }: { splash: LandingContent["splash"] }) {
       hideTimer = window.setTimeout(() => setVisible(false), wait + FADE_MS);
     };
 
-    // `load` waits for the hero photo and the stylesheet, which is exactly the
+    // `load` waits for the banner photo and the stylesheet, which is exactly the
     // moment the page behind this is worth revealing.
     if (document.readyState === "complete") {
       dismiss();

@@ -21,7 +21,8 @@
  * Shared by the server and the browser, so nothing here may import `server-only`.
  */
 
-import { ABOUT_PHOTOS, HERO_PHOTO } from "@/config/images";
+import { ABOUT_PHOTOS } from "@/config/images";
+import { DEFAULT_BANNERS, normaliseBanners, type Banner } from "@/lib/banners";
 
 export const SOCIAL_ICONS = ["instagram", "facebook", "twitter", "youtube", "website"] as const;
 export type SocialIconName = (typeof SOCIAL_ICONS)[number];
@@ -34,17 +35,8 @@ export type LandingContent = {
   brand: { name: string; subtitle: string; logo: string };
   nav: { links: NavLink[]; cta: NavLink };
   splash: { title: string; logo: string };
-  hero: {
-    headline: string;
-    ctaLabel: string;
-    ctaHref: string;
-    proof: string;
-    background: string;
-    cardTitle: string;
-    cardSubtitle: string;
-    cardCtaLabel: string;
-    cardCtaHref: string;
-  };
+  /** The rotating panels at the top of the page. Modelled in src/lib/banners.ts. */
+  banners: Banner[];
   about: {
     label: string;
     title: string;
@@ -77,18 +69,7 @@ export const DEFAULT_LANDING_CONTENT: LandingContent = {
     title: "CTR Unified",
     logo: "/images/brand/ctr-logo.webp",
   },
-  hero: {
-    /** Rendered with whitespace-pre-line, so newlines here are real line breaks. */
-    headline: "One Nation. One Championship.",
-    ctaLabel: "Explore Sports",
-    ctaHref: "#sports",
-    proof: "Six programmes competing under one banner.",
-    background: HERO_PHOTO,
-    cardTitle: "Our Programmes",
-    cardSubtitle: "The disciplines CTR runs today",
-    cardCtaLabel: "See all",
-    cardCtaHref: "#sports",
-  },
+  banners: DEFAULT_BANNERS.map((banner) => ({ ...banner })),
   about: {
     label: "About CTR",
     title: "One organisation behind every discipline we compete in",
@@ -198,6 +179,42 @@ function socials(value: unknown, fallback: SocialLink[]): SocialLink[] {
     .filter((entry) => entry.label !== "");
 }
 
+/**
+ * Banners replaced a single hardcoded "hero", and a document written before that
+ * change has no `banners` key but does have `hero`. Rather than let the missing
+ * key fall back to the defaults — silently throwing away copy someone wrote —
+ * fold the old hero into one banner.
+ *
+ * Once saved from the admin the document has `banners` and this never runs
+ * again. Delete it when no stored document still has a hero:
+ *
+ *   select key from ctr_content where content ? 'hero';
+ */
+function banners(root: Record<string, unknown>): Banner[] {
+  if (root.banners !== undefined || !isRecord(root.hero)) {
+    return normaliseBanners(root.banners, DEFAULT_LANDING_CONTENT.banners);
+  }
+
+  const hero = root.hero;
+
+  return normaliseBanners(
+    [
+      {
+        id: "banner-1",
+        // Showcase is the template that looks like the old hero did, card of
+        // sports and all, so the page does not visibly change on upgrade.
+        template: "showcase",
+        image: hero.background,
+        title: hero.headline,
+        subtitle: hero.proof,
+        ctaLabel: hero.ctaLabel,
+        ctaHref: hero.ctaHref,
+      },
+    ],
+    DEFAULT_LANDING_CONTENT.banners
+  );
+}
+
 /** Always exactly ABOUT_PHOTO_COUNT, because the layout has exactly that many slots. */
 function aboutPhotos(value: unknown, fallback: LabelledPhoto[]): LabelledPhoto[] {
   const source = Array.isArray(value) ? value : [];
@@ -224,7 +241,6 @@ export function normaliseLandingContent(input: unknown): LandingContent {
   const nav = isRecord(root.nav) ? root.nav : {};
   const navCta = isRecord(nav.cta) ? nav.cta : {};
   const splash = isRecord(root.splash) ? root.splash : {};
-  const hero = isRecord(root.hero) ? root.hero : {};
   const about = isRecord(root.about) ? root.about : {};
   const sportsSection = isRecord(root.sportsSection) ? root.sportsSection : {};
   const ctaBand = isRecord(root.ctaBand) ? root.ctaBand : {};
@@ -246,17 +262,7 @@ export function normaliseLandingContent(input: unknown): LandingContent {
       title: text(splash.title, d.splash.title),
       logo: image(splash.logo, d.splash.logo),
     },
-    hero: {
-      headline: text(hero.headline, d.hero.headline, BODY_MAX),
-      ctaLabel: text(hero.ctaLabel, d.hero.ctaLabel),
-      ctaHref: link(hero.ctaHref, d.hero.ctaHref),
-      proof: text(hero.proof, d.hero.proof),
-      background: image(hero.background, d.hero.background),
-      cardTitle: text(hero.cardTitle, d.hero.cardTitle),
-      cardSubtitle: text(hero.cardSubtitle, d.hero.cardSubtitle),
-      cardCtaLabel: text(hero.cardCtaLabel, d.hero.cardCtaLabel),
-      cardCtaHref: link(hero.cardCtaHref, d.hero.cardCtaHref),
-    },
+    banners: banners(root),
     about: {
       label: text(about.label, d.about.label),
       title: text(about.title, d.about.title),

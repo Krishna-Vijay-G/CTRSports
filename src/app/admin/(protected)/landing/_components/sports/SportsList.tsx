@@ -2,26 +2,42 @@
 
 import { useRef, useState } from "react";
 import { BLANK_SPORT, type Sport } from "@/lib/sports";
+import { Button } from "@/components/admin/ui/Button";
+import { PlusIcon } from "@/components/admin/ui/icons";
+import { ErrorNote } from "@/components/admin/Fields";
 import { SportRow } from "./SportRow";
 
 /**
- * The list. Owns the array and which row is open; each row owns its own draft.
+ * The sport cards.
  *
- * Array position IS the display order — `sort_order` is only how it is stored.
- * Everything that moves a row therefore reorders the array first and posts the
- * resulting id list afterwards, so the screen never waits on the network.
+ * Controlled by the landing editor, which holds two arrays: `sports` — what is
+ * on screen and therefore in the preview — and `saved`, the last copy the server
+ * sent back. Every row compares the two to know whether it is unsaved.
  *
- * One row is open at a time, which is what keeps the whole list on one screen.
+ * Array position IS the display order; `sort_order` is only how it is stored.
+ * Everything that moves a row reorders the array first and posts the resulting
+ * id list afterwards, so the screen never waits on the network.
+ *
+ * One row is open at a time, which is what keeps the list on one screen.
  */
-export function SportsAdmin({ initialSports }: { initialSports: Sport[] }) {
-  const [sports, setSports] = useState(initialSports);
+export function SportsList({
+  sports,
+  saved,
+  onSportsChange,
+  onSavedChange,
+}: {
+  sports: Sport[];
+  saved: Sport[];
+  onSportsChange: (next: Sport[]) => void;
+  onSavedChange: (next: Sport[]) => void;
+}) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   /** The order last written to the database, so a no-op drag posts nothing. */
-  const savedOrder = useRef(initialSports.map((sport) => sport.id).join(","));
+  const savedOrder = useRef(sports.map((sport) => sport.id).join(","));
 
   async function persistOrder(list: Sport[]) {
     const ids = list.map((sport) => sport.id);
@@ -68,7 +84,7 @@ export function SportsAdmin({ initialSports }: { initialSports: Sport[] }) {
     if (!target) return;
 
     const next = reorder(sports, sports[index].id, target.id);
-    setSports(next);
+    onSportsChange(next);
     persistOrder(next);
   }
 
@@ -78,7 +94,7 @@ export function SportsAdmin({ initialSports }: { initialSports: Sport[] }) {
    */
   function handleDragEnter(targetId: string) {
     if (!dragId || dragId === targetId) return;
-    setSports((current) => reorder(current, dragId, targetId));
+    onSportsChange(reorder(sports, dragId, targetId));
   }
 
   function handleDragEnd() {
@@ -111,7 +127,8 @@ export function SportsAdmin({ initialSports }: { initialSports: Sport[] }) {
 
       const created = data.sport as Sport;
       const next = [...sports, created];
-      setSports(next);
+      onSportsChange(next);
+      onSavedChange([...saved, created]);
       // Open it straight away — an empty card is only useful once filled in.
       setExpandedId(created.id);
       // Whatever sort_order the insert picked, the list's own order is correct.
@@ -123,13 +140,18 @@ export function SportsAdmin({ initialSports }: { initialSports: Sport[] }) {
     }
   }
 
-  function handleSaved(saved: Sport) {
-    setSports((current) => current.map((sport) => (sport.id === saved.id ? saved : sport)));
+  /** A row saved: the draft and the stored copy are the same thing again. */
+  function handleSaved(stored: Sport) {
+    const replace = (list: Sport[]) =>
+      list.map((sport) => (sport.id === stored.id ? stored : sport));
+    onSportsChange(replace(sports));
+    onSavedChange(replace(saved));
   }
 
   function handleDeleted(id: string) {
     const next = sports.filter((sport) => sport.id !== id);
-    setSports(next);
+    onSportsChange(next);
+    onSavedChange(saved.filter((sport) => sport.id !== id));
     if (expandedId === id) setExpandedId(null);
     // The remaining rows close the gap; renumbering keeps the spacing even.
     persistOrder(next);
@@ -137,32 +159,23 @@ export function SportsAdmin({ initialSports }: { initialSports: Sport[] }) {
 
   return (
     <div>
-      <div className="mb-3 flex items-center justify-between gap-4">
-        <p className="text-xs text-white/35">
-          {sports.length} {sports.length === 1 ? "sport" : "sports"} · drag the handle to reorder
-        </p>
+      <div className="mb-2.5 flex items-center justify-between gap-3">
+        <p className="text-[11px] text-muted-fg">Drag the handle to reorder.</p>
 
-        <button
-          type="button"
-          onClick={handleAdd}
-          disabled={adding}
-          className="shrink-0 rounded-lg border border-white/15 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-white/70 transition hover:border-racing-yellow/60 hover:text-racing-yellow disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {adding ? "Adding…" : "+ Add sport"}
-        </button>
+        <Button variant="outline" size="xs" onClick={handleAdd} disabled={adding}>
+          <PlusIcon />
+          {adding ? "Adding…" : "Add sport"}
+        </Button>
       </div>
 
       {error ? (
-        <p
-          role="alert"
-          className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300"
-        >
-          {error}
-        </p>
+        <div className="mb-2.5">
+          <ErrorNote>{error}</ErrorNote>
+        </div>
       ) : null}
 
       {sports.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-white/10 px-5 py-10 text-center text-sm text-white/40">
+        <p className="rounded-md border border-dashed border-input px-4 py-8 text-center text-xs text-muted-fg">
           No sports yet. Add the first one above.
         </p>
       ) : (
@@ -171,6 +184,12 @@ export function SportsAdmin({ initialSports }: { initialSports: Sport[] }) {
             <SportRow
               key={sport.id}
               sport={sport}
+              // A row with no stored copy cannot exist, but comparing against
+              // itself is the harmless answer if one ever did.
+              saved={saved.find((entry) => entry.id === sport.id) ?? sport}
+              onChange={(next) =>
+                onSportsChange(sports.map((entry) => (entry.id === next.id ? next : entry)))
+              }
               expanded={expandedId === sport.id}
               onToggle={() => setExpandedId(expandedId === sport.id ? null : sport.id)}
               onSaved={handleSaved}
