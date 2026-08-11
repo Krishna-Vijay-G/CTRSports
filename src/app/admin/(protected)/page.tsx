@@ -14,14 +14,13 @@ export default async function AdminHomePage() {
 
   return (
     <>
-      <div className="mb-8">
-        <h1 className="font-display text-2xl font-bold uppercase tracking-wide text-white">
+      <div className="mb-4 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <h1 className="font-display text-xl font-bold uppercase tracking-wide text-white">
           Sports
         </h1>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/50">
-          These are the cards in the “Sports in CTR Unified” section of the landing page. Everything
-          else on that page — the hero, the about copy, the footer links — is set in the code and
-          changes with a deploy.
+        <p className="text-xs text-white/40">
+          The cards in the “Sports in CTR Unified” section. Everything else on the page is set in
+          code.
         </p>
       </div>
 

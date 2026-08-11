@@ -19,6 +19,23 @@ npm run dev                   # http://localhost:3000
 The admin lives at `/admin`. There are no roles — anyone who can sign in can
 edit the sports list.
 
+### Using it
+
+The list is one compact strip per sport, so all of them fit on a screen. Click a
+strip to open its editor; one is open at a time. A draft is kept while the row is
+closed, so collapsing mid-edit loses nothing — but nothing is written until you
+press **Save** (an unsaved row is badged).
+
+Reordering saves on its own, immediately:
+
+- **drag the handle** (the six dots) — the list rearranges as you pass over rows
+- **↑ / ↓ buttons** — for touch, where HTML5 drag does not work
+- **arrow keys** while the handle has focus — for keyboards
+
+Order is stored as `sort_order`, spaced by ten, and rewritten from scratch on
+every move. Saving a row deliberately does *not* write `sort_order`, so a form
+opened before someone else dragged the list cannot put it back.
+
 ---
 
 ## What is editable, and where
@@ -120,3 +137,18 @@ when `ctr_sports` is empty, so it cannot resurrect a deleted card.
 
 Saving in the admin calls `revalidatePath("/")`, so an edit is live at once; the
 landing page otherwise revalidates every 60s.
+
+### API shape
+
+| | |
+| --- | --- |
+| `GET /api/admin/sports` | the list, hidden cards included |
+| `POST /api/admin/sports` | add one |
+| `PATCH /api/admin/sports` | set the order, from `{ ids: [...] }` |
+| `PUT /api/admin/sports/:id` | save one (never touches `sort_order`) |
+| `DELETE /api/admin/sports/:id` | remove one |
+
+Reordering is `PATCH` on the collection rather than a `/sports/reorder` path
+because a static sibling of `[id]` does **not** reliably win the route match
+here — `/sports/reorder` lands in the `[id]` handler and tries to operate on a
+sport called "reorder". Do not add child routes under `/api/admin/sports/`.

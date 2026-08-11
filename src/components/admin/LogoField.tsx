@@ -8,6 +8,9 @@ import { toWebp } from "@/lib/client/toWebp";
  * and the resulting URL is handed back. The URL box stays visible and editable
  * so a logo can also be pasted in — which is the only way to set one when S3 is
  * not configured.
+ *
+ * Laid out to sit inside a row of the sports list, so it stays on two short
+ * lines rather than a block of its own.
  */
 export function LogoField({
   value,
@@ -53,71 +56,67 @@ export function LogoField({
     }
   }
 
+  const buttonClass =
+    "rounded-lg border border-white/15 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider transition disabled:cursor-not-allowed disabled:opacity-50";
+
   return (
     <div>
       <span className="admin-label">Logo</span>
 
-      <div className="mt-2 flex items-start gap-4">
-        <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-carbon-900">
+      <div className="mt-1.5 flex items-center gap-2">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-carbon-900">
           {value ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={value} alt="" className="h-full w-full object-contain p-1.5" />
+            <img src={value} alt="" className="h-full w-full object-contain p-1" />
           ) : (
-            <span className="text-[10px] uppercase tracking-wider text-white/25">None</span>
+            <span className="text-[9px] uppercase text-white/25">—</span>
           )}
         </div>
 
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => inputRef.current?.click()}
-              disabled={disabled || uploading}
-              className="rounded-full border border-white/15 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-white/70 transition hover:border-racing-yellow/60 hover:text-racing-yellow disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {uploading ? "Uploading…" : "Upload image"}
-            </button>
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={disabled || uploading}
+          className={`${buttonClass} text-white/70 hover:border-racing-yellow/60 hover:text-racing-yellow`}
+        >
+          {uploading ? "Uploading…" : "Upload"}
+        </button>
 
-            {value ? (
-              <button
-                type="button"
-                onClick={() => onChange("")}
-                disabled={disabled || uploading}
-                className="rounded-full border border-white/15 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-white/50 transition hover:border-red-400/60 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Remove
-              </button>
-            ) : null}
-          </div>
-
-          <input
-            ref={inputRef}
-            type="file"
-            accept="image/png,image/jpeg,image/webp,image/svg+xml"
-            onChange={handleFile}
-            className="hidden"
-          />
-
-          <input
-            type="text"
-            value={value}
-            onChange={(event) => onChange(event.target.value)}
+        {value ? (
+          <button
+            type="button"
+            onClick={() => onChange("")}
             disabled={disabled || uploading}
-            placeholder="…or paste an image URL / /images/… path"
-            className="admin-field mt-2"
-          />
+            className={`${buttonClass} text-white/45 hover:border-red-400/60 hover:text-red-300`}
+          >
+            Clear
+          </button>
+        ) : null}
 
-          <p className="mt-1.5 text-[11px] leading-relaxed text-white/35">
-            Converted to WebP and resized in your browser before upload.
-          </p>
-
-          {error ? (
-            <p role="alert" className="mt-1.5 text-[11px] text-red-300">
-              {error}
-            </p>
-          ) : null}
-        </div>
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/svg+xml"
+          onChange={handleFile}
+          className="hidden"
+        />
       </div>
+
+      <input
+        type="text"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        disabled={disabled || uploading}
+        placeholder="…or paste an image URL"
+        className="admin-field mt-2 py-1.5 text-xs"
+      />
+
+      {error ? (
+        <p role="alert" className="mt-1.5 text-[11px] text-red-300">
+          {error}
+        </p>
+      ) : (
+        <p className="mt-1.5 text-[10px] text-white/30">Converted to WebP before upload.</p>
+      )}
     </div>
   );
 }

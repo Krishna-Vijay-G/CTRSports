@@ -104,6 +104,17 @@ export const SEED_SPORTS: Omit<Sport, "id">[] = [
   },
 ];
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Ids come out of the URL, so they are whatever was typed. Checking the shape
+ * before it reaches Postgres turns a `uuid` type error — which surfaces as a
+ * 500 — into an ordinary 404.
+ */
+export function isSportId(value: unknown): value is string {
+  return typeof value === "string" && UUID.test(value);
+}
+
 /**
  * Clamps whatever came off the wire into a storable shape. Runs on every write,
  * so an over-long paste or a wrong-typed field is trimmed rather than rejected —

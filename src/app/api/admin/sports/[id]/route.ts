@@ -2,11 +2,15 @@ import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/server/auth";
 import { deleteSport, updateSport } from "@/lib/server/sportsRepo";
+import { isSportId } from "@/lib/sports";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type Context = { params: Promise<{ id: string }> };
+
+const notFound = () =>
+  NextResponse.json({ error: "That sport no longer exists." }, { status: 404 });
 
 export async function PUT(request: Request, { params }: Context) {
   if (!(await getSession())) {
@@ -14,6 +18,9 @@ export async function PUT(request: Request, { params }: Context) {
   }
 
   const { id } = await params;
+  // The id is whatever was in the URL. Reject a non-uuid here rather than let
+  // Postgres reject it as a type error, which would surface as a 500.
+  if (!isSportId(id)) return notFound();
 
   let body: unknown;
   try {
@@ -29,9 +36,7 @@ export async function PUT(request: Request, { params }: Context) {
 
   try {
     const sport = await updateSport(id, body);
-    if (!sport) {
-      return NextResponse.json({ error: "That sport no longer exists." }, { status: 404 });
-    }
+    if (!sport) return notFound();
 
     revalidatePath("/");
     return NextResponse.json({ sport });
@@ -47,12 +52,11 @@ export async function DELETE(_request: Request, { params }: Context) {
   }
 
   const { id } = await params;
+  if (!isSportId(id)) return notFound();
 
   try {
     const deleted = await deleteSport(id);
-    if (!deleted) {
-      return NextResponse.json({ error: "That sport no longer exists." }, { status: 404 });
-    }
+    if (!deleted) return notFound();
 
     revalidatePath("/");
     return NextResponse.json({ ok: true });

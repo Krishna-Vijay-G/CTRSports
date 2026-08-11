@@ -1,34 +1,94 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { BLANK_SPORT, type Sport } from "@/lib/sports";
-import { SportEditor } from "./SportEditor";
+import { SportRow } from "./SportRow";
 
 /**
- * The list. Owns the array; each row owns its own draft.
+ * The list. Owns the array and which row is open; each row owns its own draft.
  *
- * "Add sport" writes an empty row to the database straight away rather than
- * holding an unsaved card in memory. That way every card on screen is a real
- * row with a real id, and SportEditor only ever has to handle one case.
+ * Array position IS the display order — `sort_order` is only how it is stored.
+ * Everything that moves a row therefore reorders the array first and posts the
+ * resulting id list afterwards, so the screen never waits on the network.
+ *
+ * One row is open at a time, which is what keeps the whole list on one screen.
  */
 export function SportsAdmin({ initialSports }: { initialSports: Sport[] }) {
   const [sports, setSports] = useState(initialSports);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [dragId, setDragId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  /** Same rule as the landing page, so the admin list is in the page's order. */
-  function sortSports(list: Sport[]): Sport[] {
-    return [...list].sort(
-      (a, b) => a.sort_order - b.sort_order || a.title.localeCompare(b.title)
-    );
+  /** The order last written to the database, so a no-op drag posts nothing. */
+  const savedOrder = useRef(initialSports.map((sport) => sport.id).join(","));
+
+  async function persistOrder(list: Sport[]) {
+    const ids = list.map((sport) => sport.id);
+    const key = ids.join(",");
+    if (key === savedOrder.current) return;
+
+    // Optimistic: the list is already in the new order on screen. Only a failure
+    // needs saying, and the previous order is still in the database if so.
+    savedOrder.current = key;
+    setError(null);
+
+    try {
+      // PATCH on the collection, not a /sports/reorder path — that would be
+      // swallowed by the [id] route.
+      const response = await fetch("/api/admin/sports", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        setError(data.error ?? "Could not save the new order.");
+      }
+    } catch {
+      setError("Could not save the new order — the site still shows the old one.");
+    }
+  }
+
+  /** Moves `id` to sit where `targetId` currently is. */
+  function reorder(list: Sport[], id: string, targetId: string): Sport[] {
+    const from = list.findIndex((sport) => sport.id === id);
+    const to = list.findIndex((sport) => sport.id === targetId);
+    if (from < 0 || to < 0 || from === to) return list;
+
+    const next = [...list];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    return next;
+  }
+
+  function handleMove(index: number, delta: -1 | 1) {
+    const target = sports[index + delta];
+    if (!target) return;
+
+    const next = reorder(sports, sports[index].id, target.id);
+    setSports(next);
+    persistOrder(next);
+  }
+
+  /**
+   * Reorders live as the pointer passes over a row, so the list shows where the
+   * card will land rather than only rearranging on drop.
+   */
+  function handleDragEnter(targetId: string) {
+    if (!dragId || dragId === targetId) return;
+    setSports((current) => reorder(current, dragId, targetId));
+  }
+
+  function handleDragEnd() {
+    setDragId(null);
+    persistOrder(sports);
   }
 
   async function handleAdd() {
     setAdding(true);
     setError(null);
-
-    // Ten past the current last card, leaving room to slot things in between.
-    const lastOrder = sports.length ? Math.max(...sports.map((sport) => sport.sort_order)) : 0;
 
     try {
       const response = await fetch("/api/admin/sports", {
@@ -37,8 +97,7 @@ export function SportsAdmin({ initialSports }: { initialSports: Sport[] }) {
         body: JSON.stringify({
           ...BLANK_SPORT,
           title: "New sport",
-          sort_order: lastOrder + 10,
-          // A blank card should not appear on the site until it has been filled in.
+          // A blank card should not reach the site until it has been filled in.
           is_visible: false,
         }),
       });
@@ -50,7 +109,13 @@ export function SportsAdmin({ initialSports }: { initialSports: Sport[] }) {
         return;
       }
 
-      setSports((current) => sortSports([...current, data.sport as Sport]));
+      const created = data.sport as Sport;
+      const next = [...sports, created];
+      setSports(next);
+      // Open it straight away — an empty card is only useful once filled in.
+      setExpandedId(created.id);
+      // Whatever sort_order the insert picked, the list's own order is correct.
+      persistOrder(next);
     } catch {
       setError("Network error. Please try again.");
     } finally {
@@ -59,51 +124,68 @@ export function SportsAdmin({ initialSports }: { initialSports: Sport[] }) {
   }
 
   function handleSaved(saved: Sport) {
-    setSports((current) =>
-      sortSports(current.map((sport) => (sport.id === saved.id ? saved : sport)))
-    );
+    setSports((current) => current.map((sport) => (sport.id === saved.id ? saved : sport)));
   }
 
   function handleDeleted(id: string) {
-    setSports((current) => current.filter((sport) => sport.id !== id));
+    const next = sports.filter((sport) => sport.id !== id);
+    setSports(next);
+    if (expandedId === id) setExpandedId(null);
+    // The remaining rows close the gap; renumbering keeps the spacing even.
+    persistOrder(next);
   }
 
   return (
     <div>
+      <div className="mb-3 flex items-center justify-between gap-4">
+        <p className="text-xs text-white/35">
+          {sports.length} {sports.length === 1 ? "sport" : "sports"} · drag the handle to reorder
+        </p>
+
+        <button
+          type="button"
+          onClick={handleAdd}
+          disabled={adding}
+          className="shrink-0 rounded-lg border border-white/15 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-white/70 transition hover:border-racing-yellow/60 hover:text-racing-yellow disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {adding ? "Adding…" : "+ Add sport"}
+        </button>
+      </div>
+
       {error ? (
         <p
           role="alert"
-          className="mb-5 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300"
+          className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300"
         >
           {error}
         </p>
       ) : null}
 
       {sports.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-white/10 px-5 py-10 text-center text-sm text-white/40">
-          No sports yet. Add the first one below.
+        <p className="rounded-xl border border-dashed border-white/10 px-5 py-10 text-center text-sm text-white/40">
+          No sports yet. Add the first one above.
         </p>
       ) : (
-        <div className="space-y-5">
-          {sports.map((sport) => (
-            <SportEditor
+        <ul className="space-y-1.5">
+          {sports.map((sport, index) => (
+            <SportRow
               key={sport.id}
               sport={sport}
+              expanded={expandedId === sport.id}
+              onToggle={() => setExpandedId(expandedId === sport.id ? null : sport.id)}
               onSaved={handleSaved}
               onDeleted={handleDeleted}
+              onMove={(delta) => handleMove(index, delta)}
+              isFirst={index === 0}
+              isLast={index === sports.length - 1}
+              dragging={dragId === sport.id}
+              onDragStart={() => setDragId(sport.id)}
+              onDragEnter={() => handleDragEnter(sport.id)}
+              onDragEnd={handleDragEnd}
             />
           ))}
-        </div>
+        </ul>
       )}
-
-      <button
-        type="button"
-        onClick={handleAdd}
-        disabled={adding}
-        className="mt-6 w-full rounded-2xl border border-dashed border-white/15 px-5 py-4 font-display text-xs font-bold uppercase tracking-[0.18em] text-white/50 transition hover:border-racing-yellow/50 hover:text-racing-yellow disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        {adding ? "Adding…" : "+ Add sport"}
-      </button>
     </div>
   );
 }

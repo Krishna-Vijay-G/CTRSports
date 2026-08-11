@@ -84,7 +84,13 @@ export async function createSport(input: unknown): Promise<Sport> {
   return toSport(rows[0]);
 }
 
-/** Null when the id does not exist — the route turns that into a 404. */
+/**
+ * Null when the id does not exist — the route turns that into a 404.
+ *
+ * Deliberately does NOT write sort_order. Position is owned entirely by
+ * `reorderSports`, so a form that was opened before someone dragged the list
+ * cannot save a stale position back over it.
+ */
 export async function updateSport(id: string, input: unknown): Promise<Sport | null> {
   const sql = getSql();
   const sport = normaliseSportInput(input);
@@ -95,7 +101,6 @@ export async function updateSport(id: string, input: unknown): Promise<Sport | n
            text       = ${sport.text},
            details    = ${sport.details},
            logo_url   = ${sport.logo_url},
-           sort_order = ${sport.sort_order},
            is_visible = ${sport.is_visible},
            updated_at = now()
      WHERE id = ${id}
@@ -103,6 +108,31 @@ export async function updateSport(id: string, input: unknown): Promise<Sport | n
   `) as Row[];
 
   return rows[0] ? toSport(rows[0]) : null;
+}
+
+/**
+ * Rewrites every card's position from the order of `ids`.
+ *
+ * Spaced by ten so a row can still be nudged between two others by hand in SQL
+ * if it ever comes to that. One transaction, so a half-applied order cannot be
+ * left behind if a statement fails partway down the list.
+ *
+ * Ids not in the list are left alone; the caller sends the whole list.
+ */
+export async function reorderSports(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+
+  const sql = getSql();
+
+  await sql.transaction(
+    ids.map(
+      (id, index) => sql`
+        UPDATE ctr_sports
+           SET sort_order = ${(index + 1) * 10}, updated_at = now()
+         WHERE id = ${id}
+      `
+    )
+  );
 }
 
 export async function deleteSport(id: string): Promise<boolean> {
