@@ -40,7 +40,6 @@ import {
   optionalText,
   text,
 } from "@/lib/normalise";
-import { isTrackId, type TrackId } from "@/lib/tracks";
 
 /* ────────────────────────────── Sections ────────────────────────────── */
 
@@ -83,7 +82,8 @@ export type VisionIcon = (typeof VISION_ICONS)[number];
 export type Partner = { name: string; logo: string };
 export type Stat = { value: string; label: string };
 export type VisionItem = { icon: VisionIcon; label: string; description: string };
-export type Venue = { number: string; name: string; city: string; note: string; track: TrackId };
+/** `map` is the circuit layout, uploaded like any other picture. Blank draws none. */
+export type Venue = { number: string; name: string; city: string; note: string; map: string };
 export type Round = { round: string; dates: string; venue: string; city: string; status: string };
 export type Shot = { image: string; alt: string };
 export type RowItem = { id: string; label: string; title: string; meta: string; href: string };
@@ -275,21 +275,25 @@ export const DEFAULT_INCRC_CONTENT: IncrcContent = {
         name: "Kari Motor Speedway",
         city: "Coimbatore",
         note: "The home of Indian motorsport — tight, technical and unforgiving.",
-        track: "kari",
+        // Public domain, from Wikimedia. Small (300px), so upload a better one.
+        map: "https://upload.wikimedia.org/wikipedia/commons/f/fe/Kari_Motor_Speedway_Layout.jpg",
       },
       {
         number: "02",
         name: "Bren Raceway",
         city: "Bengaluru",
+        // Too new to have a freely licensed layout anywhere. Upload one and the
+        // well appears; until then the card is the name, the city and the note.
+        map: "",
         note: "India's newest permanent circuit, fast and flowing throughout.",
-        track: "bren",
       },
       {
         number: "03",
         name: "Madras International Circuit",
         city: "Chennai",
         note: "A long back straight into a hairpin — the season's decider.",
-        track: "mic",
+        // CC BY-SA 3.0, from Wikimedia — attribution is owed if this one stays.
+        map: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/63/Irungattukottai_Race_Track_map_--_Full_track.svg/960px-Irungattukottai_Race_Track_map_--_Full_track.svg.png",
       },
     ],
   },
@@ -485,6 +489,12 @@ function sections(value: unknown): SectionState[] {
   return order;
 }
 
+/** The built-in map for a circuit of this name, if there is one. */
+function defaultVenueMap(name: string): string {
+  const key = name.trim().toLowerCase();
+  return DEFAULT_INCRC_CONTENT.venues.items.find((v) => v.name.toLowerCase() === key)?.map ?? "";
+}
+
 function isSectionId(value: unknown): value is IncrcSectionId {
   return (INCRC_SECTION_IDS as readonly string[]).includes(value as string);
 }
@@ -597,15 +607,20 @@ export function normaliseIncrcContent(input: unknown): IncrcContent {
       items: list(
         venues.items,
         MAX_VENUES,
-        (entry) => ({
-          number: optionalText(entry.number, 8),
-          name: optionalText(entry.name),
-          city: optionalText(entry.city),
-          note: optionalText(entry.note, BODY_MAX),
-          // An unrecognised track falls back to the generic outline, which is
-          // what makes retiring one of the drawings safe.
-          track: isTrackId(entry.track) ? entry.track : "circuit",
-        }),
+        (entry) => {
+          const name = optionalText(entry.name);
+          return {
+            number: optionalText(entry.number, 8),
+            name,
+            city: optionalText(entry.city),
+            note: optionalText(entry.note, BODY_MAX),
+            // Falls back to the built-in map for a circuit of the same name,
+            // which is what carries the three original venues across from the
+            // drawings they used to have. A circuit with neither simply has no
+            // map, and the card is drawn without the well.
+            map: image(entry.map, defaultVenueMap(name)),
+          };
+        },
         d.venues.items
       ),
     },

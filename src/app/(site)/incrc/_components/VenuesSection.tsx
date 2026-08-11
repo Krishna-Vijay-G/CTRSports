@@ -2,14 +2,26 @@ import type { IncrcContent } from "@/lib/incrcContent";
 import { Reveal } from "@/components/ui/Reveal";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { PinIcon } from "./icons";
-import { TrackMap } from "./TrackMap";
 
 /**
- * The circuits the championship runs on, each with its layout drawn.
+ * The circuits the championship runs on, each with its layout above it.
  *
- * The outline is the point of these cards. A venue is a name and a city on every
+ * The layout is the point of these cards. A venue is a name and a city on every
  * other motorsport site; the shape of the track is the thing that actually tells
  * a driver what the weekend will be like.
+ *
+ * The map is an uploaded picture, so it is whatever the circuit publishes. It
+ * fills the head of the card edge to edge and is cropped to do it, which is what
+ * keeps three cards of different source images looking like one set. The ground
+ * behind it is white, because track maps are drawn as dark ink on paper and a
+ * map with a transparent background would otherwise be invisible.
+ *
+ * Cropping to fill means a very wide map loses its ends. That is the trade for a
+ * full bleed; a map that must be seen whole should be uploaded on a canvas
+ * closer to this card's shape.
+ *
+ * A venue with no map simply has no well — better a clean card than an empty
+ * frame.
  */
 export function VenuesSection({ venues }: { venues: IncrcContent["venues"] }) {
   return (
@@ -25,21 +37,21 @@ export function VenuesSection({ venues }: { venues: IncrcContent["venues"] }) {
               delay={index * 0.06}
               className="panel-card group relative w-full overflow-hidden transition-colors duration-300 hover:border-accent/40"
             >
-              {/* The outline sits in a well of its own, a shade darker than the
-                  card, so the drawing reads as a diagram rather than an
-                  illustration floating on the copy. */}
-              <div className="relative bg-surface/60 px-6 pb-2 pt-7">
-                <span
-                  aria-hidden
-                  className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-accent/[0.06] blur-2xl"
-                />
-                <TrackMap
-                  track={venue.track}
-                  className="mx-auto max-h-36 transition-transform duration-500 group-hover:scale-[1.04]"
-                />
-              </div>
+              {/* Full bleed: no padding of its own, so the picture runs to the
+                  card's edges and the card's own overflow-hidden clips it to
+                  the top two corners. */}
+              {venue.map ? (
+                <div className="relative h-44 overflow-hidden bg-white">
+                  <img
+                    src={venue.map}
+                    alt={`Circuit layout — ${venue.name}`}
+                    loading="lazy"
+                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                  />
+                </div>
+              ) : null}
 
-              <div className="border-t border-line p-6">
+              <div className={venue.map ? "border-t border-line p-6" : "p-6"}>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-accent">
                   Venue {venue.number}
                 </p>

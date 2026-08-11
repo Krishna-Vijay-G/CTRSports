@@ -1,13 +1,9 @@
 "use client";
 
 import { MAX_VENUES, type IncrcContent, type Venue } from "@/lib/incrcContent";
-import { TRACKS, TRACK_IDS, type TrackId } from "@/lib/tracks";
-import { cn } from "@/lib/utils";
-import { Label } from "@/components/admin/ui/Input";
-import { CheckIcon } from "@/components/admin/ui/icons";
 import { Field, Panel, Row, TextArea } from "@/components/admin/Fields";
+import { ImageField } from "@/components/admin/ImageField";
 import { Repeater } from "@/components/admin/Repeater";
-import { TrackMap } from "@/app/(site)/incrc/_components/TrackMap";
 
 type Venues = IncrcContent["venues"];
 
@@ -35,9 +31,9 @@ export function VenuesPanel({
         items={value.items}
         max={MAX_VENUES}
         onChange={(items) => set({ items })}
-        blank={() => ({ number: "", name: "", city: "", note: "", track: "circuit" })}
+        blank={() => ({ number: "", name: "", city: "", note: "", map: "" })}
         empty="No circuits — the section shows its heading and nothing else."
-        note="Three across on a laptop. The outline is drawn from a fixed set of layouts; a circuit that is not drawn yet gets the generic one."
+        note="Three across on a laptop. The layout is a picture you upload — the circuit's own map, a screenshot of it, anything that reads small. It fills the head of the card, on white, cropped to fit."
       >
         {(venue, index, patch) => (
           <>
@@ -59,74 +55,16 @@ export function VenuesPanel({
               rows={2}
               hint="One line on what the circuit is like. Blank hides it."
             />
-            <div>
-              <Label>Layout</Label>
-              <TrackPicker
-                value={venue.track}
-                onChange={(track) => patch({ track })}
-                className="mt-1.5"
-              />
-            </div>
+            <ImageField
+              label="Layout"
+              variant="logo"
+              value={venue.map}
+              onChange={(map) => patch({ map })}
+              hint="Fills the head of the card and is cropped to do it, so a very wide map loses its ends. Blank leaves the card with no drawing at all."
+            />
           </>
         )}
       </Repeater>
     </>
-  );
-}
-
-/**
- * Picks a circuit outline.
- *
- * Draws the actual outline rather than naming it — the drawing is the whole
- * point of the card, and a list of circuit names would not tell you which is
- * which. Generated from src/lib/tracks.ts, so adding a layout puts it here.
- */
-function TrackPicker({
-  value,
-  onChange,
-  className,
-}: {
-  value: TrackId;
-  onChange: (track: TrackId) => void;
-  className?: string;
-}) {
-  return (
-    <div className={cn("grid grid-cols-3 gap-1.5", className)}>
-      {TRACK_IDS.map((id) => {
-        const selected = id === value;
-
-        return (
-          <button
-            key={id}
-            type="button"
-            onClick={() => onChange(id)}
-            aria-pressed={selected}
-            title={TRACKS[id].hint}
-            className={cn(
-              "rounded-md border p-2 text-left outline-none transition",
-              "focus-visible:ring-[3px] focus-visible:ring-ring/40",
-              selected
-                ? "border-primary bg-primary/[0.07]"
-                : "border-border hover:border-input hover:bg-muted/50"
-            )}
-          >
-            <span className="flex h-10 items-center justify-center">
-              {TRACKS[id].path ? (
-                <TrackMap track={id} className="max-h-10" />
-              ) : (
-                <span className="text-[10px] text-muted-fg">none</span>
-              )}
-            </span>
-
-            <span className="mt-1.5 flex items-center gap-1">
-              <span className="truncate text-[11px] font-medium text-foreground">
-                {TRACKS[id].name}
-              </span>
-              {selected ? <CheckIcon className="size-3 shrink-0 text-primary" /> : null}
-            </span>
-          </button>
-        );
-      })}
-    </div>
   );
 }
