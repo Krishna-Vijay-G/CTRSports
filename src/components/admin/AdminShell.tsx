@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button, ButtonLink } from "@/components/admin/ui/Button";
-import { ExternalIcon, ImagesIcon, SignOutIcon } from "@/components/admin/ui/icons";
+import { ExternalIcon, FlagIcon, ImagesIcon, SignOutIcon } from "@/components/admin/ui/icons";
 
 /**
  * Chrome around every admin screen.
@@ -18,7 +18,10 @@ import { ExternalIcon, ImagesIcon, SignOutIcon } from "@/components/admin/ui/ico
  */
 
 /** One entry per admin screen. Add a page, add a line. */
-const NAV = [{ href: "/admin/landing", label: "Landing page", icon: ImagesIcon }];
+const NAV = [
+  { href: "/admin/landing", label: "Landing page", icon: ImagesIcon },
+  { href: "/admin/incrc", label: "INCRC", icon: FlagIcon },
+];
 
 export function AdminShell({
   username,

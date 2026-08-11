@@ -1,6 +1,7 @@
 "use client";
 
 import type { LandingContent } from "@/lib/landingContent";
+import { cn } from "@/lib/utils";
 
 /**
  * The nav bar. It is laid over the banners rather than pinned to the
@@ -9,12 +10,22 @@ import type { LandingContent } from "@/lib/landingContent";
  *
  * Not sticky, by design: the page lives inside a rounded, clipped card, and a
  * sticky child cannot escape that clipping. The reference design does the same.
+ *
+ * `className` replaces the positioning, for the one case that has no banner
+ * underneath it: /incrc with its carousel emptied, where the header becomes a
+ * solid bar in the flow instead of an overlay.
  */
-export function SiteHeader({ content }: { content: LandingContent }) {
+export function SiteHeader({
+  content,
+  className,
+}: {
+  content: LandingContent;
+  className?: string;
+}) {
   const { brand, nav } = content;
 
   return (
-    <header className="absolute inset-x-0 top-0 z-20">
+    <header className={cn("absolute inset-x-0 top-0 z-20", className)}>
       {/*
         One row from md: up (brand · nav · button). Below that it wraps to two:
         brand and button on the first, the links centred underneath. Ordering

@@ -3,16 +3,16 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { BANNER_INTERVAL, type Banner } from "@/lib/banners";
-import type { LandingContent } from "@/lib/landingContent";
-import { SiteHeader } from "@/components/layout/SiteHeader";
 import { usePreviewMode } from "@/components/ui/PreviewMode";
 import { TEMPLATES } from "./templates";
 
 /**
- * The top of the page: one banner at a time, crossfading.
+ * The top of a page: one banner at a time, crossfading.
  *
- * The header is rendered once, here, rather than inside each template — it is
- * laid over the photograph and must not fade out with the banner underneath it.
+ * The header is passed in and rendered once, here, rather than inside each
+ * template — it is laid over the photograph and must not fade out with the
+ * banner underneath it. Passed in rather than built here because the landing
+ * page and /incrc share this carousel but not their content documents.
  *
  * The box has a fixed height so that changing template, or rotating to a banner
  * with more copy in it, never moves the rest of the page.
@@ -22,13 +22,14 @@ import { TEMPLATES } from "./templates";
  * undefined — which is what the live site does — it advances on its own.
  */
 export function BannerCarousel({
-  content,
+  banners,
+  header,
   activeIndex,
 }: {
-  content: LandingContent;
+  banners: Banner[];
+  header: React.ReactNode;
   activeIndex?: number;
 }) {
-  const { banners } = content;
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const preview = usePreviewMode();
@@ -79,7 +80,7 @@ export function BannerCarousel({
         ) : null}
       </AnimatePresence>
 
-      <SiteHeader content={content} />
+      {header}
 
       {/* Dots only when there is somewhere to go. Controlled means the admin is
           driving, and a control that fights the editor is worse than none. */}

@@ -23,6 +23,16 @@
 
 import { ABOUT_PHOTOS } from "@/config/images";
 import { DEFAULT_BANNERS, normaliseBanners, type Banner } from "@/lib/banners";
+import {
+  BODY_MAX,
+  image,
+  isRecord,
+  link,
+  list,
+  oneOf,
+  optionalText,
+  text,
+} from "@/lib/normalise";
 
 export const SOCIAL_ICONS = ["instagram", "facebook", "twitter", "youtube", "website"] as const;
 export type SocialIconName = (typeof SOCIAL_ICONS)[number];
@@ -100,83 +110,36 @@ export const DEFAULT_LANDING_CONTENT: LandingContent = {
 };
 
 /* ─────────────────────────── Normalisation ─────────────────────────── */
+/* The rules themselves live in src/lib/normalise.ts, shared with the INCRC
+   document. Only what is specific to this page is below. */
 
-const SHORT_MAX = 240;
-const BODY_MAX = 3000;
-const URL_MAX = 600;
 export const MAX_SOCIALS = 8;
 export const MAX_NAV_LINKS = 8;
 /** The layout puts these either side of the about copy; a third has nowhere to go. */
 export const ABOUT_PHOTO_COUNT = 2;
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-/**
- * Empty is allowed — clearing a line of copy is a real editorial choice, and the
- * components already skip what is blank. Only a MISSING or wrong-typed field
- * falls back to the default.
- */
-function text(value: unknown, fallback: string, max = SHORT_MAX): string {
-  return typeof value === "string" ? value.slice(0, max).trim() : fallback;
-}
-
-function isHttpUrl(value: string): boolean {
-  try {
-    const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Images are the exception to "empty is allowed": an empty src renders as a
- * broken image, so a blank or unusable one falls back to the default. A
- * leading-slash path points at /public; anything else must be http(s), which is
- * what keeps a `javascript:` payload out of an <img src>.
- */
-function image(value: unknown, fallback: string): string {
-  if (typeof value !== "string") return fallback;
-  const trimmed = value.trim().slice(0, URL_MAX);
-  if (!trimmed || trimmed.startsWith("//")) return fallback;
-  return trimmed.startsWith("/") || isHttpUrl(trimmed) ? trimmed : fallback;
-}
-
-/** Same rule as an image, plus in-page anchors, which is what most CTAs are. */
-function link(value: unknown, fallback: string): string {
-  if (typeof value !== "string") return fallback;
-  const trimmed = value.trim().slice(0, URL_MAX);
-  if (!trimmed) return fallback;
-  if (trimmed.startsWith("#") || trimmed.startsWith("/")) return trimmed;
-  return isHttpUrl(trimmed) ? trimmed : fallback;
-}
-
 function navLinks(value: unknown, fallback: NavLink[]): NavLink[] {
-  if (!Array.isArray(value)) return fallback;
-  return value
-    .filter(isRecord)
-    .slice(0, MAX_NAV_LINKS)
-    .map((entry) => ({ label: text(entry.label, ""), href: link(entry.href, "#top") }))
+  return list(
+    value,
+    MAX_NAV_LINKS,
+    (entry) => ({ label: optionalText(entry.label), href: link(entry.href, "#top") }),
+    fallback
     // A link with no words is invisible and unclickable — drop it rather than
     // render a gap in the nav.
-    .filter((entry) => entry.label !== "");
+  ).filter((entry) => entry.label !== "");
 }
 
 function socials(value: unknown, fallback: SocialLink[]): SocialLink[] {
-  if (!Array.isArray(value)) return fallback;
-  return value
-    .filter(isRecord)
-    .slice(0, MAX_SOCIALS)
-    .map((entry) => ({
-      label: text(entry.label, ""),
+  return list(
+    value,
+    MAX_SOCIALS,
+    (entry) => ({
+      label: optionalText(entry.label),
       href: link(entry.href, "#"),
-      icon: (SOCIAL_ICONS as readonly string[]).includes(entry.icon as string)
-        ? (entry.icon as SocialIconName)
-        : "website",
-    }))
-    .filter((entry) => entry.label !== "");
+      icon: oneOf(entry.icon, SOCIAL_ICONS, "website"),
+    }),
+    fallback
+  ).filter((entry) => entry.label !== "");
 }
 
 /**

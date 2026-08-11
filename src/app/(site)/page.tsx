@@ -2,6 +2,7 @@ import { SITE } from "@/config/site";
 import { getLandingContentSafe } from "@/lib/server/contentRepo";
 import { listVisibleSportsSafe } from "@/lib/server/sportsRepo";
 import { SiteFooter } from "@/components/layout/SiteFooter";
+import { SiteHeader } from "@/components/layout/SiteHeader";
 import { BannerCarousel } from "./_components/banner/BannerCarousel";
 import { SplashScreen } from "./_components/SplashScreen";
 import { AboutSection } from "./_components/sections/AboutSection";
@@ -57,7 +58,10 @@ export default async function LandingPage() {
         {/* overflow-hidden is what clips the banner photo to the card's radius. */}
         <div className="mx-auto max-w-[1440px] overflow-hidden rounded-card bg-surface">
           <main id="main-content">
-            <BannerCarousel content={content} />
+            <BannerCarousel
+              banners={content.banners}
+              header={<SiteHeader content={content} />}
+            />
             <AboutSection about={content.about} />
             <SportsSection heading={content.sportsSection} sports={sports} />
             <CtaBand band={content.ctaBand} sports={sports} />

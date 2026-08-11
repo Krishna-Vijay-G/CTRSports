@@ -1,6 +1,7 @@
+import type { IncrcContent } from "@/lib/incrcContent";
 import { Reveal } from "@/components/ui/Reveal";
-import { INCRC } from "../_data/incrc";
 import { FollowButton } from "./FollowButton";
+import { Tricolour } from "./icons";
 
 /**
  * The one full-bleed moment on the page: who actually makes a race weekend
@@ -10,9 +11,13 @@ import { FollowButton } from "./FollowButton";
  * pace, and a quote that stops at the same margin as the cards above it would
  * not read as one.
  */
-export function FamilyBanner() {
-  const { family } = INCRC;
-
+export function FamilyBanner({
+  family,
+  meta,
+}: {
+  family: IncrcContent["family"];
+  meta: IncrcContent["meta"];
+}) {
   return (
     <section className="relative min-h-[420px] overflow-hidden md:min-h-[520px]">
       <img
@@ -29,26 +34,28 @@ export function FamilyBanner() {
 
       <Reveal className="relative z-10 flex min-h-[420px] flex-col items-center justify-center py-16 text-center md:min-h-[520px]">
         <div className="shell">
-          <p className="font-display text-lg font-semibold text-fg-muted md:text-xl">
-            {family.lead}
-          </p>
+          {family.lead ? (
+            <p className="font-display text-lg font-semibold text-fg-muted md:text-xl">
+              {family.lead}
+            </p>
+          ) : null}
 
-          <span aria-hidden className="my-5 flex items-center justify-center gap-3">
-            <span className="h-px w-10 bg-accent/50" />
-            <span className="flex gap-1">
-              <span className="block h-3.5 w-2 rounded-sm bg-[#FF9933]" />
-              <span className="block h-3.5 w-2 rounded-sm bg-white" />
-              <span className="block h-3.5 w-2 rounded-sm bg-[#138808]" />
+          {family.showFlag ? (
+            <span aria-hidden className="my-5 flex items-center justify-center gap-3">
+              <span className="h-px w-10 bg-accent/50" />
+              <Tricolour />
+              <span className="h-px w-10 bg-accent/50" />
             </span>
-            <span className="h-px w-10 bg-accent/50" />
-          </span>
+          ) : (
+            <span aria-hidden className="my-5 block h-px w-16 bg-accent/50 mx-auto" />
+          )}
 
           <p className="headline mx-auto max-w-4xl text-[clamp(1.8rem,5vw,3.5rem)]">
             {family.quote}
           </p>
 
           <div className="mt-9 flex justify-center">
-            <FollowButton tone="light" />
+            <FollowButton href={meta.instagram} handle={meta.handle} tone="light" />
           </div>
         </div>
       </Reveal>

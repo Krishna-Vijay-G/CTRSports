@@ -1,23 +1,26 @@
 /**
- * The banners at the top of the landing page.
+ * The banners at the top of a page.
  *
- * This replaces what used to be a single hardcoded "hero". A banner is a photo,
- * a headline, a line of supporting copy and one link — and a TEMPLATE, which
- * decides how those four are arranged. Several banners rotate in place.
+ * A banner is a photo, a headline, a line of supporting copy and one link — and
+ * a TEMPLATE, which decides how those four are arranged. Several banners rotate
+ * in place.
  *
  * The templates are the point. Rather than one layout with a dozen toggles for
  * alignment, overlay strength and where the button goes, there are a few named
  * arrangements that are each known to look right. Picking one is a single
  * decision, and no combination of settings can produce something broken.
  *
- * Banners live inside the landing document (`ctr_content`), not a table of their
- * own: they are page furniture, they are always read together with the rest of
- * the page, and nothing ever queries them.
+ * Not tied to one page: the landing document and the INCRC document both hold a
+ * list of these, and both use the same carousel, the same templates and the same
+ * admin panel. Banners live inside their page's document rather than a table of
+ * their own — they are page furniture, always read with the rest of the page,
+ * and nothing ever queries them.
  *
  * Shared by the server and the browser, so nothing here may import `server-only`.
  */
 
 import { BANNER_PHOTOS } from "@/config/images";
+import { BODY_MAX, image, link, optionalText } from "@/lib/normalise";
 
 export const BANNER_TEMPLATES = ["spotlight", "centre", "split"] as const;
 export type BannerTemplate = (typeof BANNER_TEMPLATES)[number];
@@ -40,7 +43,7 @@ export const BANNER_TEMPLATE_META: Record<
 > = {
   spotlight: {
     name: "Spotlight",
-    description: "Full-bleed photo, copy along the bottom-left. The loudest of the four.",
+    description: "Full-bleed photo, copy along the bottom-left. The loudest of the three.",
   },
   centre: {
     name: "Centre",
@@ -53,9 +56,6 @@ export const BANNER_TEMPLATE_META: Record<
 };
 
 export const MAX_BANNERS = 6;
-const TEXT_MAX = 240;
-const BODY_MAX = 3000;
-const URL_MAX = 600;
 
 /** How long each banner holds before the next one, in milliseconds. */
 export const BANNER_INTERVAL = 6500;
@@ -64,8 +64,11 @@ export function isBannerTemplate(value: unknown): value is BannerTemplate {
   return (BANNER_TEMPLATES as readonly string[]).includes(value as string);
 }
 
-/** A new, empty banner. The caller supplies the id — only it knows what is unique. */
-export function blankBanner(id: string): Banner {
+/**
+ * A new, empty banner. The caller supplies the id — only it knows what is unique
+ * — and the link, because a sensible destination differs page to page.
+ */
+export function blankBanner(id: string, ctaHref = "#"): Banner {
   return {
     id,
     template: "spotlight",
@@ -73,7 +76,7 @@ export function blankBanner(id: string): Banner {
     title: "",
     subtitle: "",
     ctaLabel: "",
-    ctaHref: "#sports",
+    ctaHref,
   };
 }
 
@@ -109,50 +112,11 @@ export const DEFAULT_BANNERS: Banner[] = [
 
 /* ─────────────────────────── Normalisation ─────────────────────────── */
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function isHttpUrl(value: string): boolean {
-  try {
-    const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
-
-function text(value: unknown, max = TEXT_MAX): string {
-  return typeof value === "string" ? value.slice(0, max).trim() : "";
-}
-
-/**
- * A blank photo would render as a broken image and a banner is mostly photo, so
- * an unusable one falls back to a default rather than to nothing. `//` is
- * rejected along with everything that is not a path or http(s), which is what
- * keeps a `javascript:` payload out of an <img src>.
- */
-function image(value: unknown, fallback: string): string {
-  if (typeof value !== "string") return fallback;
-  const trimmed = value.trim().slice(0, URL_MAX);
-  if (!trimmed || trimmed.startsWith("//")) return fallback;
-  return trimmed.startsWith("/") || isHttpUrl(trimmed) ? trimmed : fallback;
-}
-
-/** Same rule as a photo, plus in-page anchors, which is what most banners link to. */
-function link(value: unknown, fallback: string): string {
-  if (typeof value !== "string") return fallback;
-  const trimmed = value.trim().slice(0, URL_MAX);
-  if (!trimmed) return fallback;
-  if (trimmed.startsWith("#") || trimmed.startsWith("/")) return trimmed;
-  return isHttpUrl(trimmed) ? trimmed : fallback;
-}
-
 /**
  * Turns whatever is in the stored document into banners that will render.
  *
- * An empty list is allowed and means no banners — the page then opens on the
- * about section, which is a real editorial choice. Only a MISSING or wrong-typed
+ * An empty list is allowed and means no banners — the page then opens on its
+ * first section, which is a real editorial choice. Only a MISSING or wrong-typed
  * list falls back to the defaults.
  *
  * Ids are made unique here rather than trusted: two banners sharing one id would
@@ -165,10 +129,10 @@ export function normaliseBanners(value: unknown, fallback: Banner[]): Banner[] {
   const seen = new Set<string>();
 
   return value
-    .filter(isRecord)
+    .filter((entry): entry is Record<string, unknown> => typeof entry === "object" && entry !== null)
     .slice(0, MAX_BANNERS)
     .map((entry, index) => {
-      const wanted = text(entry.id, 64);
+      const wanted = optionalText(entry.id, 64);
       const id = wanted && !seen.has(wanted) ? wanted : `banner-${index + 1}-${seen.size}`;
       seen.add(id);
 
@@ -179,10 +143,13 @@ export function normaliseBanners(value: unknown, fallback: Banner[]): Banner[] {
         // unrecognised, which is what makes removing a template safe.
         template: isBannerTemplate(entry.template) ? entry.template : "spotlight",
         image: image(entry.image, BANNER_PHOTOS[0]),
-        title: text(entry.title, BODY_MAX),
-        subtitle: text(entry.subtitle),
-        ctaLabel: text(entry.ctaLabel),
-        ctaHref: link(entry.ctaHref, "#sports"),
+        title: optionalText(entry.title, BODY_MAX),
+        subtitle: optionalText(entry.subtitle),
+        ctaLabel: optionalText(entry.ctaLabel),
+        // "#" rather than a page-specific anchor: this function is shared, and a
+        // banner with no usable link should go nowhere rather than somewhere the
+        // other page happens to have.
+        ctaHref: link(entry.ctaHref, "#"),
       };
     });
 }

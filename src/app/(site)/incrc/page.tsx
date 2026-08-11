@@ -1,79 +1,92 @@
 import type { Metadata } from "next";
 import { SITE } from "@/config/site";
+import type { IncrcContent } from "@/lib/incrcContent";
 import type { LandingContent } from "@/lib/landingContent";
-import { getLandingContentSafe } from "@/lib/server/contentRepo";
+import { getIncrcContentSafe, getLandingContentSafe } from "@/lib/server/contentRepo";
 import { SiteFooter } from "@/components/layout/SiteFooter";
-import { INCRC } from "./_data/incrc";
-import { CalendarSection } from "./_components/CalendarSection";
-import { FamilyBanner } from "./_components/FamilyBanner";
-import { GridSection } from "./_components/GridSection";
-import { IncrcHero } from "./_components/IncrcHero";
-import { PartnershipSection } from "./_components/PartnershipSection";
-import { RegisterBand } from "./_components/RegisterBand";
-import { StatsBand } from "./_components/StatsBand";
-import { VenuesSection } from "./_components/VenuesSection";
-import { VisionSection } from "./_components/VisionSection";
+import { IncrcSections } from "./_components/IncrcSections";
+import { IncrcTop } from "./_components/IncrcTop";
 
 /**
  * The Indian National Car Racing Championship.
  *
- * Only the championship: what it is, what it is for, where and when it runs,
- * who put it together and how to enter. CTR's own story — the origin, the IRL
- * and F4 results, the karting league, the academy, the club — is not on this
- * page, because none of it is INCRC.
+ * Only the championship: what it is, what it is for, where and when it runs, who
+ * put it together and how to enter. CTR's own story — the origin, the IRL and F4
+ * results, the karting league, the academy, the club — is not on this page,
+ * because none of it is INCRC.
  *
- * The championship's own copy is a code module (`_data/incrc.ts`), not the
- * database. Only the brand, navigation and footer come from `ctr_content`, so
- * that the chrome around this page stays in step with the landing page when
- * either is edited.
+ * Two documents, both from `ctr_content`:
+ *
+ *   'incrc'   — everything in the body, including which sections are on the page
+ *               and in what order. Edited at /admin/incrc.
+ *   'landing' — the header, the navigation and the footer, so the chrome around
+ *               this page stays in step with the home page.
+ *
+ * Both loaders fall back rather than throw, so an unreachable database still
+ * renders a complete page.
  *
  * Same shell as the landing page: the page colour showing around one rounded
  * card, every section on `.shell` for the shared horizontal rhythm.
  */
 
-const description = `${INCRC.headline}. ${INCRC.stats[0].value} racing categories across ${INCRC.stats[1].value} rounds on ${INCRC.stats[2].value} of India's finest circuits, from ${INCRC.stats[3].value}.`;
+export const revalidate = 60;
 
-export const metadata: Metadata = {
-  title: `${INCRC.name} — ${INCRC.tagline}`,
-  description,
-  alternates: { canonical: "/incrc" },
-  openGraph: {
-    title: `${INCRC.name} — ${INCRC.tagline}`,
+export async function generateMetadata(): Promise<Metadata> {
+  const content = await getIncrcContentSafe();
+  const title = `${content.meta.name} — ${content.meta.tagline}`;
+  const description = describe(content);
+
+  return {
+    title,
     description,
-    url: `${SITE.url}/incrc`,
-    siteName: SITE.name,
-    type: "website",
-    locale: SITE.locale,
-  },
-};
+    alternates: { canonical: "/incrc" },
+    openGraph: {
+      title,
+      description,
+      url: `${SITE.url}/incrc`,
+      siteName: SITE.name,
+      type: "website",
+      locale: SITE.locale,
+    },
+  };
+}
+
+/** The headline plus whatever numbers the stats band is currently carrying. */
+function describe(content: IncrcContent): string {
+  const numbers = content.stats.items
+    .filter((stat) => stat.value && stat.label)
+    .map((stat) => `${stat.value} ${stat.label.toLowerCase()}`)
+    .join(", ");
+
+  return numbers ? `${content.intro.headline}. ${numbers}.` : content.intro.headline;
+}
 
 /**
- * Re-rendered at most once an hour. Nothing on this page is edited in the admin
- * except the header and footer, so it does not need the landing page's minute.
- */
-export const revalidate = 3600;
-
-/**
- * The in-page anchors this route actually has, so `sendHome` knows which of the
- * navigation's links mean something here. Add a section, add its id.
+ * The in-page anchors this route has. Every section renders one with its own id,
+ * so this is derived from the same list the page is built from — plus the two
+ * the shell owns.
  */
 const LOCAL_ANCHORS = new Set([
   "#top",
   "#main-content",
+  "#footer",
+  "#intro",
+  "#stats",
   "#vision",
   "#grid",
   "#venues",
   "#calendar",
   "#partnership",
+  "#rows",
+  "#posts",
   "#register",
-  "#footer",
 ]);
 
 /**
  * The navigation is written for the landing page, so most of its links are bare
  * anchors — `#about`, `#sports`. On this route those scroll nowhere. Point the
- * ones this page does not have at the same section on the home page instead,
- * and leave the ones it does have (`#top`, `#footer`) alone.
+ * ones this page does not have at the same section on the home page instead, and
+ * leave the ones it does have alone.
  */
 function sendHome(content: LandingContent): LandingContent {
   const fix = (href: string) =>
@@ -89,30 +102,37 @@ function sendHome(content: LandingContent): LandingContent {
 }
 
 export default async function IncrcPage() {
-  const content = sendHome(await getLandingContentSafe());
+  const [content, landing] = await Promise.all([
+    getIncrcContentSafe(),
+    getLandingContentSafe(),
+  ]);
+
+  const chrome = sendHome(landing);
 
   // The championship is a real, dated sporting event — worth saying so in a way
   // a search engine can read, rather than only in prose.
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "SportsEvent",
-    name: INCRC.name,
-    alternateName: INCRC.short,
-    description,
+    name: content.meta.name,
+    alternateName: content.meta.short,
+    description: describe(content),
     sport: "Motorsport",
     url: `${SITE.url}/incrc`,
-    startDate: "2026-09-11",
-    endDate: "2026-12-13",
     eventStatus: "https://schema.org/EventScheduled",
-    organizer: { "@type": "SportsOrganization", name: content.brand.name, url: SITE.url },
-    location: INCRC.venues.map((venue) => ({
+    organizer: {
+      "@type": "SportsOrganization",
+      name: landing.brand.name,
+      url: SITE.url,
+    },
+    location: content.venues.items.map((venue) => ({
       "@type": "Place",
       name: venue.name,
       address: { "@type": "PostalAddress", addressLocality: venue.city, addressCountry: "IN" },
     })),
-    subEvent: INCRC.rounds.map((round) => ({
+    subEvent: content.calendar.rounds.map((round) => ({
       "@type": "SportsEvent",
-      name: `${INCRC.short} Round ${round.round}`,
+      name: `${content.meta.short} Round ${round.round}`,
       location: {
         "@type": "Place",
         name: round.venue,
@@ -129,21 +149,14 @@ export default async function IncrcPage() {
       />
 
       <div id="top" className="min-h-screen bg-page p-2 sm:p-3">
-        {/* overflow-hidden is what clips the hero's wash to the card's radius. */}
+        {/* overflow-hidden is what clips the banner photo to the card's radius. */}
         <div className="mx-auto max-w-[1440px] overflow-hidden rounded-card bg-surface">
           <main id="main-content">
-            <IncrcHero content={content} />
-            <StatsBand />
-            <VisionSection />
-            <GridSection />
-            <VenuesSection />
-            <CalendarSection />
-            <PartnershipSection />
-            <FamilyBanner />
-            <RegisterBand />
+            <IncrcTop banners={content.banners} chrome={chrome} />
+            <IncrcSections content={content} />
           </main>
 
-          <SiteFooter content={content} year={new Date().getFullYear()} />
+          <SiteFooter content={chrome} year={new Date().getFullYear()} />
         </div>
       </div>
     </>

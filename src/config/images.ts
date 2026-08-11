@@ -42,6 +42,51 @@ export const ABOUT_PHOTOS = [
   { src: photo("photo-1517649763962-0c623066013b", 800), label: "Endurance" },
 ];
 
+/**
+ * The INCRC page's photography.
+ *
+ * Two kinds. The `artwork` group is the championship's OWN material — the
+ * circuit render, the car line-up, the signing photographs, the grid portrait
+ * and the two partner marks — which came across with the deck and lives in
+ * /public/images/incrc. Everything else is stock, standing in until the
+ * championship's own photography is uploaded through the admin.
+ *
+ * All of it is only a default: every one of these is an editable field.
+ */
+export const INCRC_PHOTOS = {
+  /** The rotating panels at the top. Dark enough to hold white type. */
+  banners: [
+    photo("photo-1552519507-da3b142c6e3d", 1800, 76),
+    photo("photo-1568605117036-5fe5e7bab0b7", 1800, 76),
+    photo("photo-1583121274602-3e2820c69888", 1800, 76),
+  ],
+  /** One per venue card. */
+  venues: [
+    photo("photo-1541447271487-09612b3f49f7", 900),
+    photo("photo-1502877338535-766e1452684a", 900),
+    photo("photo-1533473359331-0135ef1b58bf", 900),
+  ],
+  /** One per post card. */
+  posts: [
+    photo("photo-1600661653561-629509216228", 900),
+    photo("photo-1517994112540-009c47ea476b", 900),
+    photo("photo-1503376780353-7e6692767b70", 900),
+  ],
+  artwork: {
+    circuit: "/images/incrc/one-nation.webp",
+    cars: "/images/incrc/cars-lineup.webp",
+    family: "/images/incrc/family.webp",
+    signing: [
+      "/images/incrc/signing-1.webp",
+      "/images/incrc/signing-2.webp",
+      "/images/incrc/signing-3.webp",
+    ],
+    ctr: "/images/brand/ctr-logo.webp",
+    jkTyre: "/images/incrc/jktyre.webp",
+    fmsci: "/images/incrc/fmsci.webp",
+  },
+} as const;
+
 /** Seeded onto the matching sport row, then editable per sport in the admin. */
 export const SPORT_PHOTOS = {
   pickleball: photo("photo-1626224583764-f87db24ac4ea", 800),

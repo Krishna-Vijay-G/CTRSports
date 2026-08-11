@@ -18,12 +18,16 @@ import { ImageField } from "@/components/admin/ImageField";
 import { TemplatePicker } from "./TemplatePicker";
 
 /**
- * The banners at the top of the page.
+ * The banners at the top of a page.
  *
  * One strip per banner, opening into its editor. Opening a banner also points
  * the preview at it — `onFocus` reports the index up to the editor, which holds
  * the carousel still on that one for as long as it is open. Without that the
  * preview would keep rotating and you would be editing a banner you cannot see.
+ *
+ * Shared by the landing editor and the INCRC editor: both documents hold a list
+ * of the same Banner, so both get the same panel. `newHref` is the only thing
+ * that differs — a sensible destination for a fresh banner is page-specific.
  *
  * Everything here is part of the page document, so it all goes with the one Save
  * at the top. Nothing in this panel writes on its own.
@@ -32,10 +36,12 @@ export function BannersPanel({
   banners,
   onChange,
   onFocus,
+  newHref = "#",
 }: {
   banners: Banner[];
   onChange: (next: Banner[]) => void;
   onFocus: (index: number | undefined) => void;
+  newHref?: string;
 }) {
   const [openId, setOpenId] = useState<string | null>(banners[0]?.id ?? null);
   const [dragId, setDragId] = useState<string | null>(null);
@@ -88,7 +94,7 @@ export function BannersPanel({
   function add() {
     // crypto.randomUUID is what keeps two banners added in one session apart;
     // the ids only ever have to be unique inside this one document.
-    const banner = blankBanner(crypto.randomUUID());
+    const banner = blankBanner(crypto.randomUUID(), newHref);
     onChange([...banners, banner]);
     open(banner.id);
   }

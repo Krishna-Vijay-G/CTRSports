@@ -79,11 +79,18 @@ const config: Config = {
       },
       animation: {
         float: "float 4s ease-in-out infinite",
+        // The strip renders its items twice, so travelling exactly half the
+        // track puts the copy back where the original started — seamless.
+        marquee: "marquee 34s linear infinite",
       },
       keyframes: {
         float: {
           "0%, 100%": { transform: "translateY(0)" },
           "50%": { transform: "translateY(-12px)" },
+        },
+        marquee: {
+          from: { transform: "translateX(0)" },
+          to: { transform: "translateX(-50%)" },
         },
       },
     },

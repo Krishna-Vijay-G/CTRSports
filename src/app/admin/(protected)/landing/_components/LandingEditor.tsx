@@ -7,10 +7,10 @@ import { Badge } from "@/components/admin/ui/Badge";
 import { Button } from "@/components/admin/ui/Button";
 import { ErrorNote } from "@/components/admin/Fields";
 import { LandingPreview } from "@/components/admin/LandingPreview";
+import { SectionRail } from "@/components/admin/SectionRail";
+import { BannersPanel } from "@/components/admin/banners/BannersPanel";
 import { SECTIONS, type SectionId } from "./sections";
-import { SectionNav } from "./SectionNav";
 import { AboutPanel } from "./panels/AboutPanel";
-import { BannersPanel } from "./panels/BannersPanel";
 import { BrandPanel } from "./panels/BrandPanel";
 import { CtaPanel } from "./panels/CtaPanel";
 import { FooterPanel } from "./panels/FooterPanel";
@@ -139,6 +139,7 @@ export function LandingEditor({
             banners={draft.banners}
             onChange={(v) => setPart("banners", v)}
             onFocus={setBannerIndex}
+            newHref="#sports"
           />
         );
       case "about":
@@ -165,7 +166,7 @@ export function LandingEditor({
 
   return (
     <div className="flex min-h-0 flex-col gap-2 md:h-full lg:flex-row">
-      <SectionNav active={active} onSelect={setActive} />
+      <SectionRail items={SECTIONS} active={active} onSelect={setActive} />
 
       <div
         ref={columnRef}

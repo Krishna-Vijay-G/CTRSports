@@ -86,6 +86,99 @@ export const GlobeIcon = (p: IconProps) => (
   </Icon>
 );
 
+/* ── Sections: /incrc ── */
+
+export const FlagIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4.6 17.4V3.2M4.6 3.8h9.7l-1.7 3 1.7 3H4.6" />
+  </Icon>
+);
+
+export const MegaphoneIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M3 8.2v3.6a1.4 1.4 0 0 0 1.4 1.4h1.9l7.5 3.6V3.2L6.3 6.8H4.4A1.4 1.4 0 0 0 3 8.2Z" />
+    <path d="M16.3 7.4a3.2 3.2 0 0 1 0 5.2M6.3 13.2v3.4" />
+  </Icon>
+);
+
+export const ChartIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M3.2 16.8h13.6M5.8 16.8V9.4M9.4 16.8V4.6M13 16.8v-5.2M16.6 16.8V7" />
+  </Icon>
+);
+
+export const StarIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m10 2.6 2.4 4.9 5.4.8-3.9 3.8.9 5.4-4.8-2.6-4.8 2.6.9-5.4-3.9-3.8 5.4-.8Z" />
+  </Icon>
+);
+
+export const LayersIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m10 2.8 7 3.6-7 3.6-7-3.6Z" />
+    <path d="m3 10.4 7 3.6 7-3.6M3 14.2l7 3.6 7-3.6" />
+  </Icon>
+);
+
+export const MapIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M7.4 4 3 5.8v10l4.4-1.8 5.2 2.2L17 14.4v-10l-4.4 1.8Z" />
+    <path d="M7.4 4v10.2M12.6 5.8V16" />
+  </Icon>
+);
+
+export const CalendarIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="3" y="4.4" width="14" height="12.6" rx="1.6" />
+    <path d="M3 8.4h14M6.8 2.8v3M13.2 2.8v3" />
+  </Icon>
+);
+
+export const HandshakeIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m2.8 8.6 3-3h3.4l1.4 1.4a1.2 1.2 0 0 1 0 1.7 1.2 1.2 0 0 1-1.7 0L7.8 7.6" />
+    <path d="m10.2 6.6 1.6-1h2.4l3 3v3.2l-2.6 2.6-2.4-2.2M8 11l1.8 1.8M6.2 12.4 8 14.2" />
+  </Icon>
+);
+
+export const UsersIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="8" cy="7.4" r="2.8" />
+    <path d="M2.8 16.4a5.4 5.4 0 0 1 10.4 0" />
+    <path d="M13.4 5a2.8 2.8 0 0 1 0 5.4M14.2 11.6a5.4 5.4 0 0 1 3 4.8" />
+  </Icon>
+);
+
+export const RowsIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="2.8" y="4" width="14.4" height="4" rx="1.2" />
+    <rect x="2.8" y="12" width="14.4" height="4" rx="1.2" />
+  </Icon>
+);
+
+export const NewsIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="2.8" y="4.4" width="14.4" height="11.2" rx="1.6" />
+    <path d="M5.6 7.4h4.2v3.4H5.6ZM12.2 7.4h2.6M12.2 10.2h2.6M5.6 13h9.2" />
+  </Icon>
+);
+
+export const TicketIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M3 7.4V5.8a1.2 1.2 0 0 1 1.2-1.2h11.6A1.2 1.2 0 0 1 17 5.8v1.6a2.6 2.6 0 0 0 0 5.2v1.6a1.2 1.2 0 0 1-1.2 1.2H4.2A1.2 1.2 0 0 1 3 14.2v-1.6a2.6 2.6 0 0 0 0-5.2Z" />
+    <path d="M11.4 4.6v10.8" />
+  </Icon>
+);
+
+/** The running order — a stack whose top card is being moved. */
+export const StackIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="2.8" y="2.8" width="14.4" height="3.4" rx="1.2" />
+    <rect x="2.8" y="8.3" width="14.4" height="3.4" rx="1.2" />
+    <rect x="2.8" y="13.8" width="14.4" height="3.4" rx="1.2" />
+  </Icon>
+);
+
 /* ── Actions ── */
 
 export const PlusIcon = (p: IconProps) => (

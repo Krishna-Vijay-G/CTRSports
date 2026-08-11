@@ -101,7 +101,8 @@
   html {
     scroll-behavior: auto;
   }
-  .animate-float {
+  .animate-float,
+  .animate-marquee {
     animation: none !important;
   }
 }
