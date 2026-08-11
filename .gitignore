@@ -1,1 +1,36 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+/scripts
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# local env files — never commit real credentials
 .env
+.env*.local
+!.env.example
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# vercel
+.vercel
+
+# pre-WebP source art, kept locally so `npm run webp -- --restore` works
+/public/_originals/

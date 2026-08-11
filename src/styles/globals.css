@@ -1,0 +1,92 @@
+/*
+ * Fonts are loaded with next/font in src/app/layout.tsx, never with an @import —
+ * an @import here would be render-blocking and would open connections to two
+ * extra hosts before the page can paint.
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* Clears the sticky header when an anchor link jumps down the page. */
+    scroll-padding-top: 6rem;
+  }
+
+  body {
+    @apply bg-carbon-950 font-body text-white/90;
+    overflow-x: hidden;
+  }
+
+  ::selection {
+    background: rgba(247, 214, 25, 0.35);
+    color: #0a0a0a;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #111111;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #f7d619;
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #d4bb0a;
+  }
+
+  :focus-visible {
+    outline: 3px solid #f7d619;
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+}
+
+@layer components {
+  /* The one horizontal rhythm every section shares. */
+  .section-shell {
+    @apply mx-auto w-full max-w-6xl px-5 sm:px-6;
+  }
+
+  .kicker {
+    @apply font-display text-xs font-bold uppercase tracking-[0.24em] text-racing-yellow;
+  }
+
+  .btn-yellow {
+    @apply inline-flex items-center gap-2 rounded-full bg-racing-yellow px-7 py-3 font-display text-sm
+      font-semibold uppercase tracking-wider text-carbon-950 transition-all duration-300
+      hover:-translate-y-0.5 hover:shadow-[0_14px_34px_-10px_rgba(247,214,25,0.55)] active:translate-y-0;
+  }
+
+  /* Shared by every text input in the admin dashboard. */
+  .admin-field {
+    @apply w-full rounded-xl border border-white/10 bg-carbon-900 px-4 py-2.5 text-sm text-white
+      outline-none transition placeholder:text-white/25 focus:border-racing-yellow/60;
+  }
+
+  .admin-label {
+    @apply block font-display text-[11px] font-bold uppercase tracking-[0.18em] text-white/50;
+  }
+}
+
+/* Respect reduced motion — kill the looping motifs. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .animate-float {
+    animation: none !important;
+  }
+}
