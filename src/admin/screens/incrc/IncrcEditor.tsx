@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { DEFAULT_INCRC_CONTENT, type IncrcContent } from "@/lib/incrcContent";
 import type { LandingContent } from "@/lib/landingContent";
+import type { Track } from "@/lib/tracks";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/admin/ui/Badge";
 import { Button } from "@/admin/ui/Button";
@@ -57,10 +58,12 @@ const FIXED: TabId[] = ["banners"];
 export function IncrcEditor({
   initialContent,
   chrome,
+  tracks,
   year,
 }: {
   initialContent: IncrcContent;
   chrome: LandingContent;
+  tracks: Track[];
   year: number;
 }) {
   const [active, setActive] = useState<TabId>(TABS[0].id);
@@ -209,7 +212,13 @@ export function IncrcEditor({
       case "venues":
         return <VenuesPanel value={draft.venues} onChange={(v) => setPart("venues", v)} />;
       case "calendar":
-        return <CalendarPanel value={draft.calendar} onChange={(v) => setPart("calendar", v)} />;
+        return (
+          <CalendarPanel
+            value={draft.calendar}
+            onChange={(v) => setPart("calendar", v)}
+            tracks={tracks}
+          />
+        );
       case "partnership":
         return (
           <PartnershipPanel
@@ -272,6 +281,7 @@ export function IncrcEditor({
         <IncrcPreview
           content={draft}
           chrome={chrome}
+          tracks={tracks}
           year={year}
           focus={tab.preview}
           bannerIndex={bannerIndex}

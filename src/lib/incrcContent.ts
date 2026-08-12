@@ -84,7 +84,36 @@ export type Stat = { value: string; label: string };
 export type VisionItem = { icon: VisionIcon; label: string; description: string };
 /** `map` is the circuit layout, uploaded like any other picture. Blank draws none. */
 export type Venue = { number: string; name: string; city: string; note: string; map: string };
-export type Round = { round: string; dates: string; venue: string; city: string; status: string };
+/**
+ * One weekend of the season.
+ *
+ * Two ways of saying when, on purpose. `start`/`end` are real dates (ISO
+ * `YYYY-MM-DD`) and are what the countdown counts to; `dates` is the line the
+ * card prints. Leave `dates` blank and the range is written from the two dates,
+ * which is what you want almost always — fill it in when the weekend has a name
+ * the dates cannot express ("TBA", "Provisional, October").
+ *
+ * A round with no `start` simply has no countdown. That is the honest rendering
+ * of a date nobody has fixed yet, and it is why the dates are not required.
+ *
+ * `trackId` points at a row of ctr_tracks, which is where the map, the length
+ * and the corner count live. `venue`/`city` are the fallback for a round whose
+ * circuit has no row yet — and the reason the old content still reads correctly.
+ */
+export type Round = {
+  round: string;
+  /** ISO `YYYY-MM-DD`, or "" when the weekend is not fixed. */
+  start: string;
+  /** ISO `YYYY-MM-DD`. Blank means a one-day round: the same as `start`. */
+  end: string;
+  /** Overrides the printed date range. Blank writes it from start/end. */
+  dates: string;
+  /** ctr_tracks.id, or "" to fall back to the venue and city below. */
+  trackId: string;
+  venue: string;
+  city: string;
+  status: string;
+};
 export type Shot = { image: string; alt: string };
 export type RowItem = { id: string; label: string; title: string; meta: string; href: string };
 export type Post = {
@@ -304,28 +333,40 @@ export const DEFAULT_INCRC_CONTENT: IncrcContent = {
     rounds: [
       {
         round: "01",
-        dates: "11–13 September 2026",
+        start: "2026-09-11",
+        end: "2026-09-13",
+        dates: "",
+        trackId: "",
         venue: "Kari Motor Speedway",
         city: "Coimbatore",
         status: "Entries open",
       },
       {
         round: "02",
-        dates: "23–25 October 2026",
+        start: "2026-10-23",
+        end: "2026-10-25",
+        dates: "",
+        trackId: "",
         venue: "Kari Motor Speedway",
         city: "Coimbatore",
         status: "Entries open",
       },
       {
         round: "03",
-        dates: "13–15 November 2026",
+        start: "2026-11-13",
+        end: "2026-11-15",
+        dates: "",
+        trackId: "",
         venue: "Bren Raceway",
         city: "Bengaluru",
         status: "Entries open",
       },
       {
         round: "04",
-        dates: "11–13 December 2026",
+        start: "2026-12-11",
+        end: "2026-12-13",
+        dates: "",
+        trackId: "",
         venue: "Madras International Circuit",
         city: "Chennai",
         status: "Season finale",
@@ -495,6 +536,24 @@ function defaultVenueMap(name: string): string {
   return DEFAULT_INCRC_CONTENT.venues.items.find((v) => v.name.toLowerCase() === key)?.map ?? "";
 }
 
+/**
+ * A calendar date, or "".
+ *
+ * `YYYY-MM-DD` and nothing else — the shape `<input type="date">` produces and
+ * the only shape `roundStart` parses. Checked for real existence rather than
+ * merely matching the pattern, so "2026-02-31" is rejected instead of silently
+ * becoming the 3rd of March when a Date is built from it.
+ */
+function isoDate(value: unknown): string {
+  if (typeof value !== "string") return "";
+
+  const trimmed = value.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return "";
+
+  const date = new Date(`${trimmed}T00:00:00Z`);
+  return Number.isNaN(date.getTime()) || !date.toISOString().startsWith(trimmed) ? "" : trimmed;
+}
+
 function isSectionId(value: unknown): value is IncrcSectionId {
   return (INCRC_SECTION_IDS as readonly string[]).includes(value as string);
 }
@@ -633,7 +692,14 @@ export function normaliseIncrcContent(input: unknown): IncrcContent {
         MAX_ROUNDS,
         (entry) => ({
           round: optionalText(entry.round, 8),
+          start: isoDate(entry.start),
+          end: isoDate(entry.end),
           dates: optionalText(entry.dates),
+          // Not checked against the tracks table: this runs in the browser too,
+          // and a round pointing at a deleted circuit already falls back to the
+          // venue text. A dangling id costs nothing; a database round-trip in a
+          // normaliser costs a great deal.
+          trackId: optionalText(entry.trackId, 40),
           venue: optionalText(entry.venue),
           city: optionalText(entry.city),
           status: optionalText(entry.status, 40),

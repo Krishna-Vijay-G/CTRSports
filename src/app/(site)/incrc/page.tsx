@@ -3,6 +3,8 @@ import { SITE } from "@/config/site";
 import type { IncrcContent } from "@/lib/incrcContent";
 import type { LandingContent } from "@/lib/landingContent";
 import { getIncrcContentSafe, getLandingContentSafe } from "@/lib/server/contentRepo";
+import { listTracksSafe } from "@/lib/server/tracksRepo";
+import { findTrack } from "@/lib/tracks";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { IncrcSections } from "./_components/IncrcSections";
 import { IncrcTop } from "./_components/IncrcTop";
@@ -102,9 +104,10 @@ function sendHome(content: LandingContent): LandingContent {
 }
 
 export default async function IncrcPage() {
-  const [content, landing] = await Promise.all([
+  const [content, landing, tracks] = await Promise.all([
     getIncrcContentSafe(),
     getLandingContentSafe(),
+    listTracksSafe(),
   ]);
 
   const chrome = sendHome(landing);
@@ -130,15 +133,28 @@ export default async function IncrcPage() {
       name: venue.name,
       address: { "@type": "PostalAddress", addressLocality: venue.city, addressCountry: "IN" },
     })),
-    subEvent: content.calendar.rounds.map((round) => ({
-      "@type": "SportsEvent",
-      name: `${content.meta.short} Round ${round.round}`,
-      location: {
-        "@type": "Place",
-        name: round.venue,
-        address: { "@type": "PostalAddress", addressLocality: round.city, addressCountry: "IN" },
-      },
-    })),
+    // Now that rounds carry real dates, say so: a SportsEvent with a startDate
+    // is eligible for the dated event treatment in search results, and a bare
+    // one is not.
+    subEvent: content.calendar.rounds.map((round) => {
+      const track = findTrack(tracks, round.trackId);
+
+      return {
+        "@type": "SportsEvent",
+        name: `${content.meta.short} Round ${round.round}`,
+        ...(round.start ? { startDate: round.start } : {}),
+        ...(round.end || round.start ? { endDate: round.end || round.start } : {}),
+        location: {
+          "@type": "Place",
+          name: track?.name || round.venue,
+          address: {
+            "@type": "PostalAddress",
+            addressLocality: track?.location || round.city,
+            addressCountry: "IN",
+          },
+        },
+      };
+    }),
   };
 
   return (
@@ -155,7 +171,7 @@ export default async function IncrcPage() {
         <div className="mx-auto max-w-[1920px] overflow-hidden rounded-card bg-surface">
           <main id="main-content">
             <IncrcTop banners={content.banners} chrome={chrome} />
-            <IncrcSections content={content} />
+            <IncrcSections content={content} tracks={tracks} />
           </main>
 
           <SiteFooter content={chrome} year={new Date().getFullYear()} />

@@ -1,3 +1,4 @@
+import type { Track } from "@/lib/tracks";
 import type { IncrcContent, IncrcSectionId } from "@/lib/incrcContent";
 import { CalendarSection } from "./CalendarSection";
 import { FamilyBanner } from "./FamilyBanner";
@@ -25,21 +26,28 @@ import { VisionSection } from "./VisionSection";
  * `data-preview` is what the admin's preview pane scrolls to; it does nothing on
  * the live page.
  */
-export function IncrcSections({ content }: { content: IncrcContent }) {
+export function IncrcSections({
+  content,
+  tracks,
+}: {
+  content: IncrcContent;
+  /** The circuits the calendar's rounds point at. Empty simply drops the maps. */
+  tracks: Track[];
+}) {
   return (
     <>
       {content.sections
         .filter((entry) => entry.visible)
         .map((entry) => (
           <div key={entry.id} data-preview={entry.id}>
-            {section(entry.id, content)}
+            {section(entry.id, content, tracks)}
           </div>
         ))}
     </>
   );
 }
 
-function section(id: IncrcSectionId, content: IncrcContent): React.ReactNode {
+function section(id: IncrcSectionId, content: IncrcContent, tracks: Track[]): React.ReactNode {
   switch (id) {
     case "marquee":
       return <Marquee marquee={content.marquee} />;
@@ -54,7 +62,7 @@ function section(id: IncrcSectionId, content: IncrcContent): React.ReactNode {
     case "venues":
       return <VenuesSection venues={content.venues} />;
     case "calendar":
-      return <CalendarSection calendar={content.calendar} />;
+      return <CalendarSection calendar={content.calendar} tracks={tracks} />;
     case "partnership":
       return <PartnershipSection partnership={content.partnership} />;
     case "family":

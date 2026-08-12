@@ -1,4 +1,5 @@
 import { getIncrcContent, getLandingContent } from "@/lib/server/contentRepo";
+import { listTracks } from "@/lib/server/tracksRepo";
 import { IncrcEditor } from "@/admin/screens/incrc/IncrcEditor";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +16,18 @@ export const dynamic = "force-dynamic";
  * straight over the real content.
  */
 export default async function IncrcAdminPage() {
-  const [content, chrome] = await Promise.all([getIncrcContent(), getLandingContent()]);
+  const [content, chrome, tracks] = await Promise.all([
+    getIncrcContent(),
+    getLandingContent(),
+    listTracks(),
+  ]);
 
-  return <IncrcEditor initialContent={content} chrome={chrome} year={new Date().getFullYear()} />;
+  return (
+    <IncrcEditor
+      initialContent={content}
+      chrome={chrome}
+      tracks={tracks}
+      year={new Date().getFullYear()}
+    />
+  );
 }

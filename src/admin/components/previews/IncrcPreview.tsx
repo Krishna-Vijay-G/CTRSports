@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { IncrcContent } from "@/lib/incrcContent";
 import type { LandingContent } from "@/lib/landingContent";
+import type { Track } from "@/lib/tracks";
 import { cn } from "@/lib/utils";
 import { PreviewMode } from "@/components/ui/PreviewMode";
 import { SiteFooter } from "@/components/layout/SiteFooter";
@@ -30,6 +31,7 @@ const PREVIEW_WIDTH = 1440;
 export function IncrcPreview({
   content,
   chrome,
+  tracks,
   year,
   focus,
   bannerIndex,
@@ -37,6 +39,8 @@ export function IncrcPreview({
 }: {
   content: IncrcContent;
   chrome: LandingContent;
+  /** The circuits the calendar draws. Passed in, not fetched: this is a client component. */
+  tracks: Track[];
   year: number;
   focus?: string;
   bannerIndex?: number;
@@ -110,7 +114,7 @@ export function IncrcPreview({
                 chrome={chrome}
                 activeIndex={bannerIndex}
               />
-              <IncrcSections content={content} />
+              <IncrcSections content={content} tracks={tracks} />
               <SiteFooter content={chrome} year={year} />
             </div>
           </div>
