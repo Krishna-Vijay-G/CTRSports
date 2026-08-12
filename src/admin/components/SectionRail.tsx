@@ -48,6 +48,7 @@ export function SectionRail<Id extends string>({
   onSelect,
   onReorder,
   onToggleVisible,
+  heading = "Sections",
 }: {
   items: readonly RailItem<Id>[];
   active: Id;
@@ -55,6 +56,13 @@ export function SectionRail<Id extends string>({
   /** Moves `fromId` to the place `toId` currently holds. */
   onReorder?: (fromId: Id, toId: Id) => void;
   onToggleVisible?: (id: Id) => void;
+  /**
+   * What the rail is listing. Defaults to the sections of a page, because that
+   * is what every editor but one puts here — the circuits screen lists records
+   * instead, and calling those "Sections" would be a lie in the one place a
+   * label is meant to remove doubt.
+   */
+  heading?: string;
 }) {
   /** Tracked by id, not index: the list reorders under the pointer mid-drag. */
   const [dragging, setDragging] = useState<Id | null>(null);
@@ -79,11 +87,11 @@ export function SectionRail<Id extends string>({
 
   return (
     <nav
-      aria-label="Page sections"
+      aria-label={heading}
       className="flex gap-1 overflow-x-auto md:flex-col md:overflow-x-visible"
     >
       {collapsed ? null : (
-        <p className="hidden px-2 py-1 text-[11px] font-medium text-muted-fg md:block">Sections</p>
+        <p className="hidden px-2 py-1 text-[11px] font-medium text-muted-fg md:block">{heading}</p>
       )}
 
       {items.map((item) => {

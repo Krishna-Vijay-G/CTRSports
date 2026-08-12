@@ -27,6 +27,7 @@ export function EditorToolbar({
   error,
   onSave,
   onLoadDefaults,
+  actions,
   fieldsOpen,
   onToggleFields,
   className,
@@ -39,7 +40,10 @@ export function EditorToolbar({
   busy: boolean;
   error: string | null;
   onSave: () => void;
-  onLoadDefaults: () => void;
+  /** Omitted on screens with no built-in copy to fall back to — see below. */
+  onLoadDefaults?: () => void;
+  /** Screen-specific buttons, placed before Save. */
+  actions?: React.ReactNode;
   fieldsOpen: boolean;
   onToggleFields: () => void;
   className?: string;
@@ -62,15 +66,22 @@ export function EditorToolbar({
           <span className="shrink-0 text-[11px] text-muted-fg">Saved</span>
         ) : null}
 
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onLoadDefaults}
-          disabled={busy}
-          title="Refills every section with the built-in copy. Nothing is written until you Save."
-        >
-          Load defaults
-        </Button>
+        {actions}
+
+        {/* Only where there IS a set of defaults to fall back to. The circuits
+            are rows someone typed, not a document with built-in copy, so that
+            screen has nothing this button could honestly refill. */}
+        {onLoadDefaults ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onLoadDefaults}
+            disabled={busy}
+            title="Refills every section with the built-in copy. Nothing is written until you Save."
+          >
+            Load defaults
+          </Button>
+        ) : null}
 
         <Button onClick={onSave} disabled={busy} size="sm">
           {busy ? "Saving…" : "Save"}

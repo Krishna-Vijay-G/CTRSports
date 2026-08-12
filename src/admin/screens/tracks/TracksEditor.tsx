@@ -1,37 +1,41 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Round } from "@/lib/incrcContent";
 import type { LandingContent } from "@/lib/landingContent";
 import { BLANK_TRACK, type Track } from "@/lib/tracks";
 import { cn } from "@/lib/utils";
 import { Button } from "@/admin/ui/Button";
-import { MapIcon, PanelIcon, PlusIcon } from "@/admin/ui/icons";
-import { ErrorNote, Note } from "@/admin/components/Fields";
+import { MapIcon, PlusIcon } from "@/admin/ui/icons";
+import { AdminRailSlot } from "@/admin/components/AdminShell";
+import { EditorToolbar } from "@/admin/components/EditorToolbar";
+import { SectionRail, type RailItem } from "@/admin/components/SectionRail";
 import { CircuitPreview } from "@/admin/components/previews/CircuitPreview";
-import { TrackRow } from "./TrackRow";
+import { TrackForm } from "./TrackForm";
 
 /**
- * The circuits.
+ * The circuits, on the same three-column screen as every other editor.
  *
- * A screen of its own rather than a panel inside the INCRC editor, because a
- * circuit is not part of the INCRC page: it outlives the season, and the same
- * row is pointed at by every round that visits it. Editing it beside one page's
- * copy would suggest otherwise.
+ * Sidebar, preview, fields — in that order across the screen, which is what the
+ * landing and INCRC editors do, so nothing has to be relearned here. What
+ * changes is only what the sidebar lists: those screens put the sections of one
+ * page in it, and this puts the circuits themselves, because a circuit IS the
+ * unit of work on this screen. Picking one in the rail opens its record on the
+ * right and its page in the middle.
  *
- * Every row saves itself, the way sport cards do — there is no document here to
- * write whole, and a screen full of independent records should not have one Save
- * that writes all of them.
+ * That is also why the rail is draggable: the order of the rail is the order the
+ * circuits appear in on the public list. There is no separate "arrange" mode for
+ * the same reason there is no separate layout screen — the list you pick from
+ * and the list the site is built from are one list.
  *
- * Array position IS the display order; `sort_order` is only how it is stored.
- * Anything that moves a row reorders the array first and posts the id list
- * afterwards, so the screen never waits on the network.
- *
- * The preview beside the list is the real /circuits page drawn from the draft,
- * and it follows the open row: open one and it is that circuit's page, close it
- * and it is the index. It is the only way to check the one field here whose
- * value cannot be read as text — the outline path.
+ * Each circuit is its own record, so Save writes the open one and only the open
+ * one. Position is the exception: it belongs to the list rather than to any row,
+ * so a drag saves itself, debounced, without touching anything else.
  */
+
+/** A drag crosses several rows; wait for it to settle before writing. */
+const ORDER_SAVE_DELAY = 500;
+
 export function TracksEditor({
   initialTracks,
   chrome,
@@ -48,24 +52,46 @@ export function TracksEditor({
   const [tracks, setTracks] = useState<Track[]>(initialTracks);
   const [saved, setSaved] = useState<Track[]>(initialTracks);
 
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [dragId, setDragId] = useState<string | null>(null);
-  const [adding, setAdding] = useState(false);
+  const [activeId, setActiveId] = useState<string | null>(initialTracks[0]?.id ?? null);
+  const [fieldsOpen, setFieldsOpen] = useState(true);
+
+  const [busy, setBusy] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
-  /** Folds the list away and hands the whole width to the preview. */
-  const [listOpen, setListOpen] = useState(true);
+  const active = tracks.find((track) => track.id === activeId) ?? null;
+  const activeSaved = saved.find((track) => track.id === activeId) ?? null;
 
-  /** The order last written, so a no-op drag posts nothing. */
+  // Position is not compared: the list owns it and saves it on its own.
+  const dirty =
+    active && activeSaved
+      ? (Object.keys(active) as (keyof Track)[]).some(
+          (key) => key !== "sort_order" && active[key] !== activeSaved[key]
+        )
+      : false;
+
+  /* ─────────────────────────── Order ─────────────────────────── */
+
+  /** The order last written, so a drag that ends where it began posts nothing. */
   const savedOrder = useRef(initialTracks.map((track) => track.id).join(","));
+  const orderTimer = useRef<number | null>(null);
+  const pendingOrder = useRef<string[] | null>(null);
 
-  async function persistOrder(list: Track[]) {
-    const ids = list.map((track) => track.id);
+  // The one place a timer is cleared: a drag left in flight when the screen
+  // closes would otherwise fire against an unmounted component.
+  useEffect(() => {
+    return () => {
+      if (orderTimer.current !== null) window.clearTimeout(orderTimer.current);
+    };
+  }, []);
+
+  async function writeOrder(ids: string[]) {
     const key = ids.join(",");
     if (key === savedOrder.current) return;
 
-    // Optimistic: the list is already in the new order on screen. Only failure
-    // needs saying, and the old order is still in the database if so.
+    // Optimistic: the rail is already in the new order. Only failure needs
+    // saying, and the old order is still in the database if it comes to that.
     savedOrder.current = key;
     setError(null);
 
@@ -85,34 +111,72 @@ export function TracksEditor({
     }
   }
 
-  function move(id: string, delta: -1 | 1) {
-    const from = tracks.findIndex((track) => track.id === id);
-    const to = from + delta;
-    if (from < 0 || to < 0 || to >= tracks.length) return;
+  function queueOrder(list: Track[]) {
+    pendingOrder.current = list.map((track) => track.id);
 
-    const next = [...tracks];
-    const [moved] = next.splice(from, 1);
-    next.splice(to, 0, moved);
-
-    setTracks(next);
-    void persistOrder(next);
+    if (orderTimer.current !== null) window.clearTimeout(orderTimer.current);
+    orderTimer.current = window.setTimeout(() => {
+      orderTimer.current = null;
+      const ids = pendingOrder.current;
+      if (ids) void writeOrder(ids);
+    }, ORDER_SAVE_DELAY);
   }
 
-  function moveTo(id: string, targetId: string) {
-    if (id === targetId) return;
+  /** Moves `fromId` to the place `toId` currently holds. */
+  function reorder(fromId: string, toId: string) {
+    if (fromId === toId) return;
 
-    const from = tracks.findIndex((track) => track.id === id);
-    const to = tracks.findIndex((track) => track.id === targetId);
-    if (from < 0 || to < 0) return;
+    setTracks((current) => {
+      const from = current.findIndex((track) => track.id === fromId);
+      const to = current.findIndex((track) => track.id === toId);
+      if (from < 0 || to < 0) return current;
 
-    const next = [...tracks];
-    const [moved] = next.splice(from, 1);
-    next.splice(to, 0, moved);
-    setTracks(next);
+      const next = [...current];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+
+      queueOrder(next);
+      return next;
+    });
   }
 
-  async function add() {
-    setAdding(true);
+  /* ─────────────────────────── Writes ─────────────────────────── */
+
+  async function handleSave() {
+    if (!active) return;
+
+    setBusy(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/admin/tracks/${active.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(active),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        setError(data.error ?? "Could not save this circuit.");
+        return;
+      }
+
+      // The server has trimmed and cleaned every field — the outline path above
+      // all — so the draft is replaced with what actually landed.
+      const track = data.track as Track;
+      setTracks((current) => current.map((t) => (t.id === track.id ? track : t)));
+      setSaved((current) => current.map((t) => (t.id === track.id ? track : t)));
+      setJustSaved(true);
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleAdd() {
+    setBusy(true);
     setError(null);
 
     try {
@@ -129,7 +193,7 @@ export function TracksEditor({
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        setError(data.error ?? "Could not add the circuit.");
+        setError(data.error ?? "Could not add a circuit.");
         return;
       }
 
@@ -137,73 +201,102 @@ export function TracksEditor({
       setTracks((current) => [...current, track]);
       setSaved((current) => [...current, track]);
       savedOrder.current = [...tracks.map((t) => t.id), track.id].join(",");
-      setExpandedId(track.id);
+      setActiveId(track.id);
+      setJustSaved(false);
     } catch {
       setError("Network error. Please try again.");
     } finally {
-      setAdding(false);
+      setBusy(false);
     }
   }
 
-  function replace(next: Track) {
-    setTracks((current) => current.map((t) => (t.id === next.id ? next : t)));
+  async function handleDelete() {
+    if (!active) return;
+
+    setBusy(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/admin/tracks/${active.id}`, { method: "DELETE" });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        setError(data.error ?? "Could not delete this circuit.");
+        return;
+      }
+
+      const gone = active.id;
+      const remaining = tracks.filter((track) => track.id !== gone);
+
+      // Open a neighbour rather than nothing: an empty right-hand pane after a
+      // delete reads as a screen that has broken.
+      const position = tracks.findIndex((track) => track.id === gone);
+      setActiveId(remaining[Math.min(position, remaining.length - 1)]?.id ?? null);
+
+      setTracks(remaining);
+      setSaved((current) => current.filter((track) => track.id !== gone));
+      savedOrder.current = remaining.map((track) => track.id).join(",");
+      setConfirmingDelete(false);
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setBusy(false);
+    }
   }
 
-  function markSaved(next: Track) {
-    replace(next);
-    setSaved((current) => current.map((t) => (t.id === next.id ? next : t)));
+  function update(next: Track) {
+    setTracks((current) => current.map((track) => (track.id === next.id ? next : track)));
+    setJustSaved(false);
   }
 
-  function remove(id: string) {
-    setTracks((current) => current.filter((t) => t.id !== id));
-    setSaved((current) => current.filter((t) => t.id !== id));
-    savedOrder.current = tracks
-      .filter((t) => t.id !== id)
-      .map((t) => t.id)
-      .join(",");
-    if (expandedId === id) setExpandedId(null);
-  }
+  /* ─────────────────────────── Screen ─────────────────────────── */
 
-  /** What the preview is showing: the open circuit, or the index. */
-  const selected = tracks.find((track) => track.id === expandedId) ?? null;
+  const railItems: RailItem<string>[] = tracks.map((track, index) => ({
+    id: track.id,
+    short: track.name || "Untitled circuit",
+    title: `${String(index + 1).padStart(2, "0")} · ${track.name || "Untitled circuit"}`,
+    hint: track.location || "No location set",
+    // Present so the rail lets them be dragged. No `onToggleVisible` is passed,
+    // so no eye appears: a circuit is not something you switch off, it is
+    // something you delete.
+    visible: true,
+    Icon: MapIcon,
+  }));
 
   return (
     <div className="flex min-h-0 flex-col gap-2 md:h-full">
-      <div className="flex shrink-0 items-center gap-2.5 rounded-lg border border-border bg-card px-3 py-2">
-        <MapIcon className="size-5 shrink-0 text-muted-fg" />
+      <AdminRailSlot>
+        <SectionRail
+          heading="Circuits"
+          items={railItems}
+          active={activeId ?? ""}
+          onSelect={setActiveId}
+          onReorder={reorder}
+        />
+      </AdminRailSlot>
 
-        <div className="mr-auto min-w-0">
-          <h1 className="truncate text-[13px] font-medium tracking-tight text-foreground">
-            Circuits
-          </h1>
-          <p className="truncate text-[11px] text-muted-fg">
-            {selected
-              ? "Previewing this circuit’s page. Each row saves itself."
-              : "The tracks the championship runs on. The calendar points at these."}
-          </p>
-        </div>
-
-        <Button variant="outline" size="sm" onClick={add} disabled={adding}>
-          <PlusIcon />
-          {adding ? "Adding…" : "Add circuit"}
-        </Button>
-
-        <div className="hidden h-6 w-px bg-border lg:block" />
-
-        {/* Mirrored, so it reads as the pane on the right — the same handle
-            every other editor puts here. */}
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={() => setListOpen((open) => !open)}
-          aria-expanded={listOpen}
-          aria-label={listOpen ? "Hide the list" : "Show the list"}
-          title={listOpen ? "Hide the list" : "Show the list"}
-          className="hidden lg:flex"
-        >
-          <PanelIcon className="scale-x-[-1]" />
-        </Button>
-      </div>
+      <EditorToolbar
+        Icon={MapIcon}
+        title={active ? active.name || "Untitled circuit" : "Circuits"}
+        hint={
+          active
+            ? "Drag the sidebar to set the order circuits appear in."
+            : "No circuits yet — add the first one."
+        }
+        dirty={dirty}
+        justSaved={justSaved}
+        busy={busy}
+        error={error}
+        onSave={handleSave}
+        actions={
+          <Button variant="outline" size="sm" onClick={handleAdd} disabled={busy}>
+            <PlusIcon />
+            Add circuit
+          </Button>
+        }
+        fieldsOpen={fieldsOpen}
+        onToggleFields={() => setFieldsOpen((open) => !open)}
+      />
 
       <div className="flex min-h-0 flex-1 flex-col gap-2 lg:flex-row">
         {/*
@@ -213,7 +306,7 @@ export function TracksEditor({
         */}
         <CircuitPreview
           tracks={tracks}
-          track={selected}
+          track={active}
           chrome={chrome}
           rounds={rounds}
           year={year}
@@ -223,48 +316,45 @@ export function TracksEditor({
         <div
           className={cn(
             "min-w-0 flex-1 overflow-hidden rounded-lg border border-border bg-card md:overflow-y-auto",
-            listOpen ? "lg:w-[440px] lg:flex-none xl:w-[520px]" : "lg:hidden"
+            fieldsOpen ? "lg:w-[440px] lg:flex-none xl:w-[520px]" : "lg:hidden"
           )}
         >
           <div className="space-y-2.5 bg-background/40 p-3">
-            {error ? <ErrorNote>{error}</ErrorNote> : null}
-
-            {tracks.length === 0 ? (
-              <p className="rounded-md border border-dashed border-input px-4 py-10 text-center text-xs text-muted-fg">
-                No circuits yet.
-              </p>
+            {active ? (
+              confirmingDelete ? (
+                <div className="space-y-2.5 rounded-md border border-destructive/40 bg-destructive/10 p-3">
+                  <p className="text-xs leading-relaxed text-foreground">
+                    Delete <span className="font-medium">{active.name || "this circuit"}</span>?
+                    This cannot be undone.
+                  </p>
+                  <div className="flex gap-2">
+                    <Button variant="destructive" size="sm" onClick={handleDelete} disabled={busy}>
+                      {busy ? "Deleting…" : "Delete circuit"}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setConfirmingDelete(false)}
+                      disabled={busy}
+                    >
+                      Keep it
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <TrackForm
+                  track={active}
+                  onChange={update}
+                  onDelete={() => setConfirmingDelete(true)}
+                  busy={busy}
+                />
+              )
             ) : (
-              <ul className="space-y-1.5">
-                {tracks.map((track, index) => (
-                  <TrackRow
-                    key={track.id}
-                    track={track}
-                    saved={saved.find((t) => t.id === track.id) ?? track}
-                    onChange={replace}
-                    expanded={expandedId === track.id}
-                    onToggle={() => setExpandedId(expandedId === track.id ? null : track.id)}
-                    onSaved={markSaved}
-                    onDeleted={remove}
-                    onMove={(delta) => move(track.id, delta)}
-                    isFirst={index === 0}
-                    isLast={index === tracks.length - 1}
-                    dragging={dragId === track.id}
-                    onDragStart={() => setDragId(track.id)}
-                    onDragEnter={() => (dragId ? moveTo(dragId, track.id) : undefined)}
-                    onDragEnd={() => {
-                      setDragId(null);
-                      void persistOrder(tracks);
-                    }}
-                  />
-                ))}
-              </ul>
+              <p className="rounded-md border border-dashed border-input px-4 py-10 text-center text-xs text-muted-fg">
+                No circuits yet. Use <span className="text-foreground">Add circuit</span> above to
+                make the first one.
+              </p>
             )}
-
-            <Note>
-              Racers and teams are not here on purpose. The lap record holder and the car it was
-              set in belong to tables of their own, and this screen will point at them once those
-              exist.
-            </Note>
           </div>
         </div>
       </div>
