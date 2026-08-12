@@ -2,41 +2,56 @@ import Link from "next/link";
 import type { Round } from "@/lib/incrcContent";
 import { roundDateLabel } from "@/lib/raceDates";
 import { majorEventList, trackHref, type Track } from "@/lib/tracks";
+import { cn } from "@/lib/utils";
 import { Reveal } from "@/components/ui/Reveal";
-import { CircuitMap } from "./CircuitMap";
+import { CircuitGhost, CircuitMap } from "./CircuitMap";
 import { circuitFacts, leadFacts, splitFact, type Fact } from "./facts";
 
 /**
- * One circuit, drawn as a track overview rather than an article.
+ * One circuit, laid out as a collage of cards.
  *
- * The model is the screen a broadcast or a timing app puts up between sessions:
- * square corners, hairline rules, labels in small caps at wide tracking, and
- * values set as readouts — the number large, the unit small beside it. Nothing
- * is a rounded card, because the moment one thing is, the page stops looking
- * like an instrument and starts looking like a blog.
+ * Not an article with sections — a board of tiles, each one a single fact or a
+ * single picture, sized by how much it has to say. A circuit's record is a dozen
+ * unrelated things (a length, a licence grade, a lap record, a list of
+ * championships) and running them down a page as prose makes them look like a
+ * sequence when they are really a set. Tiles say "set".
  *
- * Three bands, in the order a reader wants them:
+ * The grid is twelve columns from `lg:` and one below it. Every tile names its
+ * own width, so adding a card later is one line and the board reflows around it.
+ * The readouts across the second row size themselves to how many there are —
+ * see `LEAD_SPANS` — so that row always fills rather than trailing off.
  *
- *   the masthead   the photograph, the name at display size, and a strip of the
- *                  three numbers that describe the lap set flush along the
- *                  bottom edge — the shape every motorsport circuit page uses.
- *   the overview   the summary and the whole record down a narrow left rail,
- *                  the layout given the rest of the width on a ruled ground.
- *                  The drawing is the reason the page exists, so it gets the
- *                  space, and the rail is read beside it rather than under it.
- *   the rest       championships, the weekends that visit, the official site —
- *                  one hairline grid, no boxes.
+ * Square corners, hairline borders, a short accent rule under every card's
+ * label. It is the same vocabulary the index uses; what changes here is only the
+ * arrangement.
  *
- * The header is passed in rather than imported, the same way the banner carousel
- * takes it: it is laid OVER the photograph, so it has to be inside this
- * component's positioned box, but which header — and whose links — is the page's
- * business, not this component's.
+ * The header is passed in rather than imported, because whose links it carries
+ * is the page's business. Unlike the index's hero it is NOT laid over anything —
+ * a collage has no full-bleed photograph to lay it on, so the page hands in the
+ * solid bar.
  *
  * `rounds` are the weekends the calendar sends here. They come from the INCRC
  * document while circuits come from their own table, so this component is given
- * them rather than reaching for them; a circuit nothing visits simply has no
- * calendar block.
+ * them rather than reaching for them; a circuit nothing visits has no calendar
+ * tile.
  */
+
+/**
+ * A placeholder until real machinery photography arrives — swap this one line
+ * for a transparent PNG and the tile is done. It is a local asset rather than a
+ * hotlink on purpose: a remote placeholder is a broken image on the day someone
+ * else's bucket changes.
+ */
+const CAR_IMAGE = "/images/incrc/cars-lineup.webp";
+
+/** How wide each readout tile is, by how many there are. Always fills twelve. */
+const LEAD_SPANS: Record<number, string> = {
+  1: "lg:col-span-12",
+  2: "lg:col-span-6",
+  3: "lg:col-span-4",
+  4: "lg:col-span-3",
+};
+
 export function CircuitDetail({
   track,
   tracks,
@@ -44,7 +59,7 @@ export function CircuitDetail({
   header,
 }: {
   track: Track;
-  /** The whole list, in running order — for the position and the prev/next feet. */
+  /** The whole list, in running order — for the position and the prev/next tiles. */
   tracks: Track[];
   rounds?: Round[];
   header?: React.ReactNode;
@@ -59,139 +74,83 @@ export function CircuitDetail({
   const following = index >= 0 && index < tracks.length - 1 ? tracks[index + 1] : undefined;
   const number = index >= 0 ? String(index + 1).padStart(2, "0") : "";
 
+  const leadSpan = LEAD_SPANS[leads.length] ?? "lg:col-span-3";
+
   return (
     <>
-      {/* ─────────────────────────── Masthead ─────────────────────────── */}
-      <header className="relative isolate overflow-hidden border-b border-line">
-        {track.photo_url ? (
-          <>
-            <img
-              src={track.photo_url}
-              alt=""
-              aria-hidden
-              className="absolute inset-0 -z-20 h-full w-full object-cover"
-            />
-            {/* Two washes, not one. The vertical lifts the copy off the photo;
-                the horizontal keeps the left side dark on a wide screen, where
-                the type sits over the brightest part of most track photographs. */}
-            <span
-              aria-hidden
-              className="absolute inset-0 -z-10 bg-gradient-to-t from-black via-black/85 to-black/50"
-            />
-            <span
-              aria-hidden
-              className="absolute inset-0 -z-10 hidden bg-gradient-to-r from-black/95 via-black/45 to-transparent lg:block"
-            />
-          </>
-        ) : (
-          <span aria-hidden className="absolute inset-0 -z-10 bg-panel" />
-        )}
+      {header}
 
-        {/* The one flourish on the page: a hatch in the top corner, the motif
-            every racing livery and every timing screen carries. */}
-        <span
-          aria-hidden
-          className="absolute right-0 top-0 -z-10 hidden h-40 w-64 opacity-40 md:block"
-          style={{
-            backgroundImage:
-              "repeating-linear-gradient(115deg, #f7d619 0 3px, transparent 3px 16px)",
-            maskImage: "linear-gradient(225deg, #000, transparent 70%)",
-            WebkitMaskImage: "linear-gradient(225deg, #000, transparent 70%)",
-          }}
-        />
-
-        {header}
-
-        {/* The top padding clears the header laid over it. Below md: the nav
-            wraps onto a second row, so the header is taller there than it is on
-            a wide screen — hence the larger value at the small end. */}
-        <div className="shell relative pb-10 pt-36 md:pt-32 lg:pb-14 lg:pt-40">
+      <div className="shell py-6 lg:py-10">
+        <Reveal className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
           <Link
             href="/circuits"
-            className="inline-flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.28em] text-white/50 transition hover:text-accent"
+            className="inline-flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.28em] text-fg-faint transition hover:text-accent"
           >
             <span aria-hidden>&larr;</span>
             All circuits
           </Link>
 
-          <span className="mt-7 flex items-center gap-3">
+          <span className="flex items-center gap-3">
             <span aria-hidden className="h-px w-10 bg-accent" />
-            <span className="text-[10px] font-semibold uppercase tracking-[0.32em] text-white/55">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.32em] text-fg-faint">
               {number ? `Circuit ${number} · ` : ""}Track overview
             </span>
           </span>
+        </Reveal>
 
-          <h1 className="mt-4 max-w-5xl font-display text-[clamp(2.1rem,6.5vw,4.75rem)] font-extrabold uppercase leading-[0.92] tracking-[-0.02em] text-white">
-            {track.name}
-          </h1>
-
-          <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-2">
-            {track.location ? (
-              <span className="text-sm font-medium text-white/70">{track.location}</span>
+        <div className="mt-5 grid grid-cols-12 gap-3">
+          {/* ─────────────────────────── Identity ─────────────────────────── */}
+          <Tile
+            delay={0}
+            className="col-span-12 min-h-[19rem] justify-end overflow-hidden lg:col-span-7 lg:min-h-[23rem]"
+          >
+            {track.photo_url ? (
+              <>
+                <img
+                  src={track.photo_url}
+                  alt=""
+                  aria-hidden
+                  className="absolute inset-0 -z-20 h-full w-full object-cover"
+                />
+                <span
+                  aria-hidden
+                  className="absolute inset-0 -z-10 bg-gradient-to-t from-black via-black/80 to-black/35"
+                />
+              </>
             ) : null}
-            {track.fia_grade ? <Chip>FIA Grade {track.fia_grade}</Chip> : null}
-            {track.direction ? <Chip>{track.direction}</Chip> : null}
-            {track.opened ? <Chip>Opened {track.opened}</Chip> : null}
-          </div>
-        </div>
 
-        {/* Flush along the bottom edge, over the photograph — the strip every
-            circuit page in the sport puts there. */}
-        {leads.length > 0 ? (
-          <dl className="relative border-t border-white/15 bg-black/55 backdrop-blur-sm">
-            <div className="shell flex flex-wrap">
-              {leads.map((fact) => (
-                <div
-                  key={fact.label}
-                  className="min-w-[9rem] flex-1 border-white/10 py-5 pr-6 [&+&]:border-l [&+&]:pl-6"
-                >
-                  <dt className="text-[10px] font-semibold uppercase tracking-[0.24em] text-white/45">
-                    {fact.label}
-                  </dt>
-                  <dd className="mt-2">
-                    <Readout fact={fact} tone="light" />
-                  </dd>
-                </div>
-              ))}
+            {/* The one flourish on the page: the hatch every racing livery and
+                every timing screen carries. */}
+            <span
+              aria-hidden
+              className="absolute right-0 top-0 -z-10 hidden h-32 w-52 opacity-40 sm:block"
+              style={{
+                backgroundImage:
+                  "repeating-linear-gradient(115deg, #f7d619 0 3px, transparent 3px 16px)",
+                maskImage: "linear-gradient(225deg, #000, transparent 70%)",
+                WebkitMaskImage: "linear-gradient(225deg, #000, transparent 70%)",
+              }}
+            />
+
+            <h1 className="font-display text-[clamp(1.9rem,5vw,3.5rem)] font-extrabold uppercase leading-[0.94] tracking-[-0.02em] text-white">
+              {track.name}
+            </h1>
+
+            <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
+              {track.location ? (
+                <span className="text-sm font-medium text-white/70">{track.location}</span>
+              ) : null}
+              {track.fia_grade ? <Chip>FIA Grade {track.fia_grade}</Chip> : null}
+              {track.direction ? <Chip>{track.direction}</Chip> : null}
+              {track.opened ? <Chip>Opened {track.opened}</Chip> : null}
             </div>
-          </dl>
-        ) : null}
-      </header>
+          </Tile>
 
-      {/* ─────────────────────────── Overview ─────────────────────────── */}
-      <section className="shell py-10 lg:py-14">
-        <div className="grid border border-line lg:grid-cols-[minmax(0,20rem)_1fr]">
-          {/* The rail. */}
-          <div className="border-b border-line p-6 lg:border-b-0 lg:border-r lg:p-7">
-            {track.note ? (
-              <Reveal>
-                <h2 className="text-[10px] font-semibold uppercase tracking-[0.3em] text-accent">
-                  Track summary
-                </h2>
-                <p className="mt-4 text-sm leading-relaxed text-fg-muted">{track.note}</p>
-              </Reveal>
-            ) : null}
-
-            {facts.length > 0 ? (
-              <Reveal delay={0.06}>
-                <dl className={track.note ? "mt-8 space-y-6" : "space-y-6"}>
-                  {facts.map((fact) => (
-                    <div key={fact.label}>
-                      <dt className="text-[10px] font-semibold uppercase tracking-[0.24em] text-fg-faint">
-                        {fact.label}
-                      </dt>
-                      <dd className="mt-1.5">
-                        <Readout fact={fact} tone="dark" />
-                      </dd>
-                    </div>
-                  ))}
-                </dl>
-              </Reveal>
-            ) : null}
-          </div>
-
-          {/* The drawing. */}
-          <div className="relative flex min-h-[22rem] items-center justify-center bg-black/40 p-8 lg:min-h-[34rem] lg:p-14">
+          {/* ──────────────────────────── Layout ──────────────────────────── */}
+          <Tile
+            delay={0.05}
+            className="col-span-12 min-h-[19rem] items-center justify-center overflow-hidden bg-black/40 p-6 sm:p-8 lg:col-span-5 lg:min-h-[23rem]"
+          >
             <span
               aria-hidden
               className="absolute inset-0 opacity-[0.07]"
@@ -202,121 +161,184 @@ export function CircuitDetail({
               }}
             />
 
-            {/* Corner ticks — the frame an instrument draws around a readout. */}
             <Ticks />
 
-            <span className="absolute left-6 top-5 text-[10px] font-semibold uppercase tracking-[0.3em] text-fg-faint">
+            <span className="absolute left-5 top-4 text-[10px] font-semibold uppercase tracking-[0.3em] text-fg-faint">
               Circuit layout
             </span>
 
             <CircuitMap
               track={track}
               strokeWidth={5}
-              className="relative h-full max-h-[30rem] w-full text-accent"
+              className="relative h-full max-h-[19rem] w-full text-accent"
             />
 
             {track.length ? (
-              <span className="absolute bottom-5 right-6 font-display text-[11px] font-bold uppercase tracking-[0.2em] text-fg-muted">
+              <span className="absolute bottom-4 right-5 font-display text-[11px] font-bold uppercase tracking-[0.2em] text-fg-muted">
                 {track.length}
               </span>
             ) : null}
-          </div>
-        </div>
-      </section>
+          </Tile>
 
-      {/* ───────────────────────────── The rest ───────────────────────── */}
-      {events.length > 0 || visits.length > 0 || track.website ? (
-        <section className="shell pb-12 lg:pb-16">
-          {/* Two columns only when there are two things to put in them. The
-              hairlines here are the grid's own gap showing the ground through,
-              so an unfilled cell would not be empty — it would be a solid block
-              of the line colour where a panel should be. */}
-          <div
-            className={`grid gap-px border border-line bg-line ${
-              visits.length > 0 && track.website ? "md:grid-cols-2" : ""
-            }`}
-          >
-            {events.length > 0 ? (
-              <Block title="Championships hosted" className="md:col-span-full">
-                <ul className="flex flex-wrap gap-2">
-                  {events.map((event) => (
-                    <li
-                      key={event}
-                      className="border border-line px-3.5 py-1.5 text-[13px] font-medium text-fg-muted"
-                    >
-                      {event}
-                    </li>
-                  ))}
-                </ul>
-              </Block>
-            ) : null}
+          {/* ─────────────────────────── Readouts ─────────────────────────── */}
+          {leads.map((fact, position) => (
+            <Tile
+              key={fact.label}
+              delay={0.08 + position * 0.04}
+              className={`col-span-6 ${leadSpan}`}
+            >
+              <CardLabel>{fact.label}</CardLabel>
+              <Readout fact={fact} tone="dark" size="large" />
+            </Tile>
+          ))}
 
-            {visits.length > 0 ? (
-              <Block title="On the calendar">
-                <ul className="divide-y divide-line">
-                  {visits.map((round, position) => (
-                    <li
-                      key={`${round.round}-${position}`}
-                      className="flex items-center gap-4 py-3 first:pt-0 last:pb-0"
-                    >
-                      <span className="font-display text-xl font-extrabold leading-none text-accent">
-                        {round.round}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-semibold text-fg">
-                          {roundDateLabel(round) || "Date to be confirmed"}
-                        </span>
-                        {round.status ? (
-                          <span className="block truncate text-[13px] text-fg-faint">
-                            {round.status}
-                          </span>
-                        ) : null}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+          {/* ─────────────────────────── The record ───────────────────────── */}
+          {track.note ? (
+            <Tile delay={0.1} className="col-span-12 lg:col-span-4">
+              <CardLabel>Track summary</CardLabel>
+              <p className="text-sm leading-relaxed text-fg-muted">{track.note}</p>
+            </Tile>
+          ) : null}
 
-                <Link
-                  href="/incrc#calendar"
-                  className="mt-4 inline-flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.26em] text-accent transition hover:text-fg"
-                >
-                  The full season
-                  <span aria-hidden>&rarr;</span>
-                </Link>
-              </Block>
-            ) : null}
-
-            {track.website ? (
-              <Block title="Official site">
-                <a
-                  href={track.website}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  className="group inline-flex items-center gap-3 font-display text-lg font-bold text-fg transition-colors hover:text-accent"
-                >
-                  {displayHost(track.website)}
-                  <span
-                    aria-hidden
-                    className="transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
+          {facts.length > 0 ? (
+            <Tile delay={0.12} className="col-span-12 lg:col-span-4">
+              <CardLabel>The record</CardLabel>
+              <dl className="divide-y divide-line">
+                {facts.map((fact) => (
+                  <div
+                    key={fact.label}
+                    className="flex items-baseline justify-between gap-5 py-2.5 first:pt-0 last:pb-0"
                   >
-                    &nearr;
-                  </span>
-                </a>
-              </Block>
-            ) : null}
-          </div>
-        </section>
-      ) : null}
+                    <dt className="shrink-0 text-[13px] text-fg-faint">{fact.label}</dt>
+                    <dd className="text-right text-[13px] font-semibold text-fg">{fact.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </Tile>
+          ) : null}
 
-      {/* ───────────────────────── Along the row ──────────────────────── */}
-      {previous || following ? (
-        <nav aria-label="Other circuits" className="shell pb-16 sm:pb-20">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <NeighbourLink track={previous} direction="previous" />
-            <NeighbourLink track={following} direction="next" />
-          </div>
-        </nav>
-      ) : null}
+          {/* ────────────────────────── Machinery ─────────────────────────── */}
+          <Tile
+            delay={0.14}
+            className="col-span-12 min-h-[13rem] justify-between overflow-hidden lg:col-span-4"
+          >
+            <CardLabel>Machinery</CardLabel>
+
+            <img
+              src={CAR_IMAGE}
+              alt=""
+              aria-hidden
+              loading="lazy"
+              className="pointer-events-none absolute -bottom-2 right-0 w-[78%] max-w-[22rem] object-contain opacity-90"
+              style={{
+                maskImage: "linear-gradient(to top left, #000 45%, transparent 92%)",
+                WebkitMaskImage: "linear-gradient(to top left, #000 45%, transparent 92%)",
+              }}
+            />
+
+            <div className="relative">
+              <p className="max-w-[10rem] text-sm leading-relaxed text-fg-muted">
+                The cars that run here.
+              </p>
+              <Link
+                href="/incrc#grid"
+                className="group mt-4 inline-flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.26em] text-accent transition hover:text-fg"
+              >
+                See the grid
+                <span
+                  aria-hidden
+                  className="transition-transform duration-300 group-hover:translate-x-1"
+                >
+                  &rarr;
+                </span>
+              </Link>
+            </div>
+          </Tile>
+
+          {/* ───────────────────── Championships & season ─────────────────── */}
+          {events.length > 0 ? (
+            <Tile delay={0.16} className={cn("col-span-12", visits.length > 0 && "lg:col-span-7")}>
+              <CardLabel>Championships hosted</CardLabel>
+              <ul className="flex flex-wrap gap-2">
+                {events.map((event) => (
+                  <li
+                    key={event}
+                    className="border border-line px-3.5 py-1.5 text-[13px] font-medium text-fg-muted"
+                  >
+                    {event}
+                  </li>
+                ))}
+              </ul>
+            </Tile>
+          ) : null}
+
+          {visits.length > 0 ? (
+            <Tile delay={0.18} className={cn("col-span-12", events.length > 0 && "lg:col-span-5")}>
+              <CardLabel>On the calendar</CardLabel>
+
+              <ul className="divide-y divide-line">
+                {visits.map((round, position) => (
+                  <li
+                    key={`${round.round}-${position}`}
+                    className="flex items-center gap-4 py-2.5 first:pt-0"
+                  >
+                    <span className="font-display text-xl font-extrabold leading-none text-accent">
+                      {round.round}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold text-fg">
+                        {roundDateLabel(round) || "Date to be confirmed"}
+                      </span>
+                      {round.status ? (
+                        <span className="block truncate text-[13px] text-fg-faint">
+                          {round.status}
+                        </span>
+                      ) : null}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+
+              <Link
+                href="/incrc#calendar"
+                className="group mt-4 inline-flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.26em] text-accent transition hover:text-fg"
+              >
+                The full season
+                <span
+                  aria-hidden
+                  className="transition-transform duration-300 group-hover:translate-x-1"
+                >
+                  &rarr;
+                </span>
+              </Link>
+            </Tile>
+          ) : null}
+
+          {/* ──────────────────── Official site & neighbours ──────────────── */}
+          {track.website ? (
+            <Tile delay={0.2} className="col-span-12 sm:col-span-6 lg:col-span-4">
+              <CardLabel>Official site</CardLabel>
+              <a
+                href={track.website}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="group inline-flex items-center gap-3 font-display text-lg font-bold text-fg transition-colors hover:text-accent"
+              >
+                {displayHost(track.website)}
+                <span
+                  aria-hidden
+                  className="transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
+                >
+                  &nearr;
+                </span>
+              </a>
+            </Tile>
+          ) : null}
+
+          <NeighbourTile track={previous} direction="previous" delay={0.22} />
+          <NeighbourTile track={following} direction="next" delay={0.24} />
+        </div>
+      </div>
     </>
   );
 }
@@ -324,26 +346,75 @@ export function CircuitDetail({
 /* ───────────────────────────── The parts ───────────────────────────── */
 
 /**
+ * One card of the collage.
+ *
+ * `relative isolate` on every one of them, without exception: half these tiles
+ * put a photograph, a hatch or a masked car behind their own type, and isolating
+ * each keeps that from reaching a neighbour.
+ */
+function Tile({
+  className,
+  delay,
+  children,
+}: {
+  className?: string;
+  delay?: number;
+  children: React.ReactNode;
+}) {
+  return (
+    <Reveal delay={delay} className={cn("flex", className)}>
+      <div className="relative isolate flex w-full flex-col overflow-hidden border border-line bg-panel p-5 sm:p-6">
+        {children}
+      </div>
+    </Reveal>
+  );
+}
+
+/** A tile's name, with the short accent rule that marks the top of every card. */
+function CardLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="relative mb-4 block">
+      <span className="block text-[10px] font-semibold uppercase tracking-[0.3em] text-fg-faint">
+        {children}
+      </span>
+      <span aria-hidden className="mt-2.5 block h-px w-9 bg-accent" />
+    </span>
+  );
+}
+
+/**
  * A value set as an instrument sets it: the number large, whatever follows it
  * small alongside. Words come back at prose size — see `splitFact`.
  */
-function Readout({ fact, tone }: { fact: Fact; tone: "light" | "dark" }) {
+function Readout({
+  fact,
+  tone,
+  size = "small",
+}: {
+  fact: Fact;
+  tone: "light" | "dark";
+  size?: "small" | "large";
+}) {
   const { head, tail, numeric } = splitFact(fact);
   const strong = tone === "light" ? "text-white" : "text-fg";
   const weak = tone === "light" ? "text-white/50" : "text-fg-faint";
 
   if (!numeric) {
-    return <span className={`text-sm font-semibold leading-snug ${strong}`}>{head}</span>;
+    return <span className={cn("text-sm font-semibold leading-snug", strong)}>{head}</span>;
   }
 
   return (
-    <span className="flex flex-wrap items-baseline gap-x-2">
+    <span className="relative flex flex-wrap items-baseline gap-x-2">
       <span
-        className={`font-display text-[1.75rem] font-extrabold leading-none tracking-[-0.02em] ${strong}`}
+        className={cn(
+          "font-display font-extrabold leading-none tracking-[-0.02em]",
+          size === "large" ? "text-[clamp(1.6rem,3vw,2.35rem)]" : "text-[1.75rem]",
+          strong
+        )}
       >
         {head}
       </span>
-      {tail ? <span className={`text-xs font-medium ${weak}`}>{tail}</span> : null}
+      {tail ? <span className={cn("text-xs font-medium", weak)}>{tail}</span> : null}
     </span>
   );
 }
@@ -353,26 +424,6 @@ function Chip({ children }: { children: React.ReactNode }) {
     <span className="border border-white/25 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/70">
       {children}
     </span>
-  );
-}
-
-/** One cell of the hairline grid. The grid's own gap-px draws the rules. */
-function Block({
-  title,
-  className,
-  children,
-}: {
-  title: string;
-  className?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className={`bg-panel p-6 lg:p-7 ${className ?? ""}`}>
-      <h2 className="text-[10px] font-semibold uppercase tracking-[0.3em] text-fg-faint">
-        {title}
-      </h2>
-      <div className="mt-4">{children}</div>
-    </section>
   );
 }
 
@@ -391,7 +442,7 @@ function Ticks() {
         <span
           key={position}
           aria-hidden
-          className={`pointer-events-none absolute size-4 border-accent/40 ${position}`}
+          className={cn("pointer-events-none absolute size-4 border-accent/40", position)}
         />
       ))}
     </>
@@ -399,43 +450,53 @@ function Ticks() {
 }
 
 /**
- * One end of the row. Renders an empty cell rather than nothing when there is no
- * neighbour, so the circuit at either end does not have its one link stretch to
- * the full width and read as a different control.
+ * One end of the row, as a tile.
+ *
+ * Renders nothing at all when there is no neighbour — unlike the old two-up
+ * row, a collage has no pair to keep balanced, so an empty cell would just be a
+ * hole in the board.
  */
-function NeighbourLink({
+function NeighbourTile({
   track,
   direction,
+  delay,
 }: {
   track: Track | undefined;
   direction: "previous" | "next";
+  delay?: number;
 }) {
-  if (!track) return <span aria-hidden className="hidden sm:block" />;
+  if (!track) return null;
 
   const isNext = direction === "next";
 
   return (
-    <Link
-      href={trackHref(track)}
-      className="group flex items-center gap-5 border border-line bg-panel p-4 transition-colors hover:border-accent/60"
-    >
-      <span
-        className={`flex h-14 w-20 shrink-0 items-center justify-center overflow-hidden bg-black/50 p-2 text-accent ${
-          isNext ? "order-2" : ""
-        }`}
+    <Reveal delay={delay} className="col-span-12 flex sm:col-span-6 lg:col-span-4">
+      <Link
+        href={trackHref(track)}
+        className="group relative isolate flex w-full items-center gap-5 overflow-hidden border border-line bg-panel p-5 transition-colors hover:border-accent/60 sm:p-6"
       >
-        <CircuitMap track={track} strokeWidth={8} className="h-full w-full" />
-      </span>
+        <CircuitGhost
+          track={track}
+          className="-bottom-6 -right-6 -z-10 h-32 w-44 text-accent opacity-[0.16] transition-opacity duration-500 group-hover:opacity-30"
+        />
 
-      <span className={`min-w-0 flex-1 ${isNext ? "order-1 text-right" : ""}`}>
-        <span className="block text-[10px] font-semibold uppercase tracking-[0.26em] text-fg-faint">
-          {isNext ? "Next circuit" : "Previous circuit"}
+        <span className="min-w-0 flex-1">
+          <span className="block text-[10px] font-semibold uppercase tracking-[0.26em] text-fg-faint">
+            {isNext ? "Next circuit" : "Previous circuit"}
+          </span>
+          <span className="mt-2 block truncate font-display text-base font-bold uppercase text-fg transition-colors group-hover:text-accent">
+            {track.name}
+          </span>
         </span>
-        <span className="mt-1.5 block truncate font-display text-base font-bold uppercase text-fg transition-colors group-hover:text-accent">
-          {track.name}
+
+        <span
+          aria-hidden
+          className="shrink-0 text-accent transition-transform duration-300 group-hover:translate-x-1"
+        >
+          &rarr;
         </span>
-      </span>
-    </Link>
+      </Link>
+    </Reveal>
   );
 }
 

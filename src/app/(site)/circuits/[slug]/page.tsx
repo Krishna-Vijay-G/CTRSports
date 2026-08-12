@@ -130,9 +130,14 @@ export default async function CircuitPage({ params }: Params) {
               track={track}
               tracks={tracks}
               rounds={incrc.calendar.rounds}
-              // Laid over the hero photograph, so it is handed to the component
-              // rather than rendered beside it.
-              header={<SiteHeader content={chrome} />}
+              // A collage has no full-bleed photograph to lay a header over, so
+              // this is the solid bar in the flow — the same one /circuits uses.
+              header={
+                <SiteHeader
+                  content={chrome}
+                  className="relative z-20 border-b border-line bg-surface"
+                />
+              }
             />
           </main>
 

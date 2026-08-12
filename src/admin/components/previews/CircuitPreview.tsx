@@ -104,7 +104,12 @@ export function CircuitPreview({
                   track={track}
                   tracks={tracks}
                   rounds={rounds}
-                  header={<SiteHeader content={chrome} />}
+                  header={
+                    <SiteHeader
+                      content={chrome}
+                      className="relative z-20 border-b border-line bg-surface"
+                    />
+                  }
                 />
               ) : (
                 <>
