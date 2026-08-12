@@ -13,6 +13,13 @@
  * import `server-only`.
  */
 
+/** One entry in a circuit's related links. Order is the order on the page. */
+export type TrackLink = {
+  /** What the link says. Falls back to the bare host when left blank. */
+  label: string;
+  href: string;
+};
+
 export type Track = {
   id: string;
   /** "Kari Motor Speedway". */
@@ -53,7 +60,14 @@ export type Track = {
   /** "13°0′9″N 79°59′9″E". Text, because that is how a circuit quotes them. */
   coordinates: string;
   capacity: string;
-  website: string;
+  /**
+   * Anywhere worth sending a reader next: the circuit's own site, its entry
+   * list, a lap record video, a map. Free-form, ordered, and edited as a list —
+   * which is why it is JSONB and not a column per link. A schema that names its
+   * links (`website`, `tickets`, `instagram`) has to be migrated every time
+   * somebody wants a different kind.
+   */
+  links: TrackLink[];
   /** The championships it hosts, one per line. */
   major_events: string;
   /** How many races have been run here. A real count, so it can be summed. */
@@ -91,12 +105,16 @@ export const TRACK_LIMITS = {
   fia_grade: 20,
   coordinates: 80,
   capacity: 60,
-  website: 300,
+  link_label: 60,
+  link_href: 300,
   major_events: 600,
   lap_record_time: 40,
   lap_record_year: 20,
   note: 300,
 } as const;
+
+/** More than a handful stops being "related" and starts being a directory. */
+export const TRACK_MAX_LINKS = 6;
 
 /** The coordinate space a hand-drawn outline is assumed to use. */
 export const DEFAULT_VIEW_BOX = "0 0 400 260";
@@ -119,7 +137,7 @@ export const BLANK_TRACK: Omit<Track, "id"> = {
   fia_grade: "",
   coordinates: "",
   capacity: "",
-  website: "",
+  links: [],
   major_events: "",
   races_held: 0,
   lap_record_time: "",
@@ -182,7 +200,7 @@ export const SEED_TRACKS: Omit<Track, "id">[] = [
     owner: "Madras Motor Sports Club",
     fia_grade: "2",
     coordinates: "13°0′9″N 79°59′9″E",
-    website: "https://en.madrasmotorsports.com",
+    links: [{ label: "Official site", href: "https://en.madrasmotorsports.com" }],
     major_events: [
       "MRF Formula 2000",
       "Indian Racing League",
@@ -237,7 +255,7 @@ export function normaliseTrackInput(input: unknown): Omit<Track, "id"> {
     fia_grade: str(record.fia_grade, TRACK_LIMITS.fia_grade),
     coordinates: str(record.coordinates, TRACK_LIMITS.coordinates),
     capacity: str(record.capacity, TRACK_LIMITS.capacity),
-    website: normaliseTrackMap(record.website),
+    links: normaliseTrackLinks(record.links),
     major_events: str(record.major_events, TRACK_LIMITS.major_events),
     races_held: Number.isFinite(races) ? Math.max(0, Math.trunc(races)) : 0,
     lap_record_time: str(record.lap_record_time, TRACK_LIMITS.lap_record_time),
@@ -267,6 +285,85 @@ export function normaliseSvgPath(value: unknown): string {
 
   // A path that does not begin with a move is not a path.
   return /^[Mm]/.test(cleaned) ? cleaned : "";
+}
+
+/**
+ * The related links, cleaned.
+ *
+ * A link with no destination is not a link, so those are dropped rather than
+ * stored empty — which also means the admin can leave a half-typed row lying
+ * around without it reaching the page. A link with a destination but no label
+ * gets the bare host as its label, so the page always has something to print.
+ */
+export function normaliseTrackLinks(value: unknown): TrackLink[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((entry) => {
+      const record = (typeof entry === "object" && entry !== null ? entry : {}) as Record<
+        string,
+        unknown
+      >;
+
+      const href = normaliseLinkHref(record.href);
+      const label =
+        typeof record.label === "string" ? record.label.trim().slice(0, TRACK_LIMITS.link_label) : "";
+
+      return { label: label || hostOf(href), href };
+    })
+    .filter((link) => link.href !== "")
+    .slice(0, TRACK_MAX_LINKS);
+}
+
+/**
+ * One link's address, cleaned — and given a scheme if it is missing one.
+ *
+ * People type `kari.com`. Before this, that was thrown away on save: the URL
+ * parser rejects a bare host, the link was dropped, and the save still returned
+ * 200 — so the row simply disappeared with nothing said. Silent data loss for
+ * the most natural thing anyone could type.
+ *
+ * So a value that looks like a host gets `https://` put in front of it. What it
+ * does NOT do is loosen what is accepted afterwards: the result still goes
+ * through the same http(s)-or-/path check, so `javascript:` and friends are
+ * rejected exactly as before — they already carry a scheme and are never
+ * touched by the line below.
+ */
+export function normaliseLinkHref(value: unknown): string {
+  if (typeof value !== "string") return "";
+
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+
+  const hasScheme = /^[a-z][\w+.-]*:/i.test(trimmed);
+  const isPath = trimmed.startsWith("/");
+  // A dot with something either side of it, and no space: that is a hostname.
+  const looksLikeHost = /^[^\s/]+\.[^\s/]{2,}/.test(trimmed);
+
+  const addressed = !hasScheme && !isPath && looksLikeHost ? `https://${trimmed}` : trimmed;
+
+  return normaliseTrackMap(addressed);
+}
+
+/**
+ * Will this address survive a save?
+ *
+ * Exported so the admin can say so while it is being typed rather than letting
+ * the row vanish afterwards. Same function the server uses, so the two can never
+ * disagree about what is acceptable.
+ */
+export function isUsableHref(value: string): boolean {
+  return normaliseLinkHref(value) !== "";
+}
+
+/** "madrasmotorsports.com" — the bare host, without the scheme or a leading www. */
+export function hostOf(url: string): string {
+  try {
+    return new URL(url).host.replace(/^www\./, "");
+  } catch {
+    // A /public path has no host. Its own path is the most useful thing to say.
+    return url;
+  }
 }
 
 /** A /public path or an http(s) URL. Anything else becomes no map at all. */

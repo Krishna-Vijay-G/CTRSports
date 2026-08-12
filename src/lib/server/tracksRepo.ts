@@ -16,7 +16,7 @@ export async function listTracks(): Promise<Track[]> {
   const rows = (await sql`
     SELECT id, name, location, photo_url, map_url, svg_path, svg_view_box,
            length, turns, direction, opened, broke_ground, former_names, owner,
-           fia_grade, coordinates, capacity, website, major_events, races_held,
+           fia_grade, coordinates, capacity, links, major_events, races_held,
            lap_record_time, lap_record_year, note, sort_order
       FROM ctr_tracks
      ORDER BY sort_order ASC, name ASC
@@ -49,19 +49,19 @@ export async function createTrack(input: unknown): Promise<Track> {
     INSERT INTO ctr_tracks (
       name, location, photo_url, map_url, svg_path, svg_view_box,
       length, turns, direction, opened, broke_ground, former_names, owner,
-      fia_grade, coordinates, capacity, website, major_events, races_held,
+      fia_grade, coordinates, capacity, links, major_events, races_held,
       lap_record_time, lap_record_year, note, sort_order
     )
     VALUES (
       ${t.name}, ${t.location}, ${t.photo_url}, ${t.map_url}, ${t.svg_path}, ${t.svg_view_box},
       ${t.length}, ${t.turns}, ${t.direction}, ${t.opened}, ${t.broke_ground},
       ${t.former_names}, ${t.owner}, ${t.fia_grade}, ${t.coordinates}, ${t.capacity},
-      ${t.website}, ${t.major_events}, ${t.races_held},
+      ${JSON.stringify(t.links)}::jsonb, ${t.major_events}, ${t.races_held},
       ${t.lap_record_time}, ${t.lap_record_year}, ${t.note}, ${t.sort_order}
     )
     RETURNING id, name, location, photo_url, map_url, svg_path, svg_view_box,
               length, turns, direction, opened, broke_ground, former_names, owner,
-              fia_grade, coordinates, capacity, website, major_events, races_held,
+              fia_grade, coordinates, capacity, links, major_events, races_held,
               lap_record_time, lap_record_year, note, sort_order
   `) as Track[];
 
@@ -97,7 +97,7 @@ export async function updateTrack(id: string, input: unknown): Promise<Track | n
            fia_grade       = ${t.fia_grade},
            coordinates     = ${t.coordinates},
            capacity        = ${t.capacity},
-           website         = ${t.website},
+           links           = ${JSON.stringify(t.links)}::jsonb,
            major_events    = ${t.major_events},
            races_held      = ${t.races_held},
            lap_record_time = ${t.lap_record_time},
@@ -107,7 +107,7 @@ export async function updateTrack(id: string, input: unknown): Promise<Track | n
      WHERE id = ${id}
     RETURNING id, name, location, photo_url, map_url, svg_path, svg_view_box,
               length, turns, direction, opened, broke_ground, former_names, owner,
-              fia_grade, coordinates, capacity, website, major_events, races_held,
+              fia_grade, coordinates, capacity, links, major_events, races_held,
               lap_record_time, lap_record_year, note, sort_order
   `) as Track[];
 

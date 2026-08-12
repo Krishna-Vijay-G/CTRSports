@@ -16,23 +16,29 @@ import { Note, Panel } from "@/admin/components/Fields";
  * plumbing per panel is where those screens drift apart, so it is written once
  * here and each panel supplies only its fields.
  *
- * Two shapes, chosen by whether `summary` is given:
+ * Three shapes. Without `summary`, every entry is open, one after another —
+ * right for short lists of small fields (four figures, six cards) where seeing
+ * them all at once is the whole point. With `summary`, each entry is one line,
+ * and `expand` decides what opening one does:
  *
- *   without it — every entry is open, one after another. Right for short lists
- *                of small fields (four figures, six cards) where seeing them all
- *                at once is the whole point.
- *   with it    — every entry is one line, and editing one opens a DIALOG. Right
- *                for long lists of big entries (a dozen posts) that would
- *                otherwise be a mile of form.
+ *   "dialog"    (the default) — the entry opens in a window. Right for big
+ *               entries: with the fields in a column about a third of the screen
+ *               wide, a post with a photograph, a date and two paragraphs has
+ *               nowhere to unfold. The window gives it the room and leaves the
+ *               list readable underneath.
+ *   "accordion" — the entry opens in place, under its own strip. Right for small
+ *               ones, where a window is more ceremony than the two fields inside
+ *               it are worth.
  *
- * The dialog is what the second shape used to do inline, and the change is not
- * cosmetic: the fields now live in a column about a third of the screen wide, so
- * an entry with a photograph, a date and two paragraphs has nowhere to unfold.
- * A dialog gives it the whole window and leaves the list readable underneath.
+ * Reordering is the drag handle, and the arrow KEYS on it — which is what
+ * carries the keyboard, and the reason the handle is a button at all.
  *
- * Reordering is a drag handle plus arrow buttons. The buttons are not a
- * fallback: HTML5 drag does not work on touch at all, so they are the only way
- * on a phone.
+ * The always-open shape puts arrow BUTTONS on each row as well, because there
+ * the rows are tall and a drag across four of them is a long way. The two
+ * collapsed shapes do not: their rows are one line, so the drag is short, and a
+ * pair of buttons on every row of a list of ten is more chrome than list. That
+ * does cost touch reordering on those two, since HTML5 drag never fires on a
+ * touch screen.
  */
 
 export type RepeaterProps<T> = {
@@ -46,11 +52,10 @@ export type RepeaterProps<T> = {
   blank: () => T;
   /** Stable React key. Falls back to the index for lists that carry no id. */
   keyOf?: (item: T, index: number) => string;
-  /**
-   * Reduces each entry to one line, edited in a dialog. Omit to keep every entry
-   * open inline.
-   */
+  /** Reduces each entry to one line. Omit to keep every entry open inline. */
   summary?: (item: T, index: number) => { title: string; hint?: string; image?: string };
+  /** What opening a one-line entry does. Ignored when there is no `summary`. */
+  expand?: "dialog" | "accordion";
   /** What the list says when it is empty. */
   empty?: string;
   /** A line of explanation under the list. */
@@ -68,12 +73,15 @@ export function Repeater<T>({
   blank,
   keyOf,
   summary,
+  expand = "dialog",
   empty,
   note,
   children,
 }: RepeaterProps<T>) {
   const collapsible = Boolean(summary);
-  /** With `summary`, the index whose dialog is open; without it, unused. */
+  /** One-line entries that open in place instead of in a window. */
+  const accordion = collapsible && expand === "accordion";
+  /** With `summary`, the index that is open — in a dialog or under its strip. */
   const [open, setOpen] = useState<number | null>(null);
   const [dragging, setDragging] = useState<number | null>(null);
 
@@ -106,8 +114,9 @@ export function Repeater<T>({
     if (open !== null && open >= index) setOpen(open > index ? open - 1 : null);
   }
 
-  /** The entry whose dialog is open, if the list is in one-line mode. */
-  const editing = collapsible && open !== null && open < items.length ? open : null;
+  /** The entry whose DIALOG is open. Never set in the accordion shape, which
+      opens the same entry in place instead. */
+  const editing = collapsible && !accordion && open !== null && open < items.length ? open : null;
   const editingHead = editing !== null ? summary?.(items[editing], editing) : undefined;
 
   return (
@@ -163,8 +172,9 @@ export function Repeater<T>({
                   {head ? (
                     <button
                       type="button"
-                      onClick={() => setOpen(index)}
-                      title="Edit"
+                      onClick={() => setOpen(accordion && open === index ? null : index)}
+                      aria-expanded={accordion ? open === index : undefined}
+                      title={accordion ? undefined : "Edit"}
                       className="min-w-0 flex-1 text-left"
                     >
                       <span className="block truncate text-[13px] font-medium text-foreground">
@@ -180,7 +190,30 @@ export function Repeater<T>({
                     </Badge>
                   )}
 
-                  {collapsible ? (
+                  {accordion ? (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => setOpen(open === index ? null : index)}
+                        aria-expanded={open === index}
+                        aria-label={open === index ? "Close" : "Edit"}
+                      >
+                        <CaretDownIcon
+                          className={cn("transition-transform", open === index && "rotate-180")}
+                        />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => remove(index)}
+                        aria-label="Remove"
+                        className="hover:text-destructive"
+                      >
+                        <TrashIcon />
+                      </Button>
+                    </>
+                  ) : collapsible ? (
                     <>
                       <Button
                         variant="ghost"
@@ -234,11 +267,14 @@ export function Repeater<T>({
                   )}
                 </div>
 
-                {collapsible ? null : (
+                {/* Always open in the plain shape; open on demand in the
+                    accordion; never here in the dialog shape, which mounts its
+                    fields in the window at the foot of this file instead. */}
+                {!collapsible || (accordion && open === index) ? (
                   <div className="space-y-3 border-t border-dashed border-border p-3">
                     {children(item, index, (patch) => patchAt(index, patch))}
                   </div>
-                )}
+                ) : null}
               </li>
             );
           })}

@@ -1,10 +1,17 @@
 "use client";
 
-import { TRACK_LIMITS, type Track } from "@/lib/tracks";
+import {
+  isUsableHref,
+  TRACK_LIMITS,
+  TRACK_MAX_LINKS,
+  type Track,
+  type TrackLink,
+} from "@/lib/tracks";
 import { Button } from "@/admin/ui/Button";
 import { Input, Label, Textarea } from "@/admin/ui/Input";
 import { TrashIcon } from "@/admin/ui/icons";
-import { Hint, Panel, Row } from "@/admin/components/Fields";
+import { Field, Hint, Panel, Row } from "@/admin/components/Fields";
+import { Repeater } from "@/admin/components/Repeater";
 import { ImageField } from "@/admin/components/ImageField";
 import { TrackOutline } from "@/app/(site)/circuits/_components/CircuitMap";
 
@@ -238,31 +245,89 @@ export function TrackForm({
         </label>
       </Panel>
 
-      <Panel title="Summary and link" hint="The short description, and where the circuit lives online.">
-        <div className="space-y-3">
-          <label className="block">
-            <Label>Track summary</Label>
-            <Textarea
-              value={track.note}
-              onChange={(event) => set("note", event.target.value)}
-              maxLength={TRACK_LIMITS.note}
-              rows={3}
-              placeholder="One line on what the circuit is like to drive."
-              className="mt-1.5"
-            />
-            <Hint className="mt-1">
-              Also the line under the circuit&rsquo;s name in the list of circuits.
-            </Hint>
-          </label>
-
-          {field(
-            "website",
-            "Official site",
-            "https://en.madrasmotorsports.com",
-            "Shown as the bare address. Leave blank for no link."
-          )}
-        </div>
+      <Panel title="Track summary" hint="The short description of what the circuit is like.">
+        <label className="block">
+          <Label>Summary</Label>
+          <Textarea
+            value={track.note}
+            onChange={(event) => set("note", event.target.value)}
+            maxLength={TRACK_LIMITS.note}
+            rows={3}
+            placeholder="One line on what the circuit is like to drive."
+            className="mt-1.5"
+          />
+          <Hint className="mt-1">
+            Also the line under the circuit&rsquo;s name in the list of circuits.
+          </Hint>
+        </label>
       </Panel>
+
+      {/*
+        Collapsed strips that open in place, the way the banners do: a link is
+        two short fields, so a window to edit them would be more ceremony than
+        they are worth, and six of them left open would bury everything under
+        this panel.
+
+        The strip says the link's own text and where it points, so the list can
+        be read — and reordered — without opening anything.
+      */}
+      <Repeater<TrackLink>
+        title="Related links"
+        addLabel="Add link"
+        items={track.links}
+        max={TRACK_MAX_LINKS}
+        onChange={(links) => set("links", links)}
+        blank={() => ({ label: "", href: "" })}
+        expand="accordion"
+        summary={(link) => ({
+          title: link.label || link.href || "New link",
+          // Not repeated under a label that is already the address.
+          hint: link.href && link.href !== link.label ? link.href : undefined,
+        })}
+        empty="No links yet. The block is left off the page entirely until there is one."
+        note="Drag a link by its handle to reorder — the order here is the order on the circuit's page."
+      >
+        {(link, _index, patch) => (
+          <Row>
+            <Field
+              label="Link text"
+              value={link.label}
+              onChange={(label) => patch({ label })}
+              maxLength={TRACK_LIMITS.link_label}
+              placeholder="Official site"
+              hint="Left blank, the address is used."
+            />
+            <label className="block">
+              <Label>Address</Label>
+              <Input
+                value={link.href}
+                onChange={(event) => patch({ href: event.target.value })}
+                maxLength={TRACK_LIMITS.link_href}
+                placeholder="madrasmotorsports.com"
+                className="mt-1.5"
+              />
+
+              {/*
+                Said here, while it is being typed, rather than letting the row
+                disappear on save. The check is the server's own function, so
+                the warning cannot disagree with what actually happens.
+              */}
+              {link.href.trim() && !isUsableHref(link.href) ? (
+                <span className="mt-1 block text-[11px] text-destructive">
+                  This will not save. Use an address like{" "}
+                  <code className="text-foreground">madrasmotorsports.com</code> or a path on this
+                  site like <code className="text-foreground">/entry-list.pdf</code>.
+                </span>
+              ) : (
+                <Hint className="mt-1">
+                  A bare address is fine — <code className="text-foreground">https://</code> is
+                  added for you. A row with no address at all is dropped when you save.
+                </Hint>
+              )}
+            </label>
+          </Row>
+        )}
+      </Repeater>
 
       <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-background/60 px-3 py-2.5">
         <p className="text-[11px] leading-relaxed text-muted-fg">

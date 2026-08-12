@@ -76,6 +76,11 @@ function describe(track: Track): string {
   return numbers ? `${lead} ${capitalise(numbers)}.` : lead;
 }
 
+/** The related links that point off this site, for `sameAs`. */
+function externalLinks(track: Track): string[] {
+  return track.links.map((link) => link.href).filter((href) => /^https?:/i.test(href));
+}
+
 function capitalise(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
@@ -101,7 +106,9 @@ export default async function CircuitPage({ params }: Params) {
     url: `${SITE.url}/circuits/${trackSlug(track)}`,
     description: describe(track),
     ...(track.photo_url ? { image: track.photo_url } : {}),
-    ...(track.website ? { sameAs: [track.website] } : {}),
+    // Every related link that leaves this site. `sameAs` means "the same thing,
+    // elsewhere", so a /public path of our own would be wrong in it.
+    ...(externalLinks(track).length > 0 ? { sameAs: externalLinks(track) } : {}),
     ...(track.location
       ? {
           address: {

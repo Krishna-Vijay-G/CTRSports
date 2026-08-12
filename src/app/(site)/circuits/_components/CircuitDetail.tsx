@@ -1,8 +1,9 @@
 import Link from "next/link";
 import type { Round } from "@/lib/incrcContent";
 import { roundDateLabel } from "@/lib/raceDates";
-import { majorEventList, trackHref, type Track } from "@/lib/tracks";
+import { hostOf, majorEventList, trackHref, type Track, type TrackLink } from "@/lib/tracks";
 import { cn } from "@/lib/utils";
+import { ArrowIcon } from "@/components/ui/ActionButton";
 import { Reveal } from "@/components/ui/Reveal";
 import { CircuitGhost, CircuitMap } from "./CircuitMap";
 import { detailFacts, headlineFacts, splitFact, type Fact } from "./facts";
@@ -295,35 +296,29 @@ export function CircuitDetail({
           </div>
         ) : null}
 
-        {/* ──────────────────────── 4 · The row ──────────────────────────── */}
-        {track.website || previous || following ? (
-          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {track.website ? (
-              <Reveal className="flex">
-                <a
-                  href={track.website}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  className="group flex w-full items-center justify-between gap-4 border border-line bg-panel p-5 transition-colors hover:border-accent/60"
-                >
-                  <span className="min-w-0">
-                    <span className="block text-[10px] font-semibold uppercase tracking-[0.26em] text-fg-faint">
-                      Official site
-                    </span>
-                    <span className="mt-2 block truncate font-display text-base font-bold text-fg transition-colors group-hover:text-accent">
-                      {displayHost(track.website)}
-                    </span>
-                  </span>
-                  <span
-                    aria-hidden
-                    className="shrink-0 text-accent transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
-                  >
-                    &nearr;
-                  </span>
-                </a>
-              </Reveal>
-            ) : null}
+        {/* ────────────────────── 4 · Related links ──────────────────────── */}
+        {track.links.length > 0 ? (
+          <Reveal className="mt-3 block">
+            <section className="border border-line bg-panel p-6">
+              <SectionLabel>Related links</SectionLabel>
 
+              {/* Tags, so each is only as wide as its own words and the row
+                  wraps — a grid would stretch a two-word link to the width of a
+                  column and leave it mostly empty. */}
+              <ul className="mt-4 flex flex-wrap gap-2">
+                {track.links.map((link) => (
+                  <li key={`${link.href}-${link.label}`} className="max-w-full">
+                    <LinkTag link={link} />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          </Reveal>
+        ) : null}
+
+        {/* ──────────────────────── 5 · The row ──────────────────────────── */}
+        {previous || following ? (
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <NeighbourLink track={previous} direction="previous" delay={0.05} />
             <NeighbourLink track={following} direction="next" delay={0.09} />
           </div>
@@ -365,6 +360,53 @@ function Readout({ fact }: { fact: Fact }) {
       </span>
       {tail ? <span className="text-xs font-medium text-fg-faint">{tail}</span> : null}
     </span>
+  );
+}
+
+/**
+ * One related link, as a tag with a square arrow box on the end.
+ *
+ * Sized to its own text and nothing more: the box is `inline-flex`, so a link
+ * called "Entry list" takes the width of those two words and the row wraps when
+ * it runs out. That is the difference between a set of links and a set of cards
+ * — cards claim a column each whether or not they have anything to put in it.
+ *
+ * `items-stretch` is what makes the arrow box the full height of the tag rather
+ * than a square floating inside it, so the two read as one object divided by a
+ * rule. The min-height and the box's width are the same value, which keeps that
+ * end square whatever the text does.
+ *
+ * External links get the arrow turned out of the box; an internal one keeps it
+ * pointing along the reading direction. Which it is comes from the address, not
+ * from a field someone has to remember to tick.
+ */
+function LinkTag({ link }: { link: TrackLink }) {
+  const external = /^https?:/i.test(link.href);
+
+  return (
+    <a
+      href={link.href}
+      {...(external ? { target: "_blank", rel: "noreferrer noopener" } : {})}
+      title={hostOf(link.href)}
+      className="group inline-flex h-9 max-w-full items-stretch border border-line bg-surface transition-colors hover:border-accent/60"
+    >
+      <span className="flex min-w-0 items-center px-3.5 text-[13px] font-medium text-fg transition-colors group-hover:text-accent">
+        <span className="truncate">{link.label}</span>
+      </span>
+
+      {/* -mt-px -mb-px: the box sits over the tag's own top and bottom rules
+          rather than inside them, so its edge lines up with the tag's. */}
+      <span className="-mb-px -mt-px flex w-9 shrink-0 items-center justify-center border-y border-l border-line bg-panel text-accent transition-colors group-hover:border-accent/60 group-hover:bg-accent group-hover:text-accent-ink">
+        <ArrowIcon
+          className={cn(
+            "transition-transform duration-300",
+            external
+              ? "-rotate-45 group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
+              : "group-hover:translate-x-0.5"
+          )}
+        />
+      </span>
+    </a>
   );
 }
 
@@ -455,13 +497,4 @@ function NeighbourLink({
       </Link>
     </Reveal>
   );
-}
-
-/** "madrasmotorsports.com" — the bare host, without the scheme or a trailing /. */
-function displayHost(url: string): string {
-  try {
-    return new URL(url).host.replace(/^www\./, "");
-  } catch {
-    return url;
-  }
 }

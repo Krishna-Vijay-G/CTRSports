@@ -169,6 +169,9 @@ export async function migrate(sql) {
     "broke_ground",
     "coordinates",
     "capacity",
+    // Nothing reads `website` any more — the links migration below moved it into
+    // `links`. It stays in this list because that statement reads it, so on a
+    // database that never had the column it still has to be created first.
     "website",
     "major_events",
     "lap_record_time",
@@ -183,6 +186,38 @@ export async function migrate(sql) {
   }
 
   await sql`ALTER TABLE ctr_tracks ADD COLUMN IF NOT EXISTS races_held integer NOT NULL DEFAULT 0`;
+
+  /*
+   * Related links: a list, so JSONB rather than a column.
+   *
+   * `website` was a single named link, which is the shape that has to be
+   * migrated the moment somebody wants a second one — an entry list, a lap
+   * record video, a map. This is that migration, and it is the last one of its
+   * kind for links.
+   */
+  await sql`
+    ALTER TABLE ctr_tracks
+      ADD COLUMN IF NOT EXISTS links jsonb NOT NULL DEFAULT '[]'::jsonb
+  `;
+
+  /*
+   * Carries the old single website across as the first related link.
+   *
+   * Only fires on a circuit whose list is still empty, so it cannot duplicate a
+   * link someone has already added, and re-running it does nothing.
+   *
+   * The `website` column itself is left in place rather than dropped: the app no
+   * longer reads or writes it, and keeping it costs nothing while it is the only
+   * copy of what was there before this ran.
+   */
+  await sql`
+    UPDATE ctr_tracks
+       SET links = jsonb_build_array(
+             jsonb_build_object('label', 'Official site', 'href', website)
+           ),
+           updated_at = now()
+     WHERE links = '[]'::jsonb AND website <> ''
+  `;
 
   /*
    * map_url held photographs before there was a column for them — the calendar
@@ -303,7 +338,7 @@ const SEED_TRACKS = [
     owner: "Madras Motor Sports Club",
     fia_grade: "2",
     coordinates: "13°0′9″N 79°59′9″E",
-    website: "https://en.madrasmotorsports.com",
+    links: [{ label: "Official site", href: "https://en.madrasmotorsports.com" }],
     major_events: [
       "MRF Formula 2000",
       "Indian Racing League",
@@ -341,7 +376,6 @@ const FILLABLE_TRACK_COLUMNS = [
   "fia_grade",
   "coordinates",
   "capacity",
-  "website",
   "major_events",
   "lap_record_time",
   "lap_record_year",
@@ -361,14 +395,15 @@ export async function seedTracks(sql) {
       INSERT INTO ctr_tracks (
         name, location, photo_url, map_url, length, turns, direction, opened,
         broke_ground, former_names, owner, fia_grade, coordinates, capacity,
-        website, major_events, lap_record_time, lap_record_year, note, sort_order
+        links, major_events, lap_record_time, lap_record_year, note, sort_order
       )
       VALUES (
         ${track.name}, ${track.location}, ${track.photo_url ?? ""}, ${track.map_url ?? ""},
         ${track.length ?? ""}, ${track.turns ?? ""}, ${track.direction ?? ""},
         ${track.opened ?? ""}, ${track.broke_ground ?? ""}, ${track.former_names ?? ""},
         ${track.owner ?? ""}, ${track.fia_grade ?? ""}, ${track.coordinates ?? ""},
-        ${track.capacity ?? ""}, ${track.website ?? ""}, ${track.major_events ?? ""},
+        ${track.capacity ?? ""}, ${JSON.stringify(track.links ?? [])}::jsonb,
+        ${track.major_events ?? ""},
         ${track.lap_record_time ?? ""}, ${track.lap_record_year ?? ""},
         ${track.note ?? ""}, ${track.sort_order}
       )
