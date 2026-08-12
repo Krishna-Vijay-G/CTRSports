@@ -43,6 +43,28 @@ import { SportsPanel } from "./panels/SportsPanel";
  * a form inside a form is invalid HTML that browsers silently unnest.
  */
 
+/**
+ * Which parts of the document each section owns.
+ *
+ * The one thing "Load defaults" needs to know, and the only place the mapping
+ * exists — a section that edits two parts of the document (or a part whose name
+ * does not match its tab) is handled here rather than in the button.
+ *
+ * `sports` maps only to its heading on purpose: the sport cards under it are
+ * rows of ctr_sports, not part of this document, and each already has its own
+ * Save and its own delete.
+ */
+const DEFAULT_PARTS: Record<SectionId, (keyof LandingContent)[]> = {
+  brand: ["brand"],
+  splash: ["splash"],
+  nav: ["nav"],
+  banners: ["banners"],
+  about: ["about"],
+  sports: ["sportsSection"],
+  cta: ["ctaBand"],
+  footer: ["socials"],
+};
+
 export function LandingEditor({
   initialContent,
   initialSports,
@@ -127,9 +149,30 @@ export function LandingEditor({
     }
   }
 
-  /** Fills the form with the defaults. Nothing is written until Save. */
+  /**
+   * Refills the OPEN section from the built-in copy, and nothing else.
+   *
+   * It used to replace the whole document, which made it a trap: someone who
+   * wanted the about copy back lost every other section they had written, and
+   * only found out after saving. Scoped to one section it is what it sounds
+   * like — undo for the panel you are looking at. Nothing is written until Save
+   * either way, so the escape is still to navigate away without saving.
+   */
   function loadDefaults() {
-    setDraft(structuredClone(DEFAULT_LANDING_CONTENT));
+    setDraft((current) => {
+      const next = { ...current };
+
+      for (const key of DEFAULT_PARTS[active]) {
+        // Indexed rather than assigned per key: the parts differ in type, and
+        // the map above is what guarantees the key belongs to this section.
+        (next as Record<string, unknown>)[key] = structuredClone(
+          DEFAULT_LANDING_CONTENT[key]
+        );
+      }
+
+      return next;
+    });
+
     setJustSaved(false);
   }
 

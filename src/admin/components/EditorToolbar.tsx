@@ -77,7 +77,7 @@ export function EditorToolbar({
             size="sm"
             onClick={onLoadDefaults}
             disabled={busy}
-            title="Refills every section with the built-in copy. Nothing is written until you Save."
+            title={`Refills “${title}” with the built-in copy. No other section is touched, and nothing is written until you Save.`}
           >
             Load defaults
           </Button>

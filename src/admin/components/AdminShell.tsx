@@ -5,9 +5,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { createContext, useContext, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
-import { Button, ButtonLink } from "@/admin/ui/Button";
+import { Button } from "@/admin/ui/Button";
 import {
-  ExternalIcon,
+  CaretDownIcon,
   FlagIcon,
   ImagesIcon,
   MapIcon,
@@ -38,6 +38,12 @@ import {
 
 /** Remembered across visits: a collapsed sidebar is a preference, not a mode. */
 const COLLAPSED_KEY = "ctr-admin-sidebar-collapsed";
+
+/** Same, for the screen switcher at the foot of it. */
+const PAGES_OPEN_KEY = "ctr-admin-pages-open";
+
+/** So the header button can point `aria-controls` at what it opens. */
+const PAGES_DRAWER_ID = "admin-pages-drawer";
 
 const CollapsedContext = createContext(false);
 
@@ -77,6 +83,136 @@ export function AdminRailSlot({ children }: { children: React.ReactNode }) {
   useEffect(() => setHost(document.getElementById(RAIL_SLOT_ID)), []);
 
   return host ? createPortal(children, host) : null;
+}
+
+/**
+ * The screen switcher, as a drawer that pulls up out of the sidebar's foot.
+ *
+ * Modelled on the collapsible panes in VS Code's sidebar: a header row you click,
+ * with the list sliding out above the account block rather than sitting open all
+ * day. Switching screens is something you do a handful of times a session, and
+ * it was taking permanent room from the section list, which is what the hand is
+ * actually on.
+ *
+ * Shut, the header still says where you are, so tucking the list away never
+ * costs you the answer to "which page am I editing?".
+ *
+ * The open/shut state is remembered, like the sidebar's own width — it is a
+ * preference, not a mode.
+ *
+ * The height animates through `grid-template-rows: 0fr → 1fr` rather than a
+ * max-height guess, so it opens to exactly the list's height however many
+ * screens there turn out to be.
+ *
+ * It behaves the same collapsed to a rail — the state that most needs the room
+ * back is the one where the pages had been sitting open. What a 52px rail cannot
+ * fit is the word beside the caret, so that is what goes: the handle stays, the
+ * label moves into the tooltip, and the caret still points the way the list will
+ * travel.
+ */
+function PagesDrawer({ pathname, collapsed }: { pathname: string; collapsed: boolean }) {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    setOpen(window.localStorage.getItem(PAGES_OPEN_KEY) === "1");
+  }, []);
+
+  function toggle() {
+    setOpen((current) => {
+      window.localStorage.setItem(PAGES_OPEN_KEY, current ? "0" : "1");
+      return !current;
+    });
+  }
+
+  const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  const current = NAV.find((item) => isActive(item.href));
+
+  const links = NAV.map((item) => {
+    const active = isActive(item.href);
+    const Icon = item.icon;
+
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        aria-current={active ? "page" : undefined}
+        title={item.label}
+        className={cn(
+          "flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md px-2 py-1.5 text-[13px] font-medium transition",
+          collapsed && "md:justify-center md:px-0",
+          active
+            ? "bg-muted text-foreground"
+            : "text-muted-fg hover:bg-muted/60 hover:text-foreground"
+        )}
+      >
+        <Icon className="size-4 shrink-0" />
+        <span className={collapsed ? "md:hidden" : undefined}>{item.label}</span>
+      </Link>
+    );
+  });
+
+  return (
+    <div className="md:contents">
+      {/* Below md the sidebar is a scrolling chip row — there is no foot for a
+          drawer to pull up out of, so the pages stay a plain row. */}
+      <nav aria-label="Pages" className="flex gap-1 overflow-x-auto md:hidden">
+        {links}
+      </nav>
+
+      <div className="hidden md:block">
+        <div
+          id={PAGES_DRAWER_ID}
+          className={cn(
+            "grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none",
+            open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+          )}
+        >
+          {/* The row collapses to nothing, so its content must be clipped —
+              without this the links stay visible at zero height. */}
+          <div className="overflow-hidden">
+            <nav aria-label="Pages" className="flex flex-col gap-1 pb-1">
+              {links}
+            </nav>
+          </div>
+        </div>
+
+        {/*
+          The handle. One button in both states — a rail 52px wide has no room
+          for a word beside the caret, so what it drops is the label, not the
+          drawer. The tooltip carries the name in its place, and the caret still
+          points the way the list will move.
+        */}
+        <button
+          type="button"
+          onClick={toggle}
+          aria-expanded={open}
+          aria-controls={PAGES_DRAWER_ID}
+          title={current ? `Pages — ${current.label}` : "Pages"}
+          className={cn(
+            "flex w-full items-center rounded-md py-1.5 text-[11px] font-medium text-muted-fg outline-none transition hover:bg-muted/60 hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/40",
+            collapsed ? "justify-center px-0" : "gap-1.5 px-2 text-left"
+          )}
+        >
+          <CaretDownIcon
+            className={cn("size-3.5 shrink-0 transition-transform", !open && "rotate-180")}
+          />
+
+          {collapsed ? (
+            <span className="sr-only">Pages</span>
+          ) : (
+            <>
+              <span>Pages</span>
+
+              {/* Where you are, for when the list is shut. */}
+              {!open && current ? (
+                <span className="ms-auto min-w-0 truncate text-foreground">{current.label}</span>
+              ) : null}
+            </>
+          )}
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export function AdminShell({
@@ -161,34 +297,7 @@ export function AdminShell({
         {/* Everything below here sits at the foot of the column. */}
         <div className="hidden h-px bg-border md:block" />
 
-        <nav className="flex gap-1 overflow-x-auto md:flex-col md:overflow-visible">
-          {collapsed ? null : (
-            <p className="hidden px-2 py-1 text-[11px] font-medium text-muted-fg md:block">Pages</p>
-          )}
-
-          {NAV.map((item) => {
-            const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                aria-current={active ? "page" : undefined}
-                title={item.label}
-                className={cn(
-                  "flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md px-2 py-1.5 text-[13px] font-medium transition",
-                  collapsed && "md:justify-center md:px-0",
-                  active
-                    ? "bg-muted text-foreground"
-                    : "text-muted-fg hover:bg-muted/60 hover:text-foreground"
-                )}
-              >
-                <Icon className="size-4 shrink-0" />
-                <span className={collapsed ? "md:hidden" : undefined}>{item.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
+        <PagesDrawer pathname={pathname} collapsed={collapsed} />
 
         <div className="hidden h-px bg-border md:block" />
 
@@ -214,19 +323,6 @@ export function AdminShell({
         </div>
 
         <div className="flex gap-1 md:flex-col">
-          <ButtonLink
-            href="/"
-            target="_blank"
-            rel="noreferrer"
-            variant="ghost"
-            size={collapsed ? "icon-sm" : "sm"}
-            title="View site"
-            className={collapsed ? "md:mx-auto" : "justify-start"}
-          >
-            <ExternalIcon />
-            <span className={collapsed ? "md:hidden" : undefined}>View site</span>
-          </ButtonLink>
-
           <Button
             variant="ghost"
             size={collapsed ? "icon-sm" : "sm"}
