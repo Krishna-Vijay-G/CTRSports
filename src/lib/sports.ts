@@ -21,6 +21,12 @@ export type Sport = {
   logo_url: string;
   /** The photograph behind the crest on the card. Same rules as logo_url. */
   photo_url: string;
+  /**
+   * Where the card goes when it is clicked — a path on this site (`/incrc`), an
+   * anchor (`#sports`) or a full URL. Blank leaves the card as a plain card,
+   * which is what a sport with nowhere to go should be.
+   */
+  href: string;
   /** Ascending. Ties fall back to title. */
   sort_order: number;
   /** Unchecked hides the card from the landing page without deleting it. */
@@ -34,6 +40,7 @@ export const BLANK_SPORT: Omit<Sport, "id"> = {
   details: "",
   logo_url: "",
   photo_url: "",
+  href: "",
   sort_order: 0,
   is_visible: true,
 };
@@ -44,6 +51,7 @@ export const LIMITS = {
   details: 600,
   logo_url: 500,
   photo_url: 500,
+  href: 500,
 } as const;
 
 /**
@@ -61,6 +69,7 @@ export const SEED_SPORTS: Omit<Sport, "id">[] = [
     logo_url: "/images/sports/pickleball.webp",
     photo_url:
       "https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?auto=format&fit=crop&w=800&q=72",
+    href: "",
     sort_order: 10,
     is_visible: true,
   },
@@ -72,6 +81,7 @@ export const SEED_SPORTS: Omit<Sport, "id">[] = [
     logo_url: "/images/sports/volleyball.webp",
     photo_url:
       "https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?auto=format&fit=crop&w=800&q=72",
+    href: "",
     sort_order: 20,
     is_visible: true,
   },
@@ -83,6 +93,7 @@ export const SEED_SPORTS: Omit<Sport, "id">[] = [
     logo_url: "/images/sports/cricket.webp",
     photo_url:
       "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&w=800&q=72",
+    href: "",
     sort_order: 30,
     is_visible: true,
   },
@@ -94,6 +105,7 @@ export const SEED_SPORTS: Omit<Sport, "id">[] = [
     logo_url: "/images/sports/hockey.webp",
     photo_url:
       "https://images.unsplash.com/photo-1580748141549-71748dbe0bdc?auto=format&fit=crop&w=800&q=72",
+    href: "",
     sort_order: 40,
     is_visible: true,
   },
@@ -105,6 +117,7 @@ export const SEED_SPORTS: Omit<Sport, "id">[] = [
     logo_url: "/images/sports/formula-4.webp",
     photo_url:
       "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=800&q=72",
+    href: "",
     sort_order: 50,
     is_visible: true,
   },
@@ -116,6 +129,9 @@ export const SEED_SPORTS: Omit<Sport, "id">[] = [
     logo_url: "/images/sports/national-racing.webp",
     photo_url:
       "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=800&q=72",
+    // The one sport with a page of its own. The rest have nowhere to go yet, and
+    // a card that goes nowhere should not pretend otherwise.
+    href: "/incrc",
     sort_order: 60,
     is_visible: true,
   },
@@ -155,6 +171,7 @@ export function normaliseSportInput(input: unknown): Omit<Sport, "id"> {
     details: str(record.details, LIMITS.details),
     logo_url: normaliseImageUrl(record.logo_url),
     photo_url: normaliseImageUrl(record.photo_url),
+    href: normaliseHref(record.href),
     sort_order: Number.isFinite(order) ? Math.trunc(order) : 0,
     // Anything other than an explicit `false` means visible.
     is_visible: record.is_visible !== false,
@@ -173,6 +190,30 @@ export function normaliseImageUrl(value: unknown): string {
   const trimmed = value.trim().slice(0, LIMITS.logo_url);
   if (!trimmed || trimmed.startsWith("//")) return "";
   if (trimmed.startsWith("/")) return trimmed;
+
+  try {
+    const url = new URL(trimmed);
+    return url.protocol === "http:" || url.protocol === "https:" ? trimmed : "";
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Where a card may point: a path on this site, an in-page anchor, or an http(s)
+ * URL. Everything else — `javascript:` above all, but also a protocol-relative
+ * `//host` — becomes empty, and an empty href is what makes the card render as
+ * plain markup rather than as a link.
+ *
+ * The same rule as an image, plus anchors: a card pointing at `#sports` is a
+ * reasonable thing to want, and is not a picture.
+ */
+export function normaliseHref(value: unknown): string {
+  if (typeof value !== "string") return "";
+
+  const trimmed = value.trim().slice(0, LIMITS.href);
+  if (!trimmed || trimmed.startsWith("//")) return "";
+  if (trimmed.startsWith("/") || trimmed.startsWith("#")) return trimmed;
 
   try {
     const url = new URL(trimmed);

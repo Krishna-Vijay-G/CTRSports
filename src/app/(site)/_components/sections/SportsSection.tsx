@@ -12,7 +12,10 @@ import type { Sport } from "@/lib/sports";
  * photo-per-sport mapping left in code, so reordering the list cannot put the
  * wrong picture on a card.
  *
- * Cards are not links: a sport has nowhere to go until it has a page of its own.
+ * A card is a link only when it has somewhere to go. A sport with no `href` is
+ * rendered as an <article> exactly as before, because a link that goes nowhere
+ * is worse than no link: it takes the hover, the pointer and the tab stop, and
+ * then does nothing with them.
  */
 export function SportsSection({
   heading,
@@ -32,7 +35,7 @@ export function SportsSection({
       <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {sports.map((sport, index) => (
           <Reveal key={sport.id} delay={0.06 * (index % 3)} y={28} className="h-full">
-            <article className="panel-card flex h-full flex-col p-2.5">
+            <Card href={sport.href} title={sport.title}>
               <div className="relative overflow-hidden rounded-2xl">
                 {sport.photo_url ? (
                   <img
@@ -77,10 +80,47 @@ export function SportsSection({
                   <p className="body-copy mt-3 text-[13px]">{sport.details}</p>
                 ) : null}
               </div>
-            </article>
+            </Card>
           </Reveal>
         ))}
       </div>
     </section>
+  );
+}
+
+/**
+ * The card's outer element: an <a> when the sport has an href, an <article>
+ * when it does not.
+ *
+ * Written as one component rather than duplicating the card's insides down two
+ * branches, so there is no way for the linked and unlinked versions to drift.
+ * A link leaving this site opens in a new tab, which is the same rule the rest
+ * of the site follows.
+ */
+function Card({
+  href,
+  title,
+  children,
+}: {
+  href: string;
+  title: string;
+  children: React.ReactNode;
+}) {
+  const shell = "panel-card flex h-full flex-col p-2.5";
+
+  if (!href) return <article className={shell}>{children}</article>;
+
+  const offSite = href.startsWith("http");
+
+  return (
+    <a
+      href={href}
+      target={offSite ? "_blank" : undefined}
+      rel={offSite ? "noreferrer" : undefined}
+      aria-label={title}
+      className={`${shell} group transition-colors duration-300 hover:border-accent/40`}
+    >
+      {children}
+    </a>
   );
 }

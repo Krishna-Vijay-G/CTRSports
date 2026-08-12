@@ -104,6 +104,10 @@ export async function migrate(sql) {
 
   await sql`ALTER TABLE ctr_sports ADD COLUMN IF NOT EXISTS photo_url text NOT NULL DEFAULT ''`;
 
+  // Where the card links to. Empty means the card is not a link at all, which is
+  // the right default for a sport with no page of its own yet.
+  await sql`ALTER TABLE ctr_sports ADD COLUMN IF NOT EXISTS href text NOT NULL DEFAULT ''`;
+
   await sql`
     CREATE INDEX IF NOT EXISTS ctr_sports_order_idx ON ctr_sports (sort_order, title)
   `;
@@ -132,9 +136,9 @@ export async function seedSports(sql) {
 
   for (const sport of SEED_SPORTS) {
     await sql`
-      INSERT INTO ctr_sports (title, text, details, logo_url, photo_url, sort_order)
+      INSERT INTO ctr_sports (title, text, details, logo_url, photo_url, href, sort_order)
       VALUES (${sport.title}, ${sport.text}, ${sport.details}, ${sport.logo_url},
-              ${sport.photo_url}, ${sport.sort_order})
+              ${sport.photo_url}, ${sport.href}, ${sport.sort_order})
     `;
   }
 

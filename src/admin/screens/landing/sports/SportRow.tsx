@@ -13,7 +13,7 @@ import {
   EyeSlashIcon,
   TrashIcon,
 } from "@/admin/ui/icons";
-import { ErrorNote } from "@/admin/components/Fields";
+import { ErrorNote, Hint } from "@/admin/components/Fields";
 import { ImageField } from "@/admin/components/ImageField";
 
 /**
@@ -78,6 +78,7 @@ export function SportRow({
     sport.details !== saved.details ||
     sport.logo_url !== saved.logo_url ||
     sport.photo_url !== saved.photo_url ||
+    sport.href !== saved.href ||
     sport.is_visible !== saved.is_visible;
 
   function set<K extends keyof Sport>(key: K, value: Sport[K]) {
@@ -270,6 +271,21 @@ export function SportRow({
             disabled={busy}
             hint="The picture behind the crest."
           />
+
+          <label className="block">
+            <Label>Link</Label>
+            <Input
+              value={sport.href}
+              onChange={(event) => set("href", event.target.value)}
+              maxLength={LIMITS.href}
+              placeholder="/incrc, #sports, or https://…"
+              className="mt-1.5"
+            />
+            <Hint className="mt-1">
+              Where the whole card goes when it is clicked. Blank leaves it as a plain card.
+              A full URL opens in a new tab.
+            </Hint>
+          </label>
 
           {error ? <ErrorNote>{error}</ErrorNote> : null}
 
