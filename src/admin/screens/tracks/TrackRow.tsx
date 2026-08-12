@@ -9,7 +9,9 @@ import { Input, Label, Textarea } from "@/admin/ui/Input";
 import { CaretDownIcon, DragIcon, TrashIcon } from "@/admin/ui/icons";
 import { ErrorNote, Hint, Panel, Row } from "@/admin/components/Fields";
 import { ImageField } from "@/admin/components/ImageField";
-import { TrackOutline } from "./TrackOutline";
+// The site's own renderer, so the thumbnail here is drawn by the same code the
+// page draws with — the admin has no second copy of it to drift.
+import { TrackOutline } from "@/app/(site)/circuits/_components/CircuitMap";
 
 /**
  * One circuit, as a collapsed strip that opens into its record.

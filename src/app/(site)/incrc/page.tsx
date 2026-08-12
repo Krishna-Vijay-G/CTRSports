@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { SITE } from "@/config/site";
 import type { IncrcContent } from "@/lib/incrcContent";
-import type { LandingContent } from "@/lib/landingContent";
 import { getIncrcContentSafe, getLandingContentSafe } from "@/lib/server/contentRepo";
 import { listTracksSafe } from "@/lib/server/tracksRepo";
+import { sendAnchorsHome } from "@/lib/siteChrome";
 import { findTrack } from "@/lib/tracks";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { IncrcSections } from "./_components/IncrcSections";
@@ -65,13 +65,10 @@ function describe(content: IncrcContent): string {
 
 /**
  * The in-page anchors this route has. Every section renders one with its own id,
- * so this is derived from the same list the page is built from — plus the two
- * the shell owns.
+ * so this is the same list the page is built from; the three the shell owns are
+ * added by `sendAnchorsHome`.
  */
 const LOCAL_ANCHORS = new Set([
-  "#top",
-  "#main-content",
-  "#footer",
   "#intro",
   "#stats",
   "#vision",
@@ -84,25 +81,6 @@ const LOCAL_ANCHORS = new Set([
   "#register",
 ]);
 
-/**
- * The navigation is written for the landing page, so most of its links are bare
- * anchors — `#about`, `#sports`. On this route those scroll nowhere. Point the
- * ones this page does not have at the same section on the home page instead, and
- * leave the ones it does have alone.
- */
-function sendHome(content: LandingContent): LandingContent {
-  const fix = (href: string) =>
-    href.startsWith("#") && !LOCAL_ANCHORS.has(href) ? `/${href}` : href;
-
-  return {
-    ...content,
-    nav: {
-      links: content.nav.links.map((link) => ({ ...link, href: fix(link.href) })),
-      cta: { ...content.nav.cta, href: fix(content.nav.cta.href) },
-    },
-  };
-}
-
 export default async function IncrcPage() {
   const [content, landing, tracks] = await Promise.all([
     getIncrcContentSafe(),
@@ -110,7 +88,7 @@ export default async function IncrcPage() {
     listTracksSafe(),
   ]);
 
-  const chrome = sendHome(landing);
+  const chrome = sendAnchorsHome(landing, LOCAL_ANCHORS);
 
   // The championship is a real, dated sporting event — worth saying so in a way
   // a search engine can read, rather than only in prose.

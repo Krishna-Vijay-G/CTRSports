@@ -139,6 +139,9 @@ export const SEED_TRACKS: Omit<Track, "id">[] = [
     location: "Coimbatore, Tamil Nadu",
     photo_url:
       "https://cdn-s3.autocarindia.com/legacy/cdni/ExtraImages/20200907014213_Kari-Motor-Speedway-upgrades-1.jpg",
+    // A published drawing, until a traced path replaces it. See the note on
+    // `svg_path`: the path is preferred wherever it is set.
+    map_url: "https://upload.wikimedia.org/wikipedia/commons/f/fe/Kari_Motor_Speedway_Layout.jpg",
     length: "2.10 km",
     turns: "10",
     direction: "Clockwise",
@@ -168,6 +171,8 @@ export const SEED_TRACKS: Omit<Track, "id">[] = [
     location: "Irungattukottai, Chennai",
     photo_url:
       "https://cdn-s3.autocarindia.com/legacy/cdni/ExtraImages/20240920010433_Madras_international_karting_arena.jpg",
+    map_url:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/6/63/Irungattukottai_Race_Track_map_--_Full_track.svg/960px-Irungattukottai_Race_Track_map_--_Full_track.svg.png",
     length: "3.717 km (2.310 mi)",
     turns: "17",
     direction: "Clockwise",
@@ -283,4 +288,72 @@ export function normaliseTrackMap(value: unknown): string {
 /** The circuit a round points at, or undefined when it points at nothing. */
 export function findTrack(tracks: Track[], id: string): Track | undefined {
   return id ? tracks.find((track) => track.id === id) : undefined;
+}
+
+/* ─────────────────────────── Reading a circuit ─────────────────────────── */
+
+/**
+ * The circuit's own address: /circuits/madras-international-circuit.
+ *
+ * Derived from the name rather than stored in a column, because a stored slug is
+ * a second thing to keep in step with the name — rename the circuit in the admin
+ * and the URL would silently stay wrong until someone noticed the column.
+ *
+ * Two circuits sharing a name would share a slug, and the first in the list
+ * wins. `findTrackBySlug` also accepts the id, so the loser is still reachable
+ * and nothing 404s; a name that produces no letters at all (only punctuation)
+ * falls back to the id outright.
+ */
+export function trackSlug(track: Pick<Track, "id" | "name">): string {
+  const slug = track.name
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return slug || track.id;
+}
+
+/** Where a link to this circuit points. */
+export function trackHref(track: Pick<Track, "id" | "name">): string {
+  return `/circuits/${trackSlug(track)}`;
+}
+
+/** Slug first, then id — see `trackSlug` for why both are accepted. */
+export function findTrackBySlug(tracks: Track[], slug: string): Track | undefined {
+  let wanted = slug;
+  try {
+    wanted = decodeURIComponent(slug);
+  } catch {
+    // A malformed escape ("%") is not a circuit. Match the raw string, fail, 404.
+  }
+
+  wanted = wanted.toLowerCase();
+
+  return (
+    tracks.find((track) => trackSlug(track) === wanted) ??
+    tracks.find((track) => track.id.toLowerCase() === wanted)
+  );
+}
+
+/** The championships it hosts, one per line, as a list. */
+export function majorEventList(track: Track): string[] {
+  return track.major_events
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+/** Former names are typed semicolon-separated — see the admin's placeholder. */
+export function formerNameList(track: Track): string[] {
+  return track.former_names
+    .split(/[;\n]/)
+    .map((name) => name.trim())
+    .filter(Boolean);
+}
+
+/** Has this circuit anything to draw at all? */
+export function hasLayout(track: Track): boolean {
+  return Boolean(track.svg_path || track.map_url);
 }

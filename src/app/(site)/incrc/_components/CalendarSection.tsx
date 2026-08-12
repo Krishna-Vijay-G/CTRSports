@@ -1,9 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { IncrcContent, Round } from "@/lib/incrcContent";
 import { nextRoundIndex, roundDateParts, roundEnd, roundStart } from "@/lib/raceDates";
-import { findTrack, type Track } from "@/lib/tracks";
+import { findTrack, trackHref, type Track } from "@/lib/tracks";
 import { cn } from "@/lib/utils";
 import { Reveal } from "@/components/ui/Reveal";
 import { SectionHeading } from "@/components/ui/SectionHeading";
@@ -204,6 +205,18 @@ function NextRound({
             {track?.length ? <Spec label="Length" value={track.length} /> : null}
             {track?.turns ? <Spec label="Turns" value={track.turns} /> : null}
           </div>
+
+          {/* Only when the round points at a circuit: a round that carries only
+              typed-in venue text has no page to go to. */}
+          {track ? (
+            <Link
+              href={trackHref(track)}
+              className="mt-5 inline-flex items-center gap-2 rounded-full border border-white/25 px-4 py-2 text-[13px] font-semibold text-white transition hover:border-accent hover:text-accent"
+            >
+              Circuit guide
+              <span aria-hidden>&rarr;</span>
+            </Link>
+          ) : null}
         </div>
 
         {/* The clock sits at the end of the row on a wide screen and under the
@@ -310,7 +323,21 @@ function RoundCard({
           )}
         </div>
 
-        <p className="mt-3 text-sm font-semibold leading-snug text-fg">{venue}</p>
+        {/* The whole card is not a link — a past round with nothing to read
+            would then be a dead one — so the circuit's name carries it, and
+            after:inset-0 lets the rest of the card be clicked with it. */}
+        {track ? (
+          <p className="mt-3 text-sm font-semibold leading-snug text-fg">
+            <Link
+              href={trackHref(track)}
+              className="transition-colors after:absolute after:inset-0 hover:text-accent"
+            >
+              {venue}
+            </Link>
+          </p>
+        ) : (
+          <p className="mt-3 text-sm font-semibold leading-snug text-fg">{venue}</p>
+        )}
         {where ? <p className="text-[13px] text-fg-faint">{where}</p> : null}
 
         <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1 pt-4 text-[13px]">

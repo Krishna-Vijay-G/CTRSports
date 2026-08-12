@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/server/auth";
+import { revalidateTrackPages } from "@/lib/server/revalidateTracks";
 import { deleteTrack, updateTrack } from "@/lib/server/tracksRepo";
 import { isTrackId } from "@/lib/tracks";
 
@@ -37,7 +37,7 @@ export async function PUT(request: Request, { params }: Params) {
       return NextResponse.json({ error: "No such circuit." }, { status: 404 });
     }
 
-    revalidatePath("/incrc");
+    revalidateTrackPages();
     return NextResponse.json({ track });
   } catch (error) {
     console.error("[admin/tracks] PUT", error);
@@ -61,7 +61,7 @@ export async function DELETE(_request: Request, { params }: Params) {
       return NextResponse.json({ error: "No such circuit." }, { status: 404 });
     }
 
-    revalidatePath("/incrc");
+    revalidateTrackPages();
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("[admin/tracks] DELETE", error);

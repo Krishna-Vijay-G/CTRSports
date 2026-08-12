@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/server/auth";
+import { revalidateTrackPages } from "@/lib/server/revalidateTracks";
 import { createTrack, listTracks, reorderTracks } from "@/lib/server/tracksRepo";
 import { isTrackId } from "@/lib/tracks";
 
@@ -41,8 +41,7 @@ export async function POST(request: Request) {
 
   try {
     const track = await createTrack(body);
-    // The calendar draws these, and it is cached.
-    revalidatePath("/incrc");
+    revalidateTrackPages();
     return NextResponse.json({ track });
   } catch (error) {
     console.error("[admin/tracks] POST", error);
@@ -79,7 +78,7 @@ export async function PATCH(request: Request) {
 
   try {
     await reorderTracks(ids);
-    revalidatePath("/incrc");
+    revalidateTrackPages();
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("[admin/tracks] PATCH", error);

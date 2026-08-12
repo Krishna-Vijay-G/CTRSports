@@ -261,31 +261,90 @@ const SEED_TRACKS = [
   {
     name: "Kari Motor Speedway",
     location: "Coimbatore, Tamil Nadu",
+    photo_url:
+      "https://cdn-s3.autocarindia.com/legacy/cdni/ExtraImages/20200907014213_Kari-Motor-Speedway-upgrades-1.jpg",
     map_url: "https://upload.wikimedia.org/wikipedia/commons/f/fe/Kari_Motor_Speedway_Layout.jpg",
     length: "2.10 km",
     turns: "10",
+    direction: "Clockwise",
+    opened: "2003",
+    owner: "Kari Motor Speedway Pvt Ltd",
+    fia_grade: "3",
+    major_events: ["Indian Racing League", "MRF Formula 2000", "F4 India"].join("\n"),
     note: "The home of Indian motorsport — tight, technical and unforgiving.",
     sort_order: 10,
   },
   {
     name: "Bren Raceway",
     location: "Doddaballapura, Bengaluru",
+    photo_url:
+      "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTJqHEDj58zIR2oJEUa-EON-z44C2RuwoFAFAj4l7_b8vKLRvhrz1zTHbkg&s=10",
     map_url: "",
     length: "4.10 km",
     turns: "14",
+    direction: "Anti-clockwise",
+    fia_grade: "2",
     note: "India's newest permanent circuit, fast and flowing throughout.",
     sort_order: 20,
   },
   {
     name: "Madras International Circuit",
     location: "Irungattukottai, Chennai",
+    photo_url:
+      "https://cdn-s3.autocarindia.com/legacy/cdni/ExtraImages/20240920010433_Madras_international_karting_arena.jpg",
     map_url:
       "https://upload.wikimedia.org/wikipedia/commons/thumb/6/63/Irungattukottai_Race_Track_map_--_Full_track.svg/960px-Irungattukottai_Race_Track_map_--_Full_track.svg.png",
     length: "3.71 km",
     turns: "12",
+    direction: "Clockwise",
+    opened: "1990",
+    broke_ground: "1988",
+    former_names: "Madras Motor Race Track; Irungattukottai Race Track",
+    owner: "Madras Motor Sports Club",
+    fia_grade: "2",
+    coordinates: "13°0′9″N 79°59′9″E",
+    website: "https://en.madrasmotorsports.com",
+    major_events: [
+      "MRF Formula 2000",
+      "Indian Racing League",
+      "F4 India",
+      "F4 SEA",
+      "Asia Road Racing Championship",
+      "Asian F3",
+    ].join("\n"),
+    lap_record_time: "1:30.323",
+    lap_record_year: "2020",
     note: "A long back straight into a hairpin — the season's decider.",
     sort_order: 30,
   },
+];
+
+/**
+ * The columns `backfillTrackDetails` is allowed to touch.
+ *
+ * Text only, and only the ones that describe the circuit rather than the ones
+ * someone curates: `length`, `turns` and `note` are left out because the rows
+ * already carry values for them that were edited after seeding, and a backfill
+ * that "corrected" 3.71 km to 3.717 km would be overwriting a decision.
+ *
+ * A fixed literal list, which is what makes it safe to interpolate the names
+ * into SQL below — nothing here comes from a row or a request.
+ */
+const FILLABLE_TRACK_COLUMNS = [
+  "photo_url",
+  "map_url",
+  "direction",
+  "opened",
+  "broke_ground",
+  "former_names",
+  "owner",
+  "fia_grade",
+  "coordinates",
+  "capacity",
+  "website",
+  "major_events",
+  "lap_record_time",
+  "lap_record_year",
 ];
 
 /**
@@ -299,13 +358,81 @@ export async function seedTracks(sql) {
 
   for (const track of SEED_TRACKS) {
     await sql`
-      INSERT INTO ctr_tracks (name, location, map_url, length, turns, note, sort_order)
-      VALUES (${track.name}, ${track.location}, ${track.map_url}, ${track.length},
-              ${track.turns}, ${track.note}, ${track.sort_order})
+      INSERT INTO ctr_tracks (
+        name, location, photo_url, map_url, length, turns, direction, opened,
+        broke_ground, former_names, owner, fia_grade, coordinates, capacity,
+        website, major_events, lap_record_time, lap_record_year, note, sort_order
+      )
+      VALUES (
+        ${track.name}, ${track.location}, ${track.photo_url ?? ""}, ${track.map_url ?? ""},
+        ${track.length ?? ""}, ${track.turns ?? ""}, ${track.direction ?? ""},
+        ${track.opened ?? ""}, ${track.broke_ground ?? ""}, ${track.former_names ?? ""},
+        ${track.owner ?? ""}, ${track.fia_grade ?? ""}, ${track.coordinates ?? ""},
+        ${track.capacity ?? ""}, ${track.website ?? ""}, ${track.major_events ?? ""},
+        ${track.lap_record_time ?? ""}, ${track.lap_record_year ?? ""},
+        ${track.note ?? ""}, ${track.sort_order}
+      )
     `;
   }
 
   return SEED_TRACKS.length;
+}
+
+/**
+ * Fills in the record of a circuit that was seeded before the record existed.
+ *
+ * The circuits table started life with a name, a location, a length and a corner
+ * count. Everything a circuit page actually reads — when it opened, who owns it,
+ * its FIA grade, the outright lap record, the championships it hosts — was added
+ * to the table later, and `seedTracks` could not put it there because it only
+ * ever fires on an empty table. So the three seeded circuits sat with fourteen
+ * blank columns and the circuit pages had almost nothing to print.
+ *
+ * Only ever fills a blank, in both directions: a column with anything in it is
+ * left exactly as it is, and a seed value that is itself empty is not written.
+ * That makes it safe to re-run, and it cannot undo an edit made in the admin.
+ *
+ * Matched on the name, which is how the rows were seeded and the only stable
+ * handle there is — ids are generated. A renamed circuit simply is not matched,
+ * which is the right answer: someone has been in there and made it theirs.
+ */
+export async function backfillTrackDetails(sql) {
+  let filled = 0;
+
+  for (const track of SEED_TRACKS) {
+    const assignments = [];
+    const blankTests = [];
+    const values = [];
+
+    for (const column of FILLABLE_TRACK_COLUMNS) {
+      const value = track[column];
+      if (!value) continue;
+
+      values.push(value);
+      // Per column, not per row: a circuit with an owner but no grade gets the
+      // grade and keeps the owner.
+      assignments.push(`${column} = CASE WHEN ${column} = '' THEN $${values.length} ELSE ${column} END`);
+      blankTests.push(`${column} = ''`);
+    }
+
+    if (assignments.length === 0) continue;
+
+    // Without this guard every run would report every row as touched, and
+    // updated_at would move on rows that did not change.
+    values.push(track.name);
+    const rows = await sql.query(
+      `UPDATE ctr_tracks
+          SET ${assignments.join(", ")}, updated_at = now()
+        WHERE lower(name) = lower($${values.length})
+          AND (${blankTests.join(" OR ")})
+        RETURNING id`,
+      values
+    );
+
+    filled += rows.length;
+  }
+
+  return filled;
 }
 
 const MONTH_NAMES = [

@@ -10,6 +10,7 @@ import { neon } from "@neondatabase/serverless";
 import {
   backfillRoundDates,
   backfillSportPhotos,
+  backfillTrackDetails,
   migrate,
   seedSports,
   seedTracks,
@@ -36,6 +37,13 @@ try {
 
   const filled = await backfillSportPhotos(sql);
   console.log(filled ? `Back-filled photos on ${filled} sport(s).` : "No sports needed a photo.");
+
+  const details = await backfillTrackDetails(sql);
+  console.log(
+    details
+      ? `Back-filled the record on ${details} circuit(s).`
+      : "No circuits needed back-filling."
+  );
 
   const dated = await backfillRoundDates(sql);
   console.log(
