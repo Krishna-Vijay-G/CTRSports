@@ -90,8 +90,12 @@ export function SectionRail<Id extends string>({
       aria-label={heading}
       className="flex gap-1 overflow-x-auto md:flex-col md:overflow-x-visible"
     >
+      {/* pr-7 keeps the label clear of the sidebar's collapse button, which
+          floats at the top-right of this same line. */}
       {collapsed ? null : (
-        <p className="hidden px-2 py-1 text-[11px] font-medium text-muted-fg md:block">{heading}</p>
+        <p className="hidden px-2 py-1 pr-7 text-[11px] font-medium text-muted-fg md:block">
+          {heading}
+        </p>
       )}
 
       {items.map((item) => {

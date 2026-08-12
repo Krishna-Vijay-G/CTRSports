@@ -120,26 +120,43 @@ export function AdminShell({
           just wide enough for the icons. */}
       <aside
         className={cn(
-          "flex flex-col gap-2 border-b border-border bg-card p-2 transition-[width] md:shrink-0 md:rounded-lg md:border md:border-border",
+          "relative flex flex-col gap-2 border-b border-border bg-card p-2 transition-[width] md:shrink-0 md:rounded-lg md:border md:border-border",
           collapsed ? "md:w-[52px]" : "md:w-52 xl:w-60"
         )}
       >
-        <div className="hidden md:flex">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={toggleCollapsed}
-            aria-expanded={!collapsed}
-            aria-label={collapsed ? "Expand the sidebar" : "Collapse the sidebar"}
-            title={collapsed ? "Expand the sidebar" : "Collapse the sidebar"}
-            className={collapsed ? "mx-auto" : "ml-auto"}
-          >
-            <PanelIcon />
-          </Button>
-        </div>
+        {/*
+          Lifted out of the flow rather than given a row of its own. In flow it
+          cost a full row for one 28px icon, and since it is right-aligned the
+          rest of that row was blank — a band of nothing above every screen's
+          section list. Floated, it sits level with the list's own heading, which
+          is short and left-aligned and so never reaches it.
+
+          Collapsed there IS no heading to sit beside, so it centres over the
+          icons and the rail below reserves the room for it.
+        */}
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={toggleCollapsed}
+          aria-expanded={!collapsed}
+          aria-label={collapsed ? "Expand the sidebar" : "Collapse the sidebar"}
+          title={collapsed ? "Expand the sidebar" : "Collapse the sidebar"}
+          className={cn(
+            "absolute top-2 z-10 hidden md:flex",
+            collapsed ? "left-1/2 -translate-x-1/2" : "right-2"
+          )}
+        >
+          <PanelIcon />
+        </Button>
 
         {/* Filled by the open screen. Takes the height the account block leaves. */}
-        <div id={RAIL_SLOT_ID} className="min-h-0 md:flex-1 md:overflow-y-auto" />
+        <div
+          id={RAIL_SLOT_ID}
+          className={cn(
+            "min-h-0 md:flex-1 md:overflow-y-auto",
+            collapsed ? "md:pt-10" : "md:pt-1"
+          )}
+        />
 
         {/* Everything below here sits at the foot of the column. */}
         <div className="hidden h-px bg-border md:block" />
