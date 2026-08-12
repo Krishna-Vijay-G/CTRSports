@@ -2,7 +2,7 @@
 /node_modules
 /.pnp
 .pnp.js
-/scripts
+
 
 # next.js
 /.next/
@@ -34,3 +34,6 @@ next-env.d.ts
 
 # pre-WebP source art, kept locally so `npm run webp -- --restore` works
 /public/_originals/
+
+.vercel
+.env*
