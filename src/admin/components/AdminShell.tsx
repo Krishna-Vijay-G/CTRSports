@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { Button, ButtonLink } from "@/admin/ui/Button";
-import { ExternalIcon, FlagIcon, ImagesIcon, SignOutIcon } from "@/admin/ui/icons";
+import { ExternalIcon, FlagIcon, ImagesIcon, PanelIcon, SignOutIcon } from "@/admin/ui/icons";
 
 /**
  * Chrome around every admin screen.
@@ -20,9 +20,24 @@ import { ExternalIcon, FlagIcon, ImagesIcon, SignOutIcon } from "@/admin/ui/icon
  * the screen switcher and account buttons at the foot, out of the way. The
  * sections come from the page itself — see AdminRailSlot below.
  *
+ * It collapses to a rail of icons rather than to nothing. A pane that vanishes
+ * needs a button somewhere else to bring it back; a rail carries its own, and
+ * the sections stay clickable while collapsed, which is what you actually want
+ * when the reason for collapsing was to give the preview more room.
+ *
  * A fixed column from `md:` up and a scrolling chip row below that, which keeps
  * the whole editor above the fold on a laptop without breaking on a phone.
  */
+
+/** Remembered across visits: a collapsed sidebar is a preference, not a mode. */
+const COLLAPSED_KEY = "ctr-admin-sidebar-collapsed";
+
+const CollapsedContext = createContext(false);
+
+/** True while the sidebar is a rail. Read by whatever is portalled into it. */
+export function useSidebarCollapsed() {
+  return useContext(CollapsedContext);
+}
 
 /**
  * One entry per admin screen. Add a page, add a line.
@@ -66,6 +81,21 @@ export function AdminShell({
   const pathname = usePathname() ?? "/";
   const router = useRouter();
 
+  // Starts expanded and corrects itself on mount. Reading localStorage during
+  // render would differ from what the server drew and break hydration.
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    setCollapsed(window.localStorage.getItem(COLLAPSED_KEY) === "1");
+  }, []);
+
+  function toggleCollapsed() {
+    setCollapsed((current) => {
+      window.localStorage.setItem(COLLAPSED_KEY, current ? "0" : "1");
+      return !current;
+    });
+  }
+
   async function handleSignOut() {
     await fetch("/api/admin/logout", { method: "POST" });
     router.replace("/login");
@@ -75,10 +105,31 @@ export function AdminShell({
   return (
     // md:h-screen + overflow-hidden so the editor and the preview each scroll on
     // their own instead of the whole document scrolling as one.
-    <div className="min-h-screen bg-background font-ui text-foreground md:flex md:h-screen md:gap-2 md:overflow-hidden md:p-2">
+    <CollapsedContext.Provider value={collapsed}>
+      <div className="min-h-screen bg-background font-ui text-foreground md:flex md:h-screen md:gap-2 md:overflow-hidden md:p-2">
       {/* Wider at xl: the section rows carry a drag handle and an eye, and the
-          labels are what gives way when they do not fit. */}
-      <aside className="flex flex-col gap-2 border-b border-border bg-card p-2 md:w-52 md:shrink-0 md:rounded-lg md:border md:border-border xl:w-60">
+          labels are what gives way when they do not fit. Collapsed, it is a rail
+          just wide enough for the icons. */}
+      <aside
+        className={cn(
+          "flex flex-col gap-2 border-b border-border bg-card p-2 transition-[width] md:shrink-0 md:rounded-lg md:border md:border-border",
+          collapsed ? "md:w-[52px]" : "md:w-52 xl:w-60"
+        )}
+      >
+        <div className="hidden md:flex">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={toggleCollapsed}
+            aria-expanded={!collapsed}
+            aria-label={collapsed ? "Expand the sidebar" : "Collapse the sidebar"}
+            title={collapsed ? "Expand the sidebar" : "Collapse the sidebar"}
+            className={collapsed ? "mx-auto" : "ml-auto"}
+          >
+            <PanelIcon />
+          </Button>
+        </div>
+
         {/* Filled by the open screen. Takes the height the account block leaves. */}
         <div id={RAIL_SLOT_ID} className="min-h-0 md:flex-1 md:overflow-y-auto" />
 
@@ -86,7 +137,9 @@ export function AdminShell({
         <div className="hidden h-px bg-border md:block" />
 
         <nav className="flex gap-1 overflow-x-auto md:flex-col md:overflow-visible">
-          <p className="hidden px-2 py-1 text-[11px] font-medium text-muted-fg md:block">Pages</p>
+          {collapsed ? null : (
+            <p className="hidden px-2 py-1 text-[11px] font-medium text-muted-fg md:block">Pages</p>
+          )}
 
           {NAV.map((item) => {
             const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -96,15 +149,17 @@ export function AdminShell({
                 key={item.href}
                 href={item.href}
                 aria-current={active ? "page" : undefined}
+                title={item.label}
                 className={cn(
                   "flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md px-2 py-1.5 text-[13px] font-medium transition",
+                  collapsed && "md:justify-center md:px-0",
                   active
                     ? "bg-muted text-foreground"
                     : "text-muted-fg hover:bg-muted/60 hover:text-foreground"
                 )}
               >
                 <Icon className="size-4 shrink-0" />
-                {item.label}
+                <span className={collapsed ? "md:hidden" : undefined}>{item.label}</span>
               </Link>
             );
           })}
@@ -112,14 +167,20 @@ export function AdminShell({
 
         <div className="hidden h-px bg-border md:block" />
 
-        <div className="flex items-center gap-2.5 rounded-md px-2 py-1.5">
+        <div
+          className={cn(
+            "flex items-center gap-2.5 rounded-md px-2 py-1.5",
+            collapsed && "md:justify-center md:px-0"
+          )}
+          title={username}
+        >
           <img
             src="/images/brand/ctr-logo.webp"
             alt=""
             aria-hidden
             className="h-7 w-auto shrink-0"
           />
-          <div className="min-w-0">
+          <div className={cn("min-w-0", collapsed && "md:hidden")}>
             <p className="truncate text-[13px] font-medium leading-tight text-foreground">
               {username}
             </p>
@@ -133,28 +194,34 @@ export function AdminShell({
             target="_blank"
             rel="noreferrer"
             variant="ghost"
-            size="sm"
-            className="justify-start"
+            size={collapsed ? "icon-sm" : "sm"}
+            title="View site"
+            className={collapsed ? "md:mx-auto" : "justify-start"}
           >
             <ExternalIcon />
-            View site
+            <span className={collapsed ? "md:hidden" : undefined}>View site</span>
           </ButtonLink>
 
           <Button
             variant="ghost"
-            size="sm"
+            size={collapsed ? "icon-sm" : "sm"}
             onClick={handleSignOut}
-            className="justify-start hover:text-destructive"
+            title="Sign out"
+            className={cn(
+              "hover:text-destructive",
+              collapsed ? "md:mx-auto" : "justify-start"
+            )}
           >
             <SignOutIcon />
-            Sign out
+            <span className={collapsed ? "md:hidden" : undefined}>Sign out</span>
           </Button>
         </div>
       </aside>
 
       {/* No padding: each screen sets its own, because the landing editor fills
           the space edge to edge. */}
-      <main className="min-w-0 flex-1 md:overflow-hidden">{children}</main>
-    </div>
+        <main className="min-w-0 flex-1 md:overflow-hidden">{children}</main>
+      </div>
+    </CollapsedContext.Provider>
   );
 }

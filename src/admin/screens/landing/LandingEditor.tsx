@@ -3,8 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { DEFAULT_LANDING_CONTENT, type LandingContent } from "@/lib/landingContent";
 import type { Sport } from "@/lib/sports";
+import { cn } from "@/lib/utils";
 import { AdminRailSlot } from "@/admin/components/AdminShell";
-import { EditorAside } from "@/admin/components/EditorAside";
+import { EditorToolbar } from "@/admin/components/EditorToolbar";
 import { LandingPreview } from "@/admin/components/previews/LandingPreview";
 import { SectionRail } from "@/admin/components/SectionRail";
 import { BannersPanel } from "@/admin/components/banners/BannersPanel";
@@ -20,10 +21,13 @@ import { SportsPanel } from "./panels/SportsPanel";
 /**
  * The whole landing page, edited on one screen.
  *
- * The list of sections goes into the sidebar (see AdminRailSlot), which leaves
- * this screen three columns: the fields for the open section, the live preview
- * in the middle, and everything about the page as a whole down the right. Only
- * one section's fields are mounted at a time, which is what keeps the fields
+ * The list of sections goes into the sidebar (see AdminRailSlot), so this screen
+ * is a toolbar over two panes: the live page in the middle, and the fields for
+ * the open section down the right. Both the sidebar and the fields fold away,
+ * and the toolbar does not, which is what keeps Save reachable in every one of
+ * the four states.
+ *
+ * Only one section's fields are mounted at a time, which is what keeps the pane
  * short enough to take in at a glance instead of scrolling a form the length of
  * the page.
  *
@@ -39,12 +43,6 @@ import { SportsPanel } from "./panels/SportsPanel";
  * a form inside a form is invalid HTML that browsers silently unnest.
  */
 
-/** The right-hand column's standing explanation of the screen. */
-const NOTES = [
-  "Pick a section in the sidebar. The middle of the screen is the real page, drawn from what you have typed.",
-  "Nothing on the site changes until you press Save.",
-  "Sport cards are rows of their own, so each one has its own Save.",
-];
 export function LandingEditor({
   initialContent,
   initialSports,
@@ -74,6 +72,9 @@ export function LandingEditor({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [justSaved, setJustSaved] = useState(false);
+
+  /** The right-hand pane. Folded away, the preview takes the whole width. */
+  const [fieldsOpen, setFieldsOpen] = useState(true);
 
   const section = SECTIONS.find((entry) => entry.id === active) ?? SECTIONS[0];
   const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
@@ -173,54 +174,55 @@ export function LandingEditor({
   const { Icon } = section;
 
   return (
-    <div className="flex min-h-0 flex-col gap-2 md:h-full lg:flex-row">
+    <div className="flex min-h-0 flex-col gap-2 md:h-full">
       <AdminRailSlot>
         <SectionRail items={SECTIONS} active={active} onSelect={setActive} />
       </AdminRailSlot>
 
-      <div
-        ref={columnRef}
-        className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card md:overflow-y-auto lg:w-[520px] lg:flex-none xl:w-[600px]"
-      >
-        {/* Sticky, so it is clear what the fields belong to however far down them
-            you have got. */}
-        <div className="sticky top-0 z-10 flex items-center gap-2.5 border-b border-border bg-card/95 px-4 py-2.5 backdrop-blur">
-          <Icon className="size-5 shrink-0 text-muted-fg" />
-
-          <div className="min-w-0">
-            <h1 className="truncate font-medium tracking-tight text-foreground">{section.title}</h1>
-            <p className="truncate text-[11px] text-muted-fg">{section.hint}</p>
-          </div>
-        </div>
-
-        <div className="bg-background/40 p-3">{panel()}</div>
-      </div>
-
-      {/*
-        Hidden below lg: at that width the fields already fill the screen, and a
-        preview shrunk into what is left would be unreadable rather than useful.
-      */}
-      <LandingPreview
-        content={draft}
-        sports={sports}
-        year={year}
-        focus={section.preview}
-        bannerIndex={bannerIndex}
-        className="hidden lg:block lg:min-w-0 lg:flex-1"
-      />
-
-      {/* order-first below lg, where there is no preview and Save would otherwise
-          sit under the whole form. */}
-      <EditorAside
+      <EditorToolbar
+        Icon={Icon}
+        title={section.title}
+        hint={section.hint}
         dirty={dirty}
         justSaved={justSaved}
         busy={busy}
         error={error}
         onSave={handleSave}
         onLoadDefaults={loadDefaults}
-        notes={NOTES}
-        className="order-first shrink-0 lg:order-none lg:w-52 xl:w-60"
+        fieldsOpen={fieldsOpen}
+        onToggleFields={() => setFieldsOpen((open) => !open)}
       />
+
+      <div className="flex min-h-0 flex-1 flex-col gap-2 lg:flex-row">
+        {/*
+          Hidden below lg: at that width the fields already fill the screen, and
+          a preview shrunk into what is left would be unreadable rather than
+          useful.
+        */}
+        <LandingPreview
+          content={draft}
+          sports={sports}
+          year={year}
+          focus={section.preview}
+          bannerIndex={bannerIndex}
+          className="hidden lg:block lg:min-w-0 lg:flex-1"
+        />
+
+        {/* The fields. Below lg they are the whole screen; from lg they are the
+            right-hand pane, and folding them away hands the width to the
+            preview. */}
+        <div
+          ref={columnRef}
+          className={cn(
+            "min-w-0 flex-1 overflow-hidden rounded-lg border border-border bg-card md:overflow-y-auto",
+            fieldsOpen
+              ? "lg:w-[440px] lg:flex-none xl:w-[520px]"
+              : "lg:hidden"
+          )}
+        >
+          <div className="bg-background/40 p-3">{panel()}</div>
+        </div>
+      </div>
     </div>
   );
 }

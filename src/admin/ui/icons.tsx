@@ -266,3 +266,23 @@ export const DragIcon = (p: IconProps) => (
     <circle cx="12.5" cy="15" r="1.4" />
   </svg>
 );
+
+/* ── Panels ── */
+
+/**
+ * A pane beside a body of content. One glyph, mirrored by the caller with
+ * `scale-x-[-1]` for the right-hand pane, so the two toggles are the same shape.
+ */
+export const PanelIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="2.5" y="3.5" width="15" height="13" rx="2" />
+    <path d="M8 3.5v13" />
+  </Icon>
+);
+
+/** Opens a row's fields in a dialog. */
+export const PencilIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M13.2 3.3a1.7 1.7 0 0 1 2.4 2.4L7 14.3l-3.2.9.9-3.2 8.5-8.7Z" />
+  </Icon>
+);

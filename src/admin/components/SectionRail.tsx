@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { useSidebarCollapsed } from "@/admin/components/AdminShell";
 import { DragIcon, EyeIcon, EyeSlashIcon } from "@/admin/ui/icons";
 
 /**
@@ -58,6 +59,14 @@ export function SectionRail<Id extends string>({
   /** Tracked by id, not index: the list reorders under the pointer mid-drag. */
   const [dragging, setDragging] = useState<Id | null>(null);
 
+  /**
+   * Collapsed, the rail is icons only: no labels, no handles, no eyes. What
+   * survives is picking a section, which is the one thing the rail is for. The
+   * order and the on/off switches are still there a click away, in the expanded
+   * sidebar.
+   */
+  const collapsed = useSidebarCollapsed();
+
   const movable = items.filter((item) => item.visible !== undefined);
   const sortable = movable.length > 0 && Boolean(onReorder);
 
@@ -73,7 +82,9 @@ export function SectionRail<Id extends string>({
       aria-label="Page sections"
       className="flex gap-1 overflow-x-auto md:flex-col md:overflow-x-visible"
     >
-      <p className="hidden px-2 py-1 text-[11px] font-medium text-muted-fg md:block">Sections</p>
+      {collapsed ? null : (
+        <p className="hidden px-2 py-1 text-[11px] font-medium text-muted-fg md:block">Sections</p>
+      )}
 
       {items.map((item) => {
         const selected = item.id === active;
@@ -98,7 +109,7 @@ export function SectionRail<Id extends string>({
           >
             {/* Reserved on every row when anything moves, so the labels line up
                 whether or not the row has a handle of its own. */}
-            {sortable ? (
+            {sortable && !collapsed ? (
               moves ? (
                 <button
                   type="button"
@@ -127,10 +138,11 @@ export function SectionRail<Id extends string>({
               type="button"
               onClick={() => onSelect(item.id)}
               aria-current={selected ? "true" : undefined}
-              title={item.hint}
+              title={collapsed ? `${item.title ?? item.short} — ${item.hint}` : item.hint}
               className={cn(
                 "flex min-w-0 flex-1 items-center gap-2 rounded-md py-1.5 pl-1.5 pr-1 text-left text-[13px] font-medium outline-none transition",
                 "focus-visible:ring-[3px] focus-visible:ring-ring/40",
+                collapsed && "md:justify-center md:px-0",
                 selected
                   ? "text-foreground"
                   : off
@@ -139,10 +151,14 @@ export function SectionRail<Id extends string>({
               )}
             >
               <Icon className={cn("size-4 shrink-0", off && "opacity-60")} />
-              <span className="truncate whitespace-nowrap">{item.title ?? item.short}</span>
+              <span
+                className={cn("truncate whitespace-nowrap", collapsed && "md:hidden")}
+              >
+                {item.title ?? item.short}
+              </span>
             </button>
 
-            {moves && onToggleVisible ? (
+            {moves && onToggleVisible && !collapsed ? (
               <button
                 type="button"
                 onClick={() => onToggleVisible(item.id)}

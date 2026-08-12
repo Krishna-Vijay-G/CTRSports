@@ -50,7 +50,14 @@ export function IncrcPreview({
     if (!element) return;
 
     // clientWidth, so the scrollbar is not counted as page width.
-    const measure = () => setScale(element.clientWidth / PREVIEW_WIDTH);
+    // A zero width is a measurement taken before layout, or while the pane is
+    // folded away — not a real size. Scaling by it would set `zoom: 0` and
+    // collapse the whole preview to an empty black box, so the last good scale
+    // is kept until a real width arrives.
+    const measure = () => {
+      const width = element.clientWidth;
+      if (width > 0) setScale(width / PREVIEW_WIDTH);
+    };
     measure();
 
     const observer = new ResizeObserver(measure);

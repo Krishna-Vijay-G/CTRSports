@@ -4,7 +4,8 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/admin/ui/Badge";
 import { Button } from "@/admin/ui/Button";
-import { CaretDownIcon, DragIcon, PlusIcon, TrashIcon } from "@/admin/ui/icons";
+import { Dialog } from "@/admin/ui/Dialog";
+import { CaretDownIcon, DragIcon, PencilIcon, PlusIcon, TrashIcon } from "@/admin/ui/icons";
 import { Note, Panel } from "@/admin/components/Fields";
 
 /**
@@ -17,11 +18,17 @@ import { Note, Panel } from "@/admin/components/Fields";
  *
  * Two shapes, chosen by whether `summary` is given:
  *
- *   without it — every entry is open. Right for short lists (three venues) where
- *                seeing them all at once is the whole point.
- *   with it    — entries collapse to one line and open one at a time. Right for
- *                long lists (a dozen posts) that would otherwise be a mile of
- *                form.
+ *   without it — every entry is open, one after another. Right for short lists
+ *                of small fields (four figures, six cards) where seeing them all
+ *                at once is the whole point.
+ *   with it    — every entry is one line, and editing one opens a DIALOG. Right
+ *                for long lists of big entries (a dozen posts) that would
+ *                otherwise be a mile of form.
+ *
+ * The dialog is what the second shape used to do inline, and the change is not
+ * cosmetic: the fields now live in a column about a third of the screen wide, so
+ * an entry with a photograph, a date and two paragraphs has nowhere to unfold.
+ * A dialog gives it the whole window and leaves the list readable underneath.
  *
  * Reordering is a drag handle plus arrow buttons. The buttons are not a
  * fallback: HTML5 drag does not work on touch at all, so they are the only way
@@ -39,7 +46,10 @@ export type RepeaterProps<T> = {
   blank: () => T;
   /** Stable React key. Falls back to the index for lists that carry no id. */
   keyOf?: (item: T, index: number) => string;
-  /** Collapses the list. Omit to keep every entry open. */
+  /**
+   * Reduces each entry to one line, edited in a dialog. Omit to keep every entry
+   * open inline.
+   */
   summary?: (item: T, index: number) => { title: string; hint?: string; image?: string };
   /** What the list says when it is empty. */
   empty?: string;
@@ -63,7 +73,8 @@ export function Repeater<T>({
   children,
 }: RepeaterProps<T>) {
   const collapsible = Boolean(summary);
-  const [open, setOpen] = useState<number | null>(collapsible ? 0 : null);
+  /** With `summary`, the index whose dialog is open; without it, unused. */
+  const [open, setOpen] = useState<number | null>(null);
   const [dragging, setDragging] = useState<number | null>(null);
 
   function patchAt(index: number, patch: Partial<T>) {
@@ -95,6 +106,10 @@ export function Repeater<T>({
     if (open !== null && open >= index) setOpen(open > index ? open - 1 : null);
   }
 
+  /** The entry whose dialog is open, if the list is in one-line mode. */
+  const editing = collapsible && open !== null && open < items.length ? open : null;
+  const editingHead = editing !== null ? summary?.(items[editing], editing) : undefined;
+
   return (
     <Panel title={title} hint={`${items.length} of ${max}`}>
       {items.length === 0 ? (
@@ -104,7 +119,6 @@ export function Repeater<T>({
       ) : (
         <ul className="space-y-1.5">
           {items.map((item, index) => {
-            const expanded = !collapsible || open === index;
             const head = summary?.(item, index);
 
             return (
@@ -117,7 +131,7 @@ export function Repeater<T>({
                 className={cn(
                   "rounded-md border bg-background/60 transition-colors",
                   dragging === index ? "border-primary/60 opacity-40" : "border-border",
-                  expanded && collapsible && "border-input bg-background"
+                  collapsible && "hover:border-input hover:bg-background"
                 )}
               >
                 <div className="flex items-center gap-2 p-1.5">
@@ -149,8 +163,8 @@ export function Repeater<T>({
                   {head ? (
                     <button
                       type="button"
-                      onClick={() => setOpen(expanded ? null : index)}
-                      aria-expanded={expanded}
+                      onClick={() => setOpen(index)}
+                      title="Edit"
                       className="min-w-0 flex-1 text-left"
                     >
                       <span className="block truncate text-[13px] font-medium text-foreground">
@@ -167,15 +181,26 @@ export function Repeater<T>({
                   )}
 
                   {collapsible ? (
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={() => setOpen(expanded ? null : index)}
-                      aria-expanded={expanded}
-                      aria-label={expanded ? "Close" : "Edit"}
-                    >
-                      <CaretDownIcon className={cn("transition-transform", expanded && "rotate-180")} />
-                    </Button>
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => setOpen(index)}
+                        aria-label="Edit"
+                        title="Edit"
+                      >
+                        <PencilIcon />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => remove(index)}
+                        aria-label="Remove"
+                        className="hover:text-destructive"
+                      >
+                        <TrashIcon />
+                      </Button>
+                    </>
                   ) : (
                     <>
                       <Button
@@ -209,52 +234,11 @@ export function Repeater<T>({
                   )}
                 </div>
 
-                {expanded ? (
-                  <div
-                    className={cn(
-                      "space-y-3 border-t border-border p-3",
-                      !collapsible && "border-dashed"
-                    )}
-                  >
+                {collapsible ? null : (
+                  <div className="space-y-3 border-t border-dashed border-border p-3">
                     {children(item, index, (patch) => patchAt(index, patch))}
-
-                    {collapsible ? (
-                      <div className="flex items-center gap-1.5 border-t border-border pt-3">
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => moveTo(index, index - 1)}
-                          disabled={index === 0}
-                          aria-label="Move up"
-                        >
-                          <CaretDownIcon className="rotate-180" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => moveTo(index, index + 1)}
-                          disabled={index === items.length - 1}
-                          aria-label="Move down"
-                        >
-                          <CaretDownIcon />
-                        </Button>
-                        <Badge variant="outline">
-                          {index + 1} of {items.length}
-                        </Badge>
-
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => remove(index)}
-                          className="ml-auto"
-                        >
-                          <TrashIcon />
-                          Remove
-                        </Button>
-                      </div>
-                    ) : null}
                   </div>
-                ) : null}
+                )}
               </li>
             );
           })}
@@ -273,6 +257,64 @@ export function Repeater<T>({
       </Button>
 
       {note ? <Note className="mt-3">{note}</Note> : null}
+
+      {/*
+        One dialog for the whole list, not one per row: only the open entry is
+        mounted, so a list of twenty posts costs one form, not twenty. Edits go
+        straight through `patchAt` as they are typed — there is no draft and no
+        Cancel, because the page behind is already showing the change and the
+        editor's own Save is what decides whether any of it is kept.
+      */}
+      {editing !== null ? (
+        <Dialog
+          open
+          onClose={() => setOpen(null)}
+          title={editingHead?.title || `${title} ${editing + 1}`}
+          description={editingHead?.hint}
+          className="max-w-2xl"
+        >
+          <div className="space-y-3">
+            {children(items[editing], editing, (patch) => patchAt(editing, patch))}
+          </div>
+
+          <div className="mt-4 flex items-center gap-1.5 border-t border-border pt-3">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => moveTo(editing, editing - 1)}
+              disabled={editing === 0}
+              aria-label="Move up"
+            >
+              <CaretDownIcon className="rotate-180" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => moveTo(editing, editing + 1)}
+              disabled={editing === items.length - 1}
+              aria-label="Move down"
+            >
+              <CaretDownIcon />
+            </Button>
+            <Badge variant="outline">
+              {editing + 1} of {items.length}
+            </Badge>
+
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => remove(editing)}
+              className="ml-auto"
+            >
+              <TrashIcon />
+              Remove
+            </Button>
+            <Button size="sm" onClick={() => setOpen(null)}>
+              Done
+            </Button>
+          </div>
+        </Dialog>
+      ) : null}
     </Panel>
   );
 }

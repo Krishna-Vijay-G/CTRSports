@@ -3,10 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { DEFAULT_INCRC_CONTENT, type IncrcContent } from "@/lib/incrcContent";
 import type { LandingContent } from "@/lib/landingContent";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/admin/ui/Badge";
 import { Button } from "@/admin/ui/Button";
 import { AdminRailSlot } from "@/admin/components/AdminShell";
-import { EditorAside } from "@/admin/components/EditorAside";
+import { EditorToolbar } from "@/admin/components/EditorToolbar";
 import { IncrcPreview } from "@/admin/components/previews/IncrcPreview";
 import { SectionRail } from "@/admin/components/SectionRail";
 import { BannersPanel } from "@/admin/components/banners/BannersPanel";
@@ -27,10 +28,13 @@ import { VisionPanel } from "./panels/VisionPanel";
 /**
  * The whole /incrc page, edited on one screen.
  *
- * The list of tabs goes into the sidebar (see AdminRailSlot), which leaves this
- * screen three columns: the fields for the open tab, the live preview in the
- * middle, and everything about the page as a whole down the right. Only one
- * tab's fields are mounted at a time, which is what keeps the fields short
+ * The list of tabs goes into the sidebar (see AdminRailSlot), so this screen is a
+ * toolbar over two panes: the live page in the middle, and the fields for the
+ * open tab down the right. Both the sidebar and the fields fold away, and the
+ * toolbar does not, which is what keeps Save reachable in every one of the four
+ * states.
+ *
+ * Only one tab's fields are mounted at a time, which is what keeps the pane short
  * enough to take in at a glance instead of scrolling a form the length of the
  * page.
  *
@@ -46,16 +50,6 @@ import { VisionPanel } from "./panels/VisionPanel";
  * list the page is built from are one list, so there is nothing to keep in step
  * and no layout screen to go and find.
  */
-
-/** The right-hand column's standing explanation of the screen. */
-const NOTES = [
-  "Pick a tab in the sidebar. The middle of the screen is the real page, drawn from what you have typed.",
-  "Drag a section by its handle to move it up or down the page. The eye beside it takes it off.",
-  "A section that is off is left out of the page entirely, so a link in the navigation pointing at it has nowhere to go.",
-  "Banners carry the header, so they are always first and are not part of the order. Empty the banner list and the header becomes a plain bar.",
-  "Nothing on the site changes until you press Save.",
-  "The header and footer around the preview are edited on the Landing page.",
-];
 
 /** The banners are not a section of the page, so they never move. */
 const FIXED: TabId[] = ["banners"];
@@ -83,6 +77,9 @@ export function IncrcEditor({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [justSaved, setJustSaved] = useState(false);
+
+  /** The right-hand pane. Folded away, the preview takes the whole width. */
+  const [fieldsOpen, setFieldsOpen] = useState(true);
 
   const tab = TABS.find((entry) => entry.id === active) ?? TABS[0];
   const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
@@ -241,7 +238,7 @@ export function IncrcEditor({
     : false;
 
   return (
-    <div className="flex min-h-0 flex-col gap-2 md:h-full lg:flex-row">
+    <div className="flex min-h-0 flex-col gap-2 md:h-full">
       <AdminRailSlot>
         <SectionRail
           items={railItems}
@@ -252,61 +249,62 @@ export function IncrcEditor({
         />
       </AdminRailSlot>
 
-      <div
-        ref={columnRef}
-        className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card md:overflow-y-auto lg:w-[520px] lg:flex-none xl:w-[600px]"
-      >
-        {/* Sticky, so it is clear what the fields belong to however far down them
-            you have got. */}
-        <div className="sticky top-0 z-10 flex items-center gap-2.5 border-b border-border bg-card/95 px-4 py-2.5 backdrop-blur">
-          <Icon className="size-5 shrink-0 text-muted-fg" />
-
-          <div className="min-w-0">
-            <h1 className="truncate font-medium tracking-tight text-foreground">{tab.title}</h1>
-            <p className="truncate text-[11px] text-muted-fg">{tab.hint}</p>
-          </div>
-        </div>
-
-        <div className="bg-background/40 p-3">{panel()}</div>
-      </div>
-
-      {/*
-        Hidden below lg: at that width the fields already fill the screen, and a
-        preview shrunk into what is left would be unreadable rather than useful.
-      */}
-      <IncrcPreview
-        content={draft}
-        chrome={chrome}
-        year={year}
-        focus={tab.preview}
-        bannerIndex={bannerIndex}
-        className="hidden lg:block lg:min-w-0 lg:flex-1"
-      />
-
-      {/* order-first below lg, where there is no preview and Save would otherwise
-          sit under the whole form. */}
-      <EditorAside
+      <EditorToolbar
+        Icon={Icon}
+        title={tab.title}
+        hint={tab.hint}
         dirty={dirty}
         justSaved={justSaved}
         busy={busy}
         error={error}
         onSave={handleSave}
         onLoadDefaults={loadDefaults}
-        notes={NOTES}
-        className="order-first shrink-0 lg:order-none lg:w-52 xl:w-60"
-      >
-        {off ? (
-          <div className="space-y-1.5 rounded-md border border-border bg-background/60 px-2.5 py-2">
-            <Badge variant="outline">Off</Badge>
-            <p className="text-[11px] leading-relaxed text-muted-fg">
-              This section is not on the page, which is why the preview does not move.
-            </p>
-            <Button variant="outline" size="xs" onClick={() => toggleSection(tab.id)}>
-              Put it back
-            </Button>
+        fieldsOpen={fieldsOpen}
+        onToggleFields={() => setFieldsOpen((open) => !open)}
+      />
+
+      <div className="flex min-h-0 flex-1 flex-col gap-2 lg:flex-row">
+        {/*
+          Hidden below lg: at that width the fields already fill the screen, and
+          a preview shrunk into what is left would be unreadable rather than
+          useful.
+        */}
+        <IncrcPreview
+          content={draft}
+          chrome={chrome}
+          year={year}
+          focus={tab.preview}
+          bannerIndex={bannerIndex}
+          className="hidden lg:block lg:min-w-0 lg:flex-1"
+        />
+
+        {/* The fields. Below lg they are the whole screen; from lg they are the
+            right-hand pane, and folding them away hands the width to the
+            preview. */}
+        <div
+          ref={columnRef}
+          className={cn(
+            "min-w-0 flex-1 overflow-hidden rounded-lg border border-border bg-card md:overflow-y-auto",
+            fieldsOpen ? "lg:w-[440px] lg:flex-none xl:w-[520px]" : "lg:hidden"
+          )}
+        >
+          <div className="space-y-2.5 bg-background/40 p-3">
+            {off ? (
+              <div className="flex items-center gap-2.5 rounded-md border border-border bg-background/60 px-2.5 py-2">
+                <Badge variant="outline">Off</Badge>
+                <p className="min-w-0 flex-1 text-[11px] leading-relaxed text-muted-fg">
+                  Not on the page, which is why the preview does not move.
+                </p>
+                <Button variant="outline" size="xs" onClick={() => toggleSection(tab.id)}>
+                  Put it back
+                </Button>
+              </div>
+            ) : null}
+
+            {panel()}
           </div>
-        ) : null}
-      </EditorAside>
+        </div>
+      </div>
     </div>
   );
 }
