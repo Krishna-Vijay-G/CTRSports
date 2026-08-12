@@ -141,6 +141,64 @@ export async function migrate(sql) {
     CREATE INDEX IF NOT EXISTS ctr_tracks_order_idx ON ctr_tracks (sort_order, name)
   `;
 
+  /*
+   * The circuit's own record, in the shape a motorsport reference keeps it —
+   * the fields a Wikipedia circuit infobox carries.
+   *
+   * Every one is text, including the years and the lap time. A circuit "opened"
+   * in "1990" but also in "2010 (rebuilt)", and a lap record is "1:30.323". The
+   * moment one of these needs arithmetic done to it, it can be narrowed; until
+   * then a column that cannot hold the truth is worse than a loose one.
+   *
+   * `races_held` is the exception and is a real count, because that is a number
+   * someone will want to sort or sum one day.
+   *
+   * Deliberately ABSENT: who holds the lap record, and in what car. Those are a
+   * racer and a team, and they get tables of their own — a text column here
+   * would have to be unpicked into a foreign key later.
+   */
+  for (const column of [
+    "photo_url",
+    "svg_path",
+    "svg_view_box",
+    "former_names",
+    "owner",
+    "fia_grade",
+    "direction",
+    "opened",
+    "broke_ground",
+    "coordinates",
+    "capacity",
+    "website",
+    "major_events",
+    "lap_record_time",
+    "lap_record_year",
+  ]) {
+    // sql.query, not sql(): the driver only takes a plain string through the
+    // query method — the tag form is reserved for parameterised templates. The
+    // column names come from the literal list above, never from input.
+    await sql.query(
+      `ALTER TABLE ctr_tracks ADD COLUMN IF NOT EXISTS ${column} text NOT NULL DEFAULT ''`
+    );
+  }
+
+  await sql`ALTER TABLE ctr_tracks ADD COLUMN IF NOT EXISTS races_held integer NOT NULL DEFAULT 0`;
+
+  /*
+   * map_url held photographs before there was a column for them — the calendar
+   * was using it as the circuit's picture. Now that a layout map and a photo are
+   * separate things, move what is there into photo_url and leave map_url for an
+   * actual drawing of the track.
+   *
+   * Only ever fills a blank photo_url, so it is safe to re-run and cannot
+   * overwrite a picture someone has since chosen.
+   */
+  await sql`
+    UPDATE ctr_tracks
+       SET photo_url = map_url, map_url = '', updated_at = now()
+     WHERE photo_url = '' AND map_url <> ''
+  `;
+
   // Every word and picture on the landing page except the sports cards, as one
   // JSONB document per page ('landing' is the only key so far). A document
   // rather than a column per field: the shape is nested, it changes with the

@@ -6,7 +6,14 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { Button, ButtonLink } from "@/admin/ui/Button";
-import { ExternalIcon, FlagIcon, ImagesIcon, PanelIcon, SignOutIcon } from "@/admin/ui/icons";
+import {
+  ExternalIcon,
+  FlagIcon,
+  ImagesIcon,
+  MapIcon,
+  PanelIcon,
+  SignOutIcon,
+} from "@/admin/ui/icons";
 
 /**
  * Chrome around every admin screen.
@@ -48,6 +55,7 @@ export function useSidebarCollapsed() {
 const NAV = [
   { href: "/landing", label: "Landing page", icon: ImagesIcon },
   { href: "/incrc", label: "INCRC", icon: FlagIcon },
+  { href: "/tracks", label: "Circuits", icon: MapIcon },
 ];
 
 const RAIL_SLOT_ID = "admin-rail-slot";

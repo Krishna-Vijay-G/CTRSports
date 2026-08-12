@@ -120,10 +120,10 @@ function NextRound({
 
   return (
     <article className="relative isolate overflow-hidden rounded-card border border-line bg-panel">
-      {track?.map_url ? (
+      {track?.photo_url ? (
         <>
           <img
-            src={track.map_url}
+            src={track.photo_url}
             alt=""
             aria-hidden
             className="absolute inset-0 -z-10 h-full w-full object-cover"
@@ -253,9 +253,9 @@ function RoundCard({
       {/* The photograph, with the round number laid over it — the one place a
           card can carry a big numeral without fighting the date block. */}
       <div className="relative h-28 overflow-hidden bg-surface">
-        {track?.map_url ? (
+        {track?.photo_url ? (
           <img
-            src={track.map_url}
+            src={track.photo_url}
             alt=""
             aria-hidden
             loading="lazy"
