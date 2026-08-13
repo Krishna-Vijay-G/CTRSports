@@ -5,6 +5,7 @@ import { createHash, randomBytes, scrypt as scryptCb, timingSafeEqual } from "no
 import { promisify } from "node:util";
 import { cookies } from "next/headers";
 import { getSql } from "@/lib/server/db";
+import { normalisePageKeys, normaliseRole, type AdminRole, type PageKey } from "@/lib/roles";
 
 const scrypt = promisify(scryptCb) as (
   password: string,
@@ -61,7 +62,20 @@ export async function createSession(adminId: string): Promise<void> {
   });
 }
 
-export type AdminSession = { adminId: string; username: string };
+/**
+ * Who is signed in, and what they may touch.
+ *
+ * The role travels with the session rather than being looked up where it is
+ * needed: a screen and the route behind it both have to ask, and two lookups
+ * are two chances to ask different questions. `src/lib/roles.ts` is where the
+ * answer is interpreted; this only carries it.
+ */
+export type AdminSession = {
+  adminId: string;
+  username: string;
+  role: AdminRole;
+  pages: PageKey[];
+};
 
 /**
  * `cache()` dedupes within a single request — the layout that gates /admin and
@@ -75,15 +89,25 @@ export const getSession = cache(async (): Promise<AdminSession | null> => {
   try {
     const sql = getSql();
     const rows = (await sql`
-      SELECT a.id AS admin_id, a.username
+      SELECT a.id AS admin_id, a.username, a.role, a.pages
         FROM ctr_sessions s
         JOIN ctr_admins a ON a.id = s.admin_id
        WHERE s.token_hash = ${hashToken(token)}
          AND s.expires_at > now()
-    `) as { admin_id: string; username: string }[];
+    `) as { admin_id: string; username: string; role: unknown; pages: unknown }[];
 
     const row = rows[0];
-    return row ? { adminId: row.admin_id, username: row.username } : null;
+    if (!row) return null;
+
+    // Normalised here rather than trusted: the column has no CHECK constraint,
+    // deliberately, so this is where an unknown role becomes the least
+    // privileged one instead of an unhandled string.
+    return {
+      adminId: row.admin_id,
+      username: row.username,
+      role: normaliseRole(row.role),
+      pages: normalisePageKeys(row.pages),
+    };
   } catch {
     // A database that is down reads as "not signed in", which sends the visitor
     // to the login screen rather than showing a stack trace.

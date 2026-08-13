@@ -1,4 +1,6 @@
+import { requirePage } from "@/lib/server/access";
 import { getLandingContent } from "@/lib/server/contentRepo";
+import { listFormsForPage } from "@/lib/server/formsRepo";
 import { listAllSports } from "@/lib/server/sportsRepo";
 import { LandingEditor } from "@/admin/screens/landing/LandingEditor";
 
@@ -13,12 +15,19 @@ export const dynamic = "force-dynamic";
  * straight over the real content.
  */
 export default async function LandingAdminPage() {
-  const [content, sports] = await Promise.all([getLandingContent(), listAllSports()]);
+  await requirePage("landing");
+
+  const [content, sports, forms] = await Promise.all([
+    getLandingContent(),
+    listAllSports(),
+    listFormsForPage("landing"),
+  ]);
 
   return (
     <LandingEditor
       initialContent={content}
       initialSports={sports}
+      forms={forms}
       year={new Date().getFullYear()}
     />
   );

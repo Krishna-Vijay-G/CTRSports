@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { SITE } from "@/config/site";
 import type { IncrcContent } from "@/lib/incrcContent";
 import { getIncrcContentSafe, getLandingContentSafe } from "@/lib/server/contentRepo";
+import { listFormsForPageSafe } from "@/lib/server/formsRepo";
 import { listTracksSafe } from "@/lib/server/tracksRepo";
 import { sendAnchorsHome } from "@/lib/siteChrome";
 import { findTrack, trackHref } from "@/lib/tracks";
@@ -79,13 +80,15 @@ const LOCAL_ANCHORS = new Set([
   "#rows",
   "#posts",
   "#register",
+  "#registrations",
 ]);
 
 export default async function IncrcPage() {
-  const [content, landing, tracks] = await Promise.all([
+  const [content, landing, tracks, forms] = await Promise.all([
     getIncrcContentSafe(),
     getLandingContentSafe(),
     listTracksSafe(),
+    listFormsForPageSafe("incrc"),
   ]);
 
   const chrome = sendAnchorsHome(landing, LOCAL_ANCHORS);
@@ -152,7 +155,7 @@ export default async function IncrcPage() {
         <div className="mx-auto max-w-[1920px] overflow-hidden rounded-card bg-surface">
           <main id="main-content">
             <IncrcTop banners={content.banners} chrome={chrome} />
-            <IncrcSections content={content} tracks={tracks} />
+            <IncrcSections content={content} tracks={tracks} forms={forms} />
           </main>
 
           <SiteFooter content={chrome} year={new Date().getFullYear()} />

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/server/auth";
+import { guardAnyPage } from "@/lib/server/access";
 import { isS3Configured, listMedia } from "@/lib/server/s3";
 
 export const runtime = "nodejs";
@@ -14,9 +14,8 @@ export const dynamic = "force-dynamic";
  * failure for something that was never set up.
  */
 export async function GET() {
-  if (!(await getSession())) {
-    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
-  }
+  const denied = await guardAnyPage();
+  if (denied) return denied;
 
   if (!isS3Configured()) {
     return NextResponse.json({ configured: false, media: [] });

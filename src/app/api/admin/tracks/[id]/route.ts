@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/server/auth";
+import { guardPage } from "@/lib/server/access";
 import { revalidateTrackPages } from "@/lib/server/revalidateTracks";
 import { deleteTrack, updateTrack } from "@/lib/server/tracksRepo";
 import { isTrackId } from "@/lib/tracks";
@@ -10,9 +10,8 @@ export const dynamic = "force-dynamic";
 type Params = { params: Promise<{ id: string }> };
 
 export async function PUT(request: Request, { params }: Params) {
-  if (!(await getSession())) {
-    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
-  }
+  const denied = await guardPage("circuits");
+  if (denied) return denied;
 
   const { id } = await params;
   if (!isTrackId(id)) {
@@ -46,9 +45,8 @@ export async function PUT(request: Request, { params }: Params) {
 }
 
 export async function DELETE(_request: Request, { params }: Params) {
-  if (!(await getSession())) {
-    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
-  }
+  const denied = await guardPage("circuits");
+  if (denied) return denied;
 
   const { id } = await params;
   if (!isTrackId(id)) {

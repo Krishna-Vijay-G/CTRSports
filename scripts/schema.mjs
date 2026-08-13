@@ -83,6 +83,33 @@ export async function migrate(sql) {
     )
   `;
 
+  /*
+   * What an account may touch. Three roles, and they divide the admin by the
+   * thing being edited rather than by a list of permissions:
+   *
+   *   owner          everything, including the accounts themselves
+   *   pages          only the page editors named in `pages`
+   *   registrations  only the forms and the entries — no page copy at all
+   *
+   * Added with DEFAULT 'owner', which IS the backfill: every account that
+   * existed before this ran keeps exactly the access it had, so a deploy cannot
+   * lock anyone out of their own site. The default is then changed to 'pages'
+   * below, so an account created afterwards without a role named is the least
+   * privileged one rather than the most.
+   *
+   * No CHECK constraint on the value: Postgres has no ADD CONSTRAINT IF NOT
+   * EXISTS, so one could not be added idempotently, and the value is put
+   * through `oneOf` on the way out of the database anyway — which is what makes
+   * retiring a role a code change and nothing else.
+   */
+  await sql`ALTER TABLE ctr_admins ADD COLUMN IF NOT EXISTS role text NOT NULL DEFAULT 'owner'`;
+  await sql`ALTER TABLE ctr_admins ALTER COLUMN role SET DEFAULT 'pages'`;
+
+  // Which page editors a `pages` admin may open. Ignored for the other two: an
+  // owner has all of them and a registrations admin has none. A list, so JSONB
+  // — the same reasoning ctr_tracks.links gives for not being a column per key.
+  await sql`ALTER TABLE ctr_admins ADD COLUMN IF NOT EXISTS pages jsonb NOT NULL DEFAULT '[]'::jsonb`;
+
   await sql`
     CREATE TABLE IF NOT EXISTS ctr_sessions (
       token_hash text PRIMARY KEY,
@@ -244,6 +271,85 @@ export async function migrate(sql) {
       content    jsonb NOT NULL,
       updated_at timestamptz NOT NULL DEFAULT now()
     )
+  `;
+
+  /*
+   * A registration form.
+   *
+   * The site used to send anyone wanting to enter to a form on the older CTR
+   * site. This is that form, here — which is what makes an entry a row in this
+   * database, and what lets the person who owns entries be somebody other than
+   * the person who owns the page the form is linked from.
+   *
+   * The flat parts are columns and the questions are JSONB, which is the same
+   * split ctr_tracks makes for its links: a shape that never changes is a
+   * column, and a list whose entries are invented by whoever is editing is a
+   * document.
+   *
+   * `slug` is a stored column rather than a slug derived from the name, unlike
+   * a circuit's. A circuit's address is a convenience; a form's is printed on a
+   * poster and put behind a QR code, so it has to survive a rename — hence
+   * `former_slugs`, which the public page redirects from.
+   *
+   * `notify_to` is stored and not yet read. There is no mail transport in this
+   * project and this does not add one; collecting the address now is what makes
+   * adding one later a transport rather than a migration.
+   */
+  await sql`
+    CREATE TABLE IF NOT EXISTS ctr_forms (
+      id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      name          text NOT NULL,
+      slug          text NOT NULL UNIQUE,
+      page_key      text NOT NULL DEFAULT '',
+      status        text NOT NULL DEFAULT 'draft',
+      blurb         text NOT NULL DEFAULT '',
+      intro_title   text NOT NULL DEFAULT '',
+      intro_body    text NOT NULL DEFAULT '',
+      submit_label  text NOT NULL DEFAULT 'Send',
+      success_title text NOT NULL DEFAULT '',
+      success_body  text NOT NULL DEFAULT '',
+      closed_note   text NOT NULL DEFAULT '',
+      notify_to     text NOT NULL DEFAULT '',
+      fields        jsonb NOT NULL DEFAULT '[]'::jsonb,
+      former_slugs  jsonb NOT NULL DEFAULT '[]'::jsonb,
+      sort_order    integer NOT NULL DEFAULT 0,
+      created_at    timestamptz NOT NULL DEFAULT now(),
+      updated_at    timestamptz NOT NULL DEFAULT now()
+    )
+  `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS ctr_forms_page_idx ON ctr_forms (page_key, sort_order, name)
+  `;
+
+  /*
+   * One submission.
+   *
+   * `answers` is keyed by FIELD ID, never by label: a label is edited freely
+   * and an entry has to keep meaning what it meant when it was sent. It is also
+   * why a field's id is never reused.
+   *
+   * The column is `answers` rather than the obvious `values` because that is a
+   * reserved word, and every query would have to quote it.
+   *
+   * The ip and the user agent are kept for one purpose: telling a burst of spam
+   * from a busy afternoon. They are never shown on the public site, never in
+   * the default export, and go with the form when it is deleted.
+   */
+  await sql`
+    CREATE TABLE IF NOT EXISTS ctr_form_entries (
+      id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      form_id    uuid NOT NULL REFERENCES ctr_forms(id) ON DELETE CASCADE,
+      answers    jsonb NOT NULL DEFAULT '{}'::jsonb,
+      ip         text NOT NULL DEFAULT '',
+      user_agent text NOT NULL DEFAULT '',
+      created_at timestamptz NOT NULL DEFAULT now()
+    )
+  `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS ctr_form_entries_form_idx
+      ON ctr_form_entries (form_id, created_at DESC)
   `;
 }
 
@@ -567,4 +673,44 @@ export async function backfillRoundDates(sql) {
   `;
 
   return changed;
+}
+
+/** Where entry forms used to live, before they were on this site. */
+const OLD_REGISTRATION_HOST = "https://chennaiturboriders.in";
+
+/**
+ * Points the registration band back at this site.
+ *
+ * Entry forms are now pages here — /register/<slug> — so nothing about
+ * registering should send a visitor to the older CTR site. Changing the DEFAULT
+ * in src/lib/incrcContent.ts is not enough on its own: a default only applies
+ * to a field that is MISSING, and any database that has ever saved the incrc
+ * document is still carrying the old address in it.
+ *
+ * So this rewrites it, once, to `#registrations` — the section listing every
+ * form for the page. Not to a form's address, because there may not be a form
+ * yet and a button pointing at a 404 is worse than one pointing at a list.
+ *
+ * Only ever touches a link to that old host. An address somebody has since set
+ * for themselves — including a /register/… one they have already chosen — is
+ * left exactly as it is, so this is safe to re-run and cannot undo an edit.
+ */
+export async function backfillRegisterCta(sql) {
+  const rows = await sql`SELECT content FROM ctr_content WHERE key = 'incrc'`;
+  if (rows.length === 0) return 0;
+
+  const content = rows[0].content;
+  const href = content?.register?.ctaHref;
+
+  if (typeof href !== "string" || !href.startsWith(OLD_REGISTRATION_HOST)) return 0;
+
+  content.register.ctaHref = "#registrations";
+
+  await sql`
+    UPDATE ctr_content
+       SET content = ${JSON.stringify(content)}::jsonb, updated_at = now()
+     WHERE key = 'incrc'
+  `;
+
+  return 1;
 }

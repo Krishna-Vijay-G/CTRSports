@@ -11,6 +11,11 @@ import { trackSlug } from "@/lib/tracks";
  * the sitemap until someone remembered this file. The safe loader is used on
  * purpose — a sitemap that fails the build over an unreachable database would
  * take the whole deploy with it, and a short sitemap is a far smaller problem.
+ *
+ * The registration forms at /register/<slug> are deliberately NOT here. Each one
+ * sets `robots: noindex` — a form has nothing to rank for, and a closed one in a
+ * search result is worse than nothing — so listing them would be asking a
+ * crawler to fetch pages it is then told to forget.
  */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();

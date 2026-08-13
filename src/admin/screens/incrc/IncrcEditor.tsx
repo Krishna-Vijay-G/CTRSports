@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { FormSummary } from "@/lib/forms";
 import { DEFAULT_INCRC_CONTENT, type IncrcContent } from "@/lib/incrcContent";
 import type { LandingContent } from "@/lib/landingContent";
 import type { Track } from "@/lib/tracks";
@@ -21,6 +22,7 @@ import { MarqueePanel } from "./panels/MarqueePanel";
 import { PartnershipPanel } from "./panels/PartnershipPanel";
 import { PostsPanel } from "./panels/PostsPanel";
 import { RegisterPanel } from "./panels/RegisterPanel";
+import { RegistrationsPanel } from "./panels/RegistrationsPanel";
 import { RowsPanel } from "./panels/RowsPanel";
 import { StatsPanel } from "./panels/StatsPanel";
 import { VenuesPanel } from "./panels/VenuesPanel";
@@ -80,17 +82,25 @@ const DEFAULT_PARTS: Record<TabId, (keyof IncrcContent)[]> = {
   rows: ["rows"],
   posts: ["posts"],
   register: ["register"],
+  registrations: ["registrations"],
 };
 
 export function IncrcEditor({
   initialContent,
   chrome,
   tracks,
+  forms,
   year,
 }: {
   initialContent: IncrcContent;
   chrome: LandingContent;
   tracks: Track[];
+  /**
+   * The entry forms for this page, read-only here: they are built on the
+   * Registrations screen. The preview draws them, the registrations panel lists
+   * them, and the register band's picker points at one.
+   */
+  forms: FormSummary[];
   year: number;
 }) {
   const [active, setActive] = useState<TabId>(TABS[0].id);
@@ -278,7 +288,21 @@ export function IncrcEditor({
       case "posts":
         return <PostsPanel value={draft.posts} onChange={(v) => setPart("posts", v)} />;
       case "register":
-        return <RegisterPanel value={draft.register} onChange={(v) => setPart("register", v)} />;
+        return (
+          <RegisterPanel
+            value={draft.register}
+            onChange={(v) => setPart("register", v)}
+            forms={forms}
+          />
+        );
+      case "registrations":
+        return (
+          <RegistrationsPanel
+            value={draft.registrations}
+            onChange={(v) => setPart("registrations", v)}
+            forms={forms}
+          />
+        );
     }
   }
 
@@ -327,6 +351,7 @@ export function IncrcEditor({
           content={draft}
           chrome={chrome}
           tracks={tracks}
+          forms={forms}
           year={year}
           focus={tab.preview}
           bannerIndex={bannerIndex}

@@ -12,7 +12,14 @@ export const metadata: Metadata = {
  * Gates every /admin screen except the login page, which sits outside this
  * route group precisely so it is reachable while signed out.
  *
- * There are no roles: signed in means full access to everything under here.
+ * Signed in is the whole of what this asks. WHICH screens an account may open
+ * is asked by each screen for itself, with `requirePage` and its siblings in
+ * src/lib/server/access.ts — a layout cannot know which page is below it, and a
+ * layout that tried would be a second place for the answer to live.
+ *
+ * What it does do is hand the role down to the navigation, so the sidebar lists
+ * the screens this account can actually open. That is a courtesy, not the
+ * enforcement: the screens and the routes refuse on their own.
  */
 export default async function ProtectedAdminLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession();
@@ -22,5 +29,9 @@ export default async function ProtectedAdminLayout({ children }: { children: Rea
     redirect("/login");
   }
 
-  return <AdminShell username={session.username}>{children}</AdminShell>;
+  return (
+    <AdminShell username={session.username} role={session.role} pages={session.pages}>
+      {children}
+    </AdminShell>
+  );
 }

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
-import { getSession } from "@/lib/server/auth";
+import { guardPage } from "@/lib/server/access";
 import { createSport, listAllSports, reorderSports } from "@/lib/server/sportsRepo";
 import { isSportId } from "@/lib/sports";
 
@@ -9,9 +9,8 @@ export const dynamic = "force-dynamic";
 
 /** The whole list, hidden cards included. */
 export async function GET() {
-  if (!(await getSession())) {
-    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
-  }
+  const denied = await guardPage("landing");
+  if (denied) return denied;
 
   try {
     return NextResponse.json({ sports: await listAllSports() });
@@ -23,9 +22,8 @@ export async function GET() {
 
 /** Adds one. A card with no title is not a card, so that is the only hard rule. */
 export async function POST(request: Request) {
-  if (!(await getSession())) {
-    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
-  }
+  const denied = await guardPage("landing");
+  if (denied) return denied;
 
   let body: unknown;
   try {
@@ -58,9 +56,8 @@ export async function POST(request: Request) {
  * called "reorder". A distinct verb on the collection cannot collide.
  */
 export async function PATCH(request: Request) {
-  if (!(await getSession())) {
-    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
-  }
+  const denied = await guardPage("landing");
+  if (denied) return denied;
 
   let ids: unknown;
   try {

@@ -40,6 +40,27 @@ export function bool(value: unknown, fallback: boolean): boolean {
   return typeof value === "boolean" ? value : fallback;
 }
 
+/**
+ * A calendar date, or "".
+ *
+ * `YYYY-MM-DD` and nothing else — the shape `<input type="date">` produces, and
+ * the only shape the season's countdown parses. Checked for real existence
+ * rather than merely matching the pattern, so "2026-02-31" is rejected instead
+ * of silently becoming the 3rd of March when a Date is built from it.
+ *
+ * Here rather than beside the calendar because a registration form can ask for
+ * a date too, and two answers to "is that a date" is one too many.
+ */
+export function isoDate(value: unknown): string {
+  if (typeof value !== "string") return "";
+
+  const trimmed = value.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return "";
+
+  const date = new Date(`${trimmed}T00:00:00Z`);
+  return Number.isNaN(date.getTime()) || !date.toISOString().startsWith(trimmed) ? "" : trimmed;
+}
+
 function isHttpUrl(value: string): boolean {
   try {
     const url = new URL(value);

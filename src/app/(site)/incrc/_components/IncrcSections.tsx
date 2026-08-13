@@ -1,3 +1,4 @@
+import type { FormSummary } from "@/lib/forms";
 import type { Track } from "@/lib/tracks";
 import type { IncrcContent, IncrcSectionId } from "@/lib/incrcContent";
 import { CalendarSection } from "./CalendarSection";
@@ -8,6 +9,7 @@ import { Marquee } from "./Marquee";
 import { PartnershipSection } from "./PartnershipSection";
 import { PostsSection } from "./PostsSection";
 import { RegisterBand } from "./RegisterBand";
+import { RegistrationsSection } from "./RegistrationsSection";
 import { RowsSection } from "./RowsSection";
 import { StatsBand } from "./StatsBand";
 import { VenuesSection } from "./VenuesSection";
@@ -29,6 +31,7 @@ import { VisionSection } from "./VisionSection";
 export function IncrcSections({
   content,
   tracks,
+  forms,
 }: {
   content: IncrcContent;
   /**
@@ -36,6 +39,11 @@ export function IncrcSections({
    * calendar's rounds point at. Empty drops the venue cards and the maps.
    */
   tracks: Track[];
+  /**
+   * The entry forms assigned to this page, from ctr_forms. Empty leaves the
+   * registrations section off the page entirely.
+   */
+  forms: FormSummary[];
 }) {
   return (
     <>
@@ -43,14 +51,19 @@ export function IncrcSections({
         .filter((entry) => entry.visible)
         .map((entry) => (
           <div key={entry.id} data-preview={entry.id}>
-            {section(entry.id, content, tracks)}
+            {section(entry.id, content, tracks, forms)}
           </div>
         ))}
     </>
   );
 }
 
-function section(id: IncrcSectionId, content: IncrcContent, tracks: Track[]): React.ReactNode {
+function section(
+  id: IncrcSectionId,
+  content: IncrcContent,
+  tracks: Track[],
+  forms: FormSummary[]
+): React.ReactNode {
   switch (id) {
     case "marquee":
       return <Marquee marquee={content.marquee} />;
@@ -76,5 +89,7 @@ function section(id: IncrcSectionId, content: IncrcContent, tracks: Track[]): Re
       return <PostsSection posts={content.posts} />;
     case "register":
       return <RegisterBand register={content.register} />;
+    case "registrations":
+      return <RegistrationsSection registrations={content.registrations} forms={forms} />;
   }
 }

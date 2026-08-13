@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { FormSummary } from "@/lib/forms";
 import { DEFAULT_LANDING_CONTENT, type LandingContent } from "@/lib/landingContent";
 import type { Sport } from "@/lib/sports";
 import { cn } from "@/lib/utils";
@@ -68,10 +69,17 @@ const DEFAULT_PARTS: Record<SectionId, (keyof LandingContent)[]> = {
 export function LandingEditor({
   initialContent,
   initialSports,
+  forms,
   year,
 }: {
   initialContent: LandingContent;
   initialSports: Sport[];
+  /**
+   * The entry forms assigned to this page, read-only: they are built on the
+   * Registrations screen. Only the call-to-action band uses them, to point its
+   * button at one without anybody typing a URL.
+   */
+  forms: FormSummary[];
   year: number;
 }) {
   const [active, setActive] = useState<SectionId>(SECTIONS[0].id);
@@ -208,7 +216,13 @@ export function LandingEditor({
           />
         );
       case "cta":
-        return <CtaPanel value={draft.ctaBand} onChange={(v) => setPart("ctaBand", v)} />;
+        return (
+          <CtaPanel
+            value={draft.ctaBand}
+            onChange={(v) => setPart("ctaBand", v)}
+            forms={forms}
+          />
+        );
       case "footer":
         return <FooterPanel value={draft.socials} onChange={(v) => setPart("socials", v)} />;
     }

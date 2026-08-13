@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/server/auth";
+import { guardPage } from "@/lib/server/access";
 import { revalidateTrackPages } from "@/lib/server/revalidateTracks";
 import { createTrack, listTracks, reorderTracks } from "@/lib/server/tracksRepo";
 import { isTrackId } from "@/lib/tracks";
@@ -9,9 +9,8 @@ export const dynamic = "force-dynamic";
 
 /** The whole list. */
 export async function GET() {
-  if (!(await getSession())) {
-    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
-  }
+  const denied = await guardPage("circuits");
+  if (denied) return denied;
 
   try {
     return NextResponse.json({ tracks: await listTracks() });
@@ -23,9 +22,8 @@ export async function GET() {
 
 /** Adds one. A circuit with no name is not a circuit, so that is the only rule. */
 export async function POST(request: Request) {
-  if (!(await getSession())) {
-    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
-  }
+  const denied = await guardPage("circuits");
+  if (denied) return denied;
 
   let body: unknown;
   try {
@@ -57,9 +55,8 @@ export async function POST(request: Request) {
  * the match, so the path would land in the [id] handler.
  */
 export async function PATCH(request: Request) {
-  if (!(await getSession())) {
-    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
-  }
+  const denied = await guardPage("circuits");
+  if (denied) return denied;
 
   let ids: unknown;
   try {

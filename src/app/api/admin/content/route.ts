@@ -1,15 +1,14 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
-import { getSession } from "@/lib/server/auth";
+import { guardPage } from "@/lib/server/access";
 import { getLandingContent, saveLandingContent } from "@/lib/server/contentRepo";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  if (!(await getSession())) {
-    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
-  }
+  const denied = await guardPage("landing");
+  if (denied) return denied;
 
   try {
     return NextResponse.json({ content: await getLandingContent() });
@@ -29,9 +28,8 @@ export async function GET() {
  * wrong-typed field is clamped rather than stored.
  */
 export async function PUT(request: Request) {
-  if (!(await getSession())) {
-    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
-  }
+  const denied = await guardPage("landing");
+  if (denied) return denied;
 
   let body: unknown;
   try {

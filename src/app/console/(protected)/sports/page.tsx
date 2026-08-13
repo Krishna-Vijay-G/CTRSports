@@ -7,7 +7,11 @@ import { redirect } from "next/navigation";
  *
  * This redirect stays so an old bookmark still lands somewhere useful. Delete it
  * once nobody has one.
+ *
+ * It goes to the root rather than straight to /landing, because not every
+ * account has the landing editor now — the root is what knows which screen this
+ * one starts on.
  */
 export default function SportsAdminPage() {
-  redirect("/landing");
+  redirect("/");
 }

@@ -6,6 +6,7 @@ import {
   HandshakeIcon,
   ImagesIcon,
   LayersIcon,
+  ListIcon,
   MapIcon,
   MegaphoneIcon,
   NewsIcon,
@@ -148,5 +149,13 @@ export const TABS: Tab[] = [
     hint: "The yellow band at the foot, and the only thing the page asks for.",
     preview: "register",
     Icon: TicketIcon,
+  },
+  {
+    id: "registrations",
+    short: "Forms",
+    title: "Entry forms",
+    hint: "The cards linking to the entry forms for this page.",
+    preview: "registrations",
+    Icon: ListIcon,
   },
 ];

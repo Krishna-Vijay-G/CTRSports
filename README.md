@@ -16,8 +16,30 @@ npm run create-admin -- <username> <password>
 npm run dev                   # http://localhost:3000
 ```
 
-The admin lives at `/admin`. There are no roles — anyone who can sign in can
-edit everything.
+### Accounts and roles
+
+The first account the script makes is an **owner** — every screen, plus the
+accounts themselves. After that, accounts are made in the admin under
+**Accounts**, or from the same script:
+
+```bash
+npm run create-admin -- ravi <password> --role registrations
+npm run create-admin -- kavin <password> --role pages --pages incrc
+```
+
+| Role | Page editors | Registration forms | Entries |
+| --- | --- | --- | --- |
+| `owner` | all | build, edit, delete | read, export, delete |
+| `pages` | only the pages on the account | read-only, to link to one | — |
+| `registrations` | none | build, edit, delete | read, export, delete |
+
+That split is enforced in every API route, not only hidden in the navigation —
+see `src/lib/server/access.ts`. Running `npm run migrate` on a database that
+predates roles gives every existing account `owner`, so nobody is locked out by
+the upgrade.
+
+Resetting a password with the script does **not** change an account's role or
+pages unless `--role` or `--pages` is passed.
 
 ---
 
@@ -42,13 +64,31 @@ effect until the next deploy — clearer as a code change.
 Saving calls `revalidatePath("/")`, so an edit is live at once; the page
 otherwise revalidates every 60s.
 
-**`/incrc` is the exception.** The championship's own copy — vision, venues,
-rounds, the signing — lives in `src/app/(site)/incrc/_data/incrc.ts`, not the
-database. Making it editable means an admin screen for rounds, venues, vision
-cards and signing photos, which is a bigger job than the page. It is one plain
-object so that moving it into `ctr_content` later is a normalise function and
-nothing else. Only the brand, navigation and footer on that page come from the
-database, so the chrome stays in step with the landing page.
+**`/incrc` works the same way**, from a second `ctr_content` document under the
+key `incrc`, edited at `/incrc` in the admin. Its header, navigation and footer
+come from the LANDING document, so the chrome around the two pages stays in
+step. Two of its sections are not copy at all and are read from tables instead:
+the venues and the calendar draw circuits from `ctr_sports`' neighbour
+`ctr_tracks`, and the entry forms come from `ctr_forms`.
+
+### Registration forms
+
+Entry forms are pages on this site — `/register/<slug>` — built under
+**Registrations** in the admin, with the answers stored in `ctr_form_entries`,
+readable per form and exportable as CSV. A form is assigned to a page, which is
+what decides who can link to it: the "Goes to" picker on a page's buttons lists
+only that page's forms, and the INCRC **Entry forms** section lists every
+published one automatically, so publishing a form is enough to put it on the
+page.
+
+Two environment settings matter here:
+
+- `REGISTER_SECRET` — signs each rendered form so the submit route can tell a
+  person filling one in from a script posting it back instantly. Unset, that one
+  check is skipped and the server says so in its log; everything else still
+  applies.
+- Nothing is emailed yet. A form stores where its entries should go, and
+  `src/lib/server/notify.ts` is the single function a transport would go into.
 
 ### Using the editor
 

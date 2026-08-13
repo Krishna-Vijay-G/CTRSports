@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/server/auth";
+import { guardAnyPage } from "@/lib/server/access";
 import { MEDIA_PREFIX, isS3Configured, uploadObject } from "@/lib/server/s3";
 
 export const runtime = "nodejs";
@@ -24,9 +24,8 @@ const EXTENSIONS: Record<string, string> = {
 };
 
 export async function POST(request: Request) {
-  if (!(await getSession())) {
-    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
-  }
+  const denied = await guardAnyPage();
+  if (denied) return denied;
 
   if (!isS3Configured()) {
     return NextResponse.json(

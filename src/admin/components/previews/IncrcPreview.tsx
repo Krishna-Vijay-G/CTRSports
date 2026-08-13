@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { FormSummary } from "@/lib/forms";
 import type { IncrcContent } from "@/lib/incrcContent";
 import type { LandingContent } from "@/lib/landingContent";
 import type { Track } from "@/lib/tracks";
@@ -32,6 +33,7 @@ export function IncrcPreview({
   content,
   chrome,
   tracks,
+  forms,
   year,
   focus,
   bannerIndex,
@@ -41,6 +43,8 @@ export function IncrcPreview({
   chrome: LandingContent;
   /** The circuits the calendar draws. Passed in, not fetched: this is a client component. */
   tracks: Track[];
+  /** The entry forms the registrations cards draw. Passed in for the same reason. */
+  forms: FormSummary[];
   year: number;
   focus?: string;
   bannerIndex?: number;
@@ -114,7 +118,7 @@ export function IncrcPreview({
                 chrome={chrome}
                 activeIndex={bannerIndex}
               />
-              <IncrcSections content={content} tracks={tracks} />
+              <IncrcSections content={content} tracks={tracks} forms={forms} />
               <SiteFooter content={chrome} year={year} />
             </div>
           </div>

@@ -1,3 +1,4 @@
+import { requirePage } from "@/lib/server/access";
 import { getIncrcContentSafe, getLandingContentSafe } from "@/lib/server/contentRepo";
 import { listTracks } from "@/lib/server/tracksRepo";
 import { TracksEditor } from "@/admin/screens/tracks/TracksEditor";
@@ -17,6 +18,8 @@ export const dynamic = "force-dynamic";
  * those fall back rather than take the screen down with them.
  */
 export default async function TracksAdminPage() {
+  await requirePage("circuits");
+
   const [tracks, landing, incrc] = await Promise.all([
     listTracks(),
     getLandingContentSafe(),

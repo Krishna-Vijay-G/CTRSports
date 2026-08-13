@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
-import { getSession } from "@/lib/server/auth";
+import { guardPage } from "@/lib/server/access";
 import { deleteSport, updateSport } from "@/lib/server/sportsRepo";
 import { isSportId } from "@/lib/sports";
 
@@ -13,9 +13,8 @@ const notFound = () =>
   NextResponse.json({ error: "That sport no longer exists." }, { status: 404 });
 
 export async function PUT(request: Request, { params }: Context) {
-  if (!(await getSession())) {
-    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
-  }
+  const denied = await guardPage("landing");
+  if (denied) return denied;
 
   const { id } = await params;
   // The id is whatever was in the URL. Reject a non-uuid here rather than let
@@ -47,9 +46,8 @@ export async function PUT(request: Request, { params }: Context) {
 }
 
 export async function DELETE(_request: Request, { params }: Context) {
-  if (!(await getSession())) {
-    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
-  }
+  const denied = await guardPage("landing");
+  if (denied) return denied;
 
   const { id } = await params;
   if (!isSportId(id)) return notFound();

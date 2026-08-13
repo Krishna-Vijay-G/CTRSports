@@ -4,6 +4,14 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createContext, useContext, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import {
+  ROLE_LABELS,
+  canEditPage,
+  canManageAdmins,
+  canSeeForms,
+  type AdminRole,
+  type PageKey,
+} from "@/lib/roles";
 import { cn } from "@/lib/utils";
 import { Button } from "@/admin/ui/Button";
 import {
@@ -13,6 +21,8 @@ import {
   MapIcon,
   PanelIcon,
   SignOutIcon,
+  TicketIcon,
+  UsersIcon,
 } from "@/admin/ui/icons";
 
 /**
@@ -57,12 +67,39 @@ export function useSidebarCollapsed() {
  *
  * Plain root paths: the admin has a hostname to itself, so its screens ARE the
  * root. Nothing here knows about the mount point the router happens to use.
+ *
+ * Each entry says what it takes to open it, and the list is filtered by the
+ * signed-in account before it is drawn — a screen an account cannot open is not
+ * in its sidebar at all. That is a courtesy rather than the enforcement: the
+ * screen itself answers `notFound()` and the routes behind it answer 403, so
+ * typing the address gets nobody anywhere.
  */
-const NAV = [
-  { href: "/landing", label: "Landing page", icon: ImagesIcon },
-  { href: "/incrc", label: "INCRC", icon: FlagIcon },
-  { href: "/tracks", label: "Circuits", icon: MapIcon },
+type NavItem = {
+  href: string;
+  label: string;
+  icon: (props: { className?: string }) => React.ReactElement;
+  /** The page editor this screen is. */
+  page?: PageKey;
+  /** Or the other thing it needs. */
+  needs?: "forms" | "owner";
+};
+
+const NAV: NavItem[] = [
+  { href: "/landing", label: "Landing page", icon: ImagesIcon, page: "landing" },
+  { href: "/incrc", label: "INCRC", icon: FlagIcon, page: "incrc" },
+  { href: "/tracks", label: "Circuits", icon: MapIcon, page: "circuits" },
+  { href: "/forms", label: "Registrations", icon: TicketIcon, needs: "forms" },
+  { href: "/admins", label: "Accounts", icon: UsersIcon, needs: "owner" },
 ];
+
+function allowedNav(scope: { role: AdminRole; pages: PageKey[] }): NavItem[] {
+  return NAV.filter((item) => {
+    if (item.page) return canEditPage(scope, item.page);
+    if (item.needs === "forms") return canSeeForms(scope);
+    if (item.needs === "owner") return canManageAdmins(scope);
+    return true;
+  });
+}
 
 const RAIL_SLOT_ID = "admin-rail-slot";
 
@@ -110,7 +147,16 @@ export function AdminRailSlot({ children }: { children: React.ReactNode }) {
  * label moves into the tooltip, and the caret still points the way the list will
  * travel.
  */
-function PagesDrawer({ pathname, collapsed }: { pathname: string; collapsed: boolean }) {
+function PagesDrawer({
+  nav,
+  pathname,
+  collapsed,
+}: {
+  /** Already filtered to what this account may open. */
+  nav: NavItem[];
+  pathname: string;
+  collapsed: boolean;
+}) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -125,9 +171,9 @@ function PagesDrawer({ pathname, collapsed }: { pathname: string; collapsed: boo
   }
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
-  const current = NAV.find((item) => isActive(item.href));
+  const current = nav.find((item) => isActive(item.href));
 
-  const links = NAV.map((item) => {
+  const links = nav.map((item) => {
     const active = isActive(item.href);
     const Icon = item.icon;
 
@@ -217,13 +263,19 @@ function PagesDrawer({ pathname, collapsed }: { pathname: string; collapsed: boo
 
 export function AdminShell({
   username,
+  role,
+  pages,
   children,
 }: {
   username: string;
+  role: AdminRole;
+  /** The page editors this account is scoped to. Empty for the other two roles. */
+  pages: PageKey[];
   children: React.ReactNode;
 }) {
   const pathname = usePathname() ?? "/";
   const router = useRouter();
+  const nav = allowedNav({ role, pages });
 
   // Starts expanded and corrects itself on mount. Reading localStorage during
   // render would differ from what the server drew and break hydration.
@@ -297,7 +349,7 @@ export function AdminShell({
         {/* Everything below here sits at the foot of the column. */}
         <div className="hidden h-px bg-border md:block" />
 
-        <PagesDrawer pathname={pathname} collapsed={collapsed} />
+        <PagesDrawer nav={nav} pathname={pathname} collapsed={collapsed} />
 
         <div className="hidden h-px bg-border md:block" />
 
@@ -318,7 +370,9 @@ export function AdminShell({
             <p className="truncate text-[13px] font-medium leading-tight text-foreground">
               {username}
             </p>
-            <p className="truncate text-[11px] leading-tight text-muted-fg">Site admin</p>
+            <p className="truncate text-[11px] leading-tight text-muted-fg">
+              {ROLE_LABELS[role]}
+            </p>
           </div>
         </div>
 

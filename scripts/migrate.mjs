@@ -8,6 +8,7 @@
  */
 import { neon } from "@neondatabase/serverless";
 import {
+  backfillRegisterCta,
   backfillRoundDates,
   backfillSportPhotos,
   backfillTrackDetails,
@@ -25,7 +26,10 @@ const sql = neon(process.env.DATABASE_URL);
 
 try {
   await migrate(sql);
-  console.log("Schema applied: ctr_admins, ctr_sessions, ctr_sports, ctr_tracks, ctr_content.");
+  console.log(
+    "Schema applied: ctr_admins, ctr_sessions, ctr_sports, ctr_tracks, ctr_content, ctr_forms, ctr_form_entries."
+  );
+  console.log("Existing admin accounts keep full access: role defaults to 'owner' on this run.");
 
   const seeded = await seedSports(sql);
   console.log(seeded ? `Seeded ${seeded} sports.` : "ctr_sports already has rows — nothing seeded.");
@@ -48,6 +52,13 @@ try {
   const dated = await backfillRoundDates(sql);
   console.log(
     dated ? `Back-filled dates or circuits on ${dated} round(s).` : "No rounds needed back-filling."
+  );
+
+  const cta = await backfillRegisterCta(sql);
+  console.log(
+    cta
+      ? "Pointed the registration button back at this site — entry forms live here now."
+      : "The registration button already points at this site."
   );
 } catch (error) {
   console.error("Failed:", error.message);

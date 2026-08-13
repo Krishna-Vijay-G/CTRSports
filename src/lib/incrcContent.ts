@@ -39,6 +39,7 @@ import {
   bool,
   image,
   isRecord,
+  isoDate,
   lines,
   link,
   list,
@@ -73,6 +74,7 @@ export const INCRC_SECTION_IDS = [
   "rows",
   "posts",
   "register",
+  "registrations",
 ] as const;
 
 export type IncrcSectionId = (typeof INCRC_SECTION_IDS)[number];
@@ -234,6 +236,12 @@ export type IncrcContent = {
   rows: { label: string; title: string; items: RowItem[] };
   posts: { label: string; title: string; ctaLabel: string; ctaHref: string; items: Post[] };
   register: { kicker: string; title: string; body: string; ctaLabel: string; ctaHref: string };
+  /**
+   * The heading over the entry forms. WHICH forms appear is not here: the
+   * section shows every published form assigned to this page, in the order the
+   * registrations screen puts them in. See RegistrationsSection.
+   */
+  registrations: { label: string; title: string; body: string; showClosed: boolean };
   sections: SectionState[];
 };
 
@@ -530,7 +538,18 @@ export const DEFAULT_INCRC_CONTENT: IncrcContent = {
     // figures say seven, in two separate places. Seven is the number used.
     body: "Seven categories. Four national rounds on India's best circuits. Whether it is your first race or your next championship, there is a grid here for you.",
     ctaLabel: "Register now",
-    ctaHref: "https://chennaiturboriders.in/IndianNationalCarRacingChampionship/registration",
+    // Entry forms are on this site now — see src/lib/forms.ts — so the default
+    // points at the section listing them rather than off to the older CTR site.
+    // A default cannot name a form's address, because it cannot know that any
+    // form exists; the picker in the admin is how this is aimed at one.
+    ctaHref: "#registrations",
+  },
+
+  registrations: {
+    label: "Enter the championship",
+    title: "Registration",
+    body: "Pick the one you are entering. Everything below is taken on this site — no forms to print, no email to chase.",
+    showClosed: true,
   },
 
   sections: INCRC_SECTION_IDS.map((id) => ({ id, visible: true })),
@@ -580,24 +599,6 @@ function sections(value: unknown): SectionState[] {
   return order;
 }
 
-/**
- * A calendar date, or "".
- *
- * `YYYY-MM-DD` and nothing else — the shape `<input type="date">` produces and
- * the only shape `roundStart` parses. Checked for real existence rather than
- * merely matching the pattern, so "2026-02-31" is rejected instead of silently
- * becoming the 3rd of March when a Date is built from it.
- */
-function isoDate(value: unknown): string {
-  if (typeof value !== "string") return "";
-
-  const trimmed = value.trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return "";
-
-  const date = new Date(`${trimmed}T00:00:00Z`);
-  return Number.isNaN(date.getTime()) || !date.toISOString().startsWith(trimmed) ? "" : trimmed;
-}
-
 function isSectionId(value: unknown): value is IncrcSectionId {
   return (INCRC_SECTION_IDS as readonly string[]).includes(value as string);
 }
@@ -637,6 +638,7 @@ export function normaliseIncrcContent(input: unknown): IncrcContent {
   const rows = isRecord(root.rows) ? root.rows : {};
   const posts = isRecord(root.posts) ? root.posts : {};
   const register = isRecord(root.register) ? root.register : {};
+  const registrations = isRecord(root.registrations) ? root.registrations : {};
 
   // Read before the rest, because the family band's chips fall back to it:
   // that band used to draw one fixed Instagram button from these two fields,
@@ -849,6 +851,13 @@ export function normaliseIncrcContent(input: unknown): IncrcContent {
       body: text(register.body, d.register.body, BODY_MAX),
       ctaLabel: text(register.ctaLabel, d.register.ctaLabel),
       ctaHref: link(register.ctaHref, d.register.ctaHref),
+    },
+
+    registrations: {
+      label: text(registrations.label, d.registrations.label),
+      title: text(registrations.title, d.registrations.title),
+      body: text(registrations.body, d.registrations.body, BODY_MAX),
+      showClosed: bool(registrations.showClosed, d.registrations.showClosed),
     },
 
     sections: sections(root.sections),
