@@ -36,8 +36,10 @@ export type BannerTemplate = (typeof BANNER_TEMPLATES)[number];
  *            Right for nearly every photograph, and the default.
  *   zoom     the same, pushed in further. For a photo whose subject is small in
  *            the frame, or when the edges are not worth keeping.
- *   fit      the whole picture, letterboxed against the page colour. Right for
- *            an artwork or a poster where cropping would cut off type.
+ *   fit      the whole picture, with a blown-up blurred copy of itself filling
+ *            whatever space is left over. Right for artwork or a poster where
+ *            cropping would cut off type — nothing is lost, and the leftover
+ *            space is the picture's own colours rather than a black bar.
  *   stretch  the frame is filled exactly by distorting the picture. Included
  *            because it is sometimes what a flat graphic wants; on a photograph
  *            of a person it is always wrong, and the admin says so.
@@ -116,7 +118,8 @@ export const BANNER_FIT_META: Record<BannerFit, { name: string; description: str
   },
   fit: {
     name: "Fit",
-    description: "The whole picture, with the page colour showing at the sides.",
+    description:
+      "The whole picture, nothing cropped. A blurred copy of it fills the space left over.",
   },
   stretch: {
     name: "Stretch",

@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import type { Banner, BannerFit, BannerFocus, BannerTemplate } from "@/lib/banners";
+import { fitCrops, type Banner, type BannerFit, type BannerFocus, type BannerTemplate } from "@/lib/banners";
 import { cn } from "@/lib/utils";
 import { ActionButton } from "@/components/ui/ActionButton";
 
@@ -53,22 +53,56 @@ const FOCUS_CLASS: Record<BannerFocus, string> = {
   right: "object-right",
 };
 
+/**
+ * The photograph, and — when it is set to Fit — the blurred backdrop behind it.
+ *
+ * A wide graphic in a tall box leaves space at the sides, and flat colour there
+ * reads as a mistake: the banner looks like a picture that failed to load
+ * rather than one deliberately shown whole. So the same picture is drawn twice.
+ * The one behind fills the box, blown up and blurred past recognition, and the
+ * real one sits on top of it at its own proportions. What was empty becomes the
+ * photograph's own colours, and a poster with type on it can be shown entire
+ * without a black bar either side of it.
+ *
+ * It costs no extra download: same `src`, so the browser fetches it once and
+ * paints it twice.
+ *
+ * The scale is what keeps it clean — a blur samples past the edge of its
+ * element and would otherwise fade to transparent along the boundary, leaving a
+ * pale seam exactly where the frame is.
+ */
 function Photo({ banner, className }: { banner: Banner; className?: string }) {
+  const box = cn("absolute inset-0 h-full w-full", className);
+
   return (
-    <img
-      src={banner.image}
-      alt=""
-      aria-hidden
-      // The page's LCP element — fetched at high priority, never lazily.
-      fetchPriority="high"
-      decoding="async"
-      className={cn(
-        "absolute inset-0 h-full w-full",
-        FIT_CLASS[banner.fit],
-        FOCUS_CLASS[banner.focus],
-        className
-      )}
-    />
+    <>
+      {banner.fit === "fit" ? (
+        <img
+          src={banner.image}
+          alt=""
+          aria-hidden
+          decoding="async"
+          className={cn(box, "scale-110 object-cover blur-2xl")}
+        />
+      ) : null}
+
+      <img
+        src={banner.image}
+        alt=""
+        aria-hidden
+        // The page's LCP element — fetched at high priority, never lazily.
+        fetchPriority="high"
+        decoding="async"
+        className={cn(
+          box,
+          FIT_CLASS[banner.fit],
+          // Where the picture sits only means something when something is being
+          // cut off. Fit and Stretch centre it, whatever `focus` last held from
+          // a spell on one of the cropping modes.
+          FOCUS_CLASS[fitCrops(banner.fit) ? banner.focus : "center"]
+        )}
+      />
+    </>
   );
 }
 
