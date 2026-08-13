@@ -11,6 +11,7 @@ import {
   MegaphoneIcon,
   NewsIcon,
   RowsIcon,
+  StackIcon,
   StarIcon,
   TextIcon,
   TicketIcon,
@@ -157,5 +158,13 @@ export const TABS: Tab[] = [
     hint: "The cards linking to the entry forms for this page.",
     preview: "registrations",
     Icon: ListIcon,
+  },
+  {
+    id: "decks",
+    short: "Decks",
+    title: "Decks",
+    hint: "Cards linking to decks — the entry pack, the regulations. The decks themselves live on the Decks screen.",
+    preview: "decks",
+    Icon: StackIcon,
   },
 ];

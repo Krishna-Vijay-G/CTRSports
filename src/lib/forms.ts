@@ -52,6 +52,7 @@
 
 import { BODY_MAX, isRecord, isoDate, lines, oneOf, optionalText, text } from "@/lib/normalise";
 import { FORM_PAGE_KEYS, type FormPageKey } from "@/lib/roles";
+import { fallbackSlug, isUsableSlug, slugify, usableSlug } from "@/lib/slug";
 
 /* ──────────────────────────────── Shape ──────────────────────────────── */
 
@@ -1134,52 +1135,18 @@ export function isFormId(value: unknown): value is string {
   return typeof value === "string" && UUID.test(value);
 }
 
-/**
- * A slug suggested from a name.
- *
- * Only ever a suggestion. The column is the truth, because the address outlives
- * the name — see the note at the top of the table in scripts/schema.mjs.
+/*
+ * The address rules themselves live in src/lib/slug.ts, because a deck
+ * publishes at one too and two copies of "what is a usable slug" is how a name
+ * ends up producing an address the validator beside it rejects. They are
+ * re-exported here so every existing caller — the builder, the picker, the
+ * public route — keeps importing them from where it always did.
  */
-export function slugify(name: string): string {
-  // Same decomposition trackSlug uses: strip the accents, then anything that is
-  // not a letter or a digit becomes a hyphen.
-  return name
-    .normalize("NFKD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, FORM_LIMITS.slug);
-}
+export { isUsableSlug, slugify };
 
-/**
- * Lower case, digits and hyphens; starts with a letter or a digit.
- *
- * One character is enough. It used to demand two, which put this validator at
- * odds with `slugify` — a form called "A" produced the slug `a`, which the
- * database accepted and this function then called unusable. Two halves of the
- * same rule disagreeing is worse than either rule.
- */
-export function isUsableSlug(value: string): boolean {
-  return /^[a-z0-9][a-z0-9-]{0,79}$/.test(value);
-}
-
-/** The value if it is a usable address, otherwise "". */
-function usableSlug(value: string): string {
-  return isUsableSlug(value) ? value : "";
-}
-
-/**
- * An address for a form whose name gives us nothing to work with.
- *
- * A name with no ASCII letters or digits at all — "日本レース", "!!!" — slugified
- * to the empty string, which is not NULL, so the first such form saved happily
- * with a broken `/register/` address and every one after it collided with it.
- * Anything unguessable is better than that; the admin can rename it, and the
- * builder shows the address it was given.
- */
-function fallbackSlug(): string {
-  return `form-${Math.random().toString(36).slice(2, 8)}`;
+/** As above, for a form: `form-a1b2c3` when the name slugifies to nothing. */
+function formFallbackSlug(): string {
+  return fallbackSlug("form");
 }
 
 export function formHref(form: Pick<Form, "slug">): string {
@@ -1594,7 +1561,16 @@ export function normaliseFormInput(input: unknown, notes?: string[]): Omit<Form,
 
   const name = optionalText(record.name, FORM_LIMITS.name);
   const typed = optionalText(record.slug, FORM_LIMITS.slug).toLowerCase();
-  const slug = usableSlug(typed) || usableSlug(slugify(name)) || fallbackSlug();
+  /*
+   * The typed address, then a TIDIED version of it, and only then the name.
+   *
+   * The middle step used to be missing, so typing "Season 2026!" on a form
+   * called "X" threw the typed address away and published at `x` — while the
+   * note underneath said the address had been "tidied up". Somebody who typed an
+   * address meant that address; the name is the fallback for having typed none.
+   */
+  const slug =
+    usableSlug(typed) || usableSlug(slugify(typed)) || usableSlug(slugify(name)) || formFallbackSlug();
 
   if (typed && slug !== typed) {
     notes?.push(`The address was tidied up to “${slug}”.`);

@@ -21,6 +21,7 @@ import {
   MapIcon,
   PanelIcon,
   SignOutIcon,
+  StackIcon,
   TicketIcon,
   UsersIcon,
 } from "@/admin/ui/icons";
@@ -88,6 +89,7 @@ const NAV: NavItem[] = [
   { href: "/landing", label: "Landing page", icon: ImagesIcon, page: "landing" },
   { href: "/incrc", label: "INCRC", icon: FlagIcon, page: "incrc" },
   { href: "/tracks", label: "Circuits", icon: MapIcon, page: "circuits" },
+  { href: "/decks", label: "Decks", icon: StackIcon, page: "decks" },
   { href: "/forms", label: "Registrations", icon: TicketIcon, needs: "forms" },
   { href: "/admins", label: "Accounts", icon: UsersIcon, needs: "owner" },
 ];

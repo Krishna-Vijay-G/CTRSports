@@ -410,6 +410,43 @@ export async function migrate(sql) {
   await sql`
     CREATE INDEX IF NOT EXISTS ctr_form_nonces_expiry_idx ON ctr_form_nonces (expires_at)
   `;
+
+  /*
+   * A deck: a run of images published at an address of its own.
+   *
+   * A row rather than a section of a page, because a deck belongs to nobody. It
+   * exists at /deck/<slug> whether or not anything links to it, which is what
+   * makes it something you can put on a poster or hand to a partner — and what
+   * lets three different pages point at one without copying it three times.
+   *
+   * `slug` is UNIQUE and `former_slugs` carries every address it has ever had,
+   * for the same reason the forms table does: the address gets printed, so it
+   * has to survive a rename. The public page redirects the old ones.
+   *
+   * `pages` is JSONB and not a table of its own — a page has no life outside
+   * the deck it belongs to, nothing ever queries one, and it is always read
+   * with the rest of the row. Its position in the array is its page number;
+   * nothing stores one.
+   */
+  await sql`
+    CREATE TABLE IF NOT EXISTS ctr_decks (
+      id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      name         text NOT NULL,
+      slug         text NOT NULL UNIQUE,
+      status       text NOT NULL DEFAULT 'draft',
+      blurb        text NOT NULL DEFAULT '',
+      show_heading boolean NOT NULL DEFAULT true,
+      pages        jsonb NOT NULL DEFAULT '[]'::jsonb,
+      former_slugs jsonb NOT NULL DEFAULT '[]'::jsonb,
+      sort_order   integer NOT NULL DEFAULT 0,
+      created_at   timestamptz NOT NULL DEFAULT now(),
+      updated_at   timestamptz NOT NULL DEFAULT now()
+    )
+  `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS ctr_decks_order_idx ON ctr_decks (sort_order, name)
+  `;
 }
 
 /**

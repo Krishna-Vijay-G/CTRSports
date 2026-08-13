@@ -1,5 +1,6 @@
 import { requirePage } from "@/lib/server/access";
 import { getIncrcContent, getLandingContent } from "@/lib/server/contentRepo";
+import { listDeckSummariesSafe } from "@/lib/server/decksRepo";
 import { listFormsForPage } from "@/lib/server/formsRepo";
 import { listTracks } from "@/lib/server/tracksRepo";
 import { IncrcEditor } from "@/admin/screens/incrc/IncrcEditor";
@@ -20,11 +21,15 @@ export const dynamic = "force-dynamic";
 export default async function IncrcAdminPage() {
   await requirePage("incrc");
 
-  const [content, chrome, tracks, forms] = await Promise.all([
+  const [content, chrome, tracks, forms, decks] = await Promise.all([
     getIncrcContent(),
     getLandingContent(),
     listTracks(),
     listFormsForPage("incrc"),
+    // The safe loader, unlike the two above: the decks are a list to PICK from,
+    // not content this screen could overwrite. An unreachable decks table costs
+    // the picker its options and nothing else.
+    listDeckSummariesSafe(),
   ]);
 
   return (
@@ -33,6 +38,7 @@ export default async function IncrcAdminPage() {
       chrome={chrome}
       tracks={tracks}
       forms={forms}
+      decks={decks}
       year={new Date().getFullYear()}
     />
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { DeckSummary } from "@/lib/decks";
 import type { FormSummary } from "@/lib/forms";
 import type { IncrcContent } from "@/lib/incrcContent";
 import type { LandingContent } from "@/lib/landingContent";
@@ -34,6 +35,7 @@ export function IncrcPreview({
   chrome,
   tracks,
   forms,
+  decks,
   year,
   focus,
   bannerIndex,
@@ -45,6 +47,8 @@ export function IncrcPreview({
   tracks: Track[];
   /** The entry forms the registrations cards draw. Passed in for the same reason. */
   forms: FormSummary[];
+  /** The published decks the deck cards point at. Passed in for the same reason. */
+  decks: DeckSummary[];
   year: number;
   focus?: string;
   bannerIndex?: number;
@@ -118,7 +122,7 @@ export function IncrcPreview({
                 chrome={chrome}
                 activeIndex={bannerIndex}
               />
-              <IncrcSections content={content} tracks={tracks} forms={forms} />
+              <IncrcSections content={content} tracks={tracks} forms={forms} decks={decks} />
               <SiteFooter content={chrome} year={year} />
             </div>
           </div>

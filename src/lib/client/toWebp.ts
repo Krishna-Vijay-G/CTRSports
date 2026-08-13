@@ -14,6 +14,17 @@
 /** Crests are drawn at 256 CSS px at most, so 768 covers a 3x screen. */
 const MAX_EDGE = 768;
 
+/**
+ * What a deck page is capped at instead.
+ *
+ * The default suits the things this was written for — a crest, a card
+ * photograph, a banner — which are never drawn much wider than a third of the
+ * screen. A deck page is the opposite: it is a scanned document read at close
+ * to 900 CSS px, and 768 across arrives visibly soft. 1600 covers that at
+ * roughly 2x and still compresses to a few hundred kilobytes.
+ */
+export const DOCUMENT_EDGE = 1600;
+
 /** Tried in order; the first result under this wins. */
 const TARGET_BYTES = 400 * 1024;
 const QUALITIES = [0.9, 0.8, 0.7];
@@ -22,12 +33,12 @@ function canvasToBlob(canvas: HTMLCanvasElement, quality: number): Promise<Blob 
   return new Promise((resolve) => canvas.toBlob(resolve, "image/webp", quality));
 }
 
-export async function toWebp(file: File): Promise<File> {
+export async function toWebp(file: File, maxEdge: number = MAX_EDGE): Promise<File> {
   if (file.type === "image/svg+xml") return file;
 
   try {
     const bitmap = await createImageBitmap(file);
-    const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
+    const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
 
     const canvas = document.createElement("canvas");
     canvas.width = Math.max(1, Math.round(bitmap.width * scale));

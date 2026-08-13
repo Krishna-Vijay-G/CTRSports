@@ -47,6 +47,7 @@ import {
   optionalText,
   text,
 } from "@/lib/normalise";
+import { isUsableSlug } from "@/lib/slug";
 
 /* ────────────────────────────── Sections ────────────────────────────── */
 
@@ -75,6 +76,7 @@ export const INCRC_SECTION_IDS = [
   "posts",
   "register",
   "registrations",
+  "decks",
 ] as const;
 
 export type IncrcSectionId = (typeof INCRC_SECTION_IDS)[number];
@@ -160,6 +162,20 @@ export type Round = {
   status: string;
 };
 export type Shot = { image: string; alt: string };
+/**
+ * One card pointing at a deck.
+ *
+ * `slug` is the deck's address and the only part that is a reference — the same
+ * choice `Round.trackId` makes, and for the same reason: this document is
+ * normalised in the BROWSER as well as on the server, where nothing can be
+ * looked up. The renderer resolves it against the decks it was handed, and a
+ * card whose deck has gone is dropped rather than drawn as a dead link.
+ *
+ * `title` and `blurb` are OVERRIDES, blank almost always. The card shows the
+ * deck's own name and line, so renaming a deck corrects every page pointing at
+ * it — these are for the page that needs to call it something else in context.
+ */
+export type DeckCard = { slug: string; title: string; blurb: string };
 export type RowItem = { id: string; label: string; title: string; meta: string; href: string };
 export type Post = {
   id: string;
@@ -242,6 +258,15 @@ export type IncrcContent = {
    * registrations screen puts them in. See RegistrationsSection.
    */
   registrations: { label: string; title: string; body: string; showClosed: boolean };
+  /**
+   * Cards pointing at decks — the picked ones, unlike the entry forms above.
+   *
+   * The difference is deliberate. Every published form for this page belongs on
+   * this page, so that section takes the lot. A deck belongs to nobody: the
+   * same screen holds the entry pack this page wants and the sponsorship deck it
+   * does not, so which ones appear here is an editorial choice and is stored.
+   */
+  decks: { label: string; title: string; body: string; items: DeckCard[] };
   sections: SectionState[];
 };
 
@@ -555,6 +580,21 @@ export const DEFAULT_INCRC_CONTENT: IncrcContent = {
     showClosed: true,
   },
 
+  /*
+   * Empty on purpose, and the section renders nothing while it is.
+   *
+   * There is no honest default here: a card names a deck by its address, and a
+   * fresh install has no decks. Copy with no cards under it would be a heading
+   * over a blank strip on a live page — this id was appended to
+   * INCRC_SECTION_IDS, which switches it ON for every stored document.
+   */
+  decks: {
+    label: "Read more",
+    title: "Documents and decks",
+    body: "",
+    items: [],
+  },
+
   sections: INCRC_SECTION_IDS.map((id) => ({ id, visible: true })),
 };
 
@@ -571,8 +611,25 @@ export const MAX_SHOTS = MAX_COLLAGE_CELLS;
 export const MAX_FAMILY_LINKS = 4;
 export const MAX_ROWS = 12;
 export const MAX_POSTS = 9;
+/** Cards pointing at decks. Past a dozen this is an index, not a band. */
+export const MAX_DECK_CARDS = 12;
 
 /* ─────────────────────────── Normalisation ─────────────────────────── */
+
+/**
+ * A deck's address, or "".
+ *
+ * The same rule the decks table itself enforces, applied to the reference: a
+ * card holding anything that is not a usable slug names no deck, and the
+ * section drops it rather than rendering a link to `/deck/undefined`. Nothing
+ * here checks that the deck EXISTS — this runs in the browser too, where there
+ * is nothing to ask; the renderer resolves it against the decks it was handed.
+ */
+function deckSlug(value: unknown): string {
+  if (typeof value !== "string") return "";
+  const trimmed = value.trim().toLowerCase();
+  return isUsableSlug(trimmed) ? trimmed : "";
+}
 
 /**
  * The running order.
@@ -642,6 +699,7 @@ export function normaliseIncrcContent(input: unknown): IncrcContent {
   const posts = isRecord(root.posts) ? root.posts : {};
   const register = isRecord(root.register) ? root.register : {};
   const registrations = isRecord(root.registrations) ? root.registrations : {};
+  const decks = isRecord(root.decks) ? root.decks : {};
 
   // Read before the rest, because the family band's chips fall back to it:
   // that band used to draw one fixed Instagram button from these two fields,
@@ -861,6 +919,25 @@ export function normaliseIncrcContent(input: unknown): IncrcContent {
       title: text(registrations.title, d.registrations.title),
       body: text(registrations.body, d.registrations.body, BODY_MAX),
       showClosed: bool(registrations.showClosed, d.registrations.showClosed),
+    },
+
+    decks: {
+      label: text(decks.label, d.decks.label),
+      title: text(decks.title, d.decks.title),
+      body: text(decks.body, d.decks.body, BODY_MAX),
+      items: list<DeckCard>(
+        decks.items,
+        MAX_DECK_CARDS,
+        (entry) => ({
+          // The slug and nothing else is the reference, so it goes through the
+          // same shape test the address itself has to pass. A card carrying
+          // anything else names no deck, and the section drops it.
+          slug: deckSlug(entry.slug),
+          title: optionalText(entry.title),
+          blurb: optionalText(entry.blurb, BODY_MAX),
+        }),
+        d.decks.items
+      ),
     },
 
     sections: sections(root.sections),

@@ -52,13 +52,14 @@ export const ROLE_HINTS: Record<AdminRole, string> = {
  * here, a line in the navigation, and a guard on its route — and until it is
  * here, nobody can be scoped to it.
  */
-export const PAGE_KEYS = ["landing", "incrc", "circuits"] as const;
+export const PAGE_KEYS = ["landing", "incrc", "circuits", "decks"] as const;
 export type PageKey = (typeof PAGE_KEYS)[number];
 
 export const PAGE_LABELS: Record<PageKey, string> = {
   landing: "Landing page",
   incrc: "INCRC",
   circuits: "Circuits",
+  decks: "Decks",
 };
 
 /**
@@ -66,7 +67,7 @@ export const PAGE_LABELS: Record<PageKey, string> = {
  *
  * Circuits is not one. A circuit page is a record of a place — there is nothing
  * on it anyone registers for, and a form assigned there would have nowhere to
- * be shown.
+ * be shown. Nor is a deck, which is a run of images with nothing on it at all.
  */
 export const FORM_PAGE_KEYS = ["landing", "incrc"] as const;
 export type FormPageKey = (typeof FORM_PAGE_KEYS)[number];

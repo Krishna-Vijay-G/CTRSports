@@ -1,7 +1,9 @@
+import type { DeckSummary } from "@/lib/decks";
 import type { FormSummary } from "@/lib/forms";
 import type { Track } from "@/lib/tracks";
 import type { IncrcContent, IncrcSectionId } from "@/lib/incrcContent";
 import { CalendarSection } from "./CalendarSection";
+import { DecksSection } from "./DecksSection";
 import { FamilyBanner } from "./FamilyBanner";
 import { GridSection } from "./GridSection";
 import { IntroSection } from "./IntroSection";
@@ -32,6 +34,7 @@ export function IncrcSections({
   content,
   tracks,
   forms,
+  decks,
 }: {
   content: IncrcContent;
   /**
@@ -44,6 +47,11 @@ export function IncrcSections({
    * registrations section off the page entirely.
    */
   forms: FormSummary[];
+  /**
+   * Every published deck, from ctr_decks. The decks section picks from these by
+   * address; a card naming one that is not here is dropped.
+   */
+  decks: DeckSummary[];
 }) {
   return (
     <>
@@ -51,7 +59,7 @@ export function IncrcSections({
         .filter((entry) => entry.visible)
         .map((entry) => (
           <div key={entry.id} data-preview={entry.id}>
-            {section(entry.id, content, tracks, forms)}
+            {section(entry.id, content, tracks, forms, decks)}
           </div>
         ))}
     </>
@@ -62,7 +70,8 @@ function section(
   id: IncrcSectionId,
   content: IncrcContent,
   tracks: Track[],
-  forms: FormSummary[]
+  forms: FormSummary[],
+  decks: DeckSummary[]
 ): React.ReactNode {
   switch (id) {
     case "marquee":
@@ -91,5 +100,7 @@ function section(
       return <RegisterBand register={content.register} />;
     case "registrations":
       return <RegistrationsSection registrations={content.registrations} forms={forms} />;
+    case "decks":
+      return <DecksSection decks={content.decks} available={decks} />;
   }
 }

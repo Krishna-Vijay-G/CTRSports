@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { SITE } from "@/config/site";
+import { listDeckSummariesSafe } from "@/lib/server/decksRepo";
 import { listTracksSafe } from "@/lib/server/tracksRepo";
 import { trackSlug } from "@/lib/tracks";
 
@@ -16,10 +17,16 @@ import { trackSlug } from "@/lib/tracks";
  * sets `robots: noindex` — a form has nothing to rank for, and a closed one in a
  * search result is worse than nothing — so listing them would be asking a
  * crawler to fetch pages it is then told to forget.
+ *
+ * The decks at /deck/<slug> ARE here, and the difference is what they are: a
+ * deck is published reading matter with nothing to submit and no closing date,
+ * so it is worth finding. Only the published ones — a draft is not on the
+ * internet at all — and the list comes from the table for the same reason the
+ * circuits do.
  */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
-  const tracks = await listTracksSafe();
+  const [tracks, decks] = await Promise.all([listTracksSafe(), listDeckSummariesSafe()]);
 
   return [
     {
@@ -49,6 +56,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       // of times a season at most.
       changeFrequency: "yearly" as const,
       priority: 0.6,
+    })),
+    ...decks.map((deck) => ({
+      url: `${SITE.url}/deck/${deck.slug}`,
+      lastModified: now,
+      // A deck is a document. Once it is published its pages are replaced
+      // wholesale or not at all.
+      changeFrequency: "yearly" as const,
+      priority: 0.5,
     })),
   ];
 }

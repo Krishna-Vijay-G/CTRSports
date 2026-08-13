@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { DeckSummary } from "@/lib/decks";
 import type { FormSummary } from "@/lib/forms";
 import { DEFAULT_INCRC_CONTENT, type IncrcContent } from "@/lib/incrcContent";
 import type { LandingContent } from "@/lib/landingContent";
@@ -15,6 +16,7 @@ import { SectionRail } from "@/admin/components/SectionRail";
 import { BannersPanel } from "@/admin/components/banners/BannersPanel";
 import { TABS, type TabId } from "./sections";
 import { CalendarPanel } from "./panels/CalendarPanel";
+import { DecksPanel } from "./panels/DecksPanel";
 import { FamilyPanel } from "./panels/FamilyPanel";
 import { GridPanel } from "./panels/GridPanel";
 import { IntroPanel } from "./panels/IntroPanel";
@@ -83,6 +85,7 @@ const DEFAULT_PARTS: Record<TabId, (keyof IncrcContent)[]> = {
   posts: ["posts"],
   register: ["register"],
   registrations: ["registrations"],
+  decks: ["decks"],
 };
 
 export function IncrcEditor({
@@ -90,6 +93,7 @@ export function IncrcEditor({
   chrome,
   tracks,
   forms,
+  decks,
   year,
 }: {
   initialContent: IncrcContent;
@@ -101,6 +105,12 @@ export function IncrcEditor({
    * them, and the register band's picker points at one.
    */
   forms: FormSummary[];
+  /**
+   * The published decks, read-only here for the same reason: they are made on
+   * the Decks screen. The preview draws their cards and the decks panel picks
+   * from them.
+   */
+  decks: DeckSummary[];
   year: number;
 }) {
   const [active, setActive] = useState<TabId>(TABS[0].id);
@@ -295,6 +305,14 @@ export function IncrcEditor({
             forms={forms}
           />
         );
+      case "decks":
+        return (
+          <DecksPanel
+            value={draft.decks}
+            onChange={(v) => setPart("decks", v)}
+            decks={decks}
+          />
+        );
       case "registrations":
         return (
           <RegistrationsPanel
@@ -352,6 +370,7 @@ export function IncrcEditor({
           chrome={chrome}
           tracks={tracks}
           forms={forms}
+          decks={decks}
           year={year}
           focus={tab.preview}
           bannerIndex={bannerIndex}

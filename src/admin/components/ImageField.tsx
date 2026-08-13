@@ -29,6 +29,7 @@ export function ImageField({
   disabled,
   hint,
   variant = "photo",
+  maxEdge,
   className,
 }: {
   label: string;
@@ -37,6 +38,12 @@ export function ImageField({
   disabled?: boolean;
   hint?: string;
   variant?: "photo" | "logo";
+  /**
+   * The longest edge an upload is resized to, when the default is wrong for
+   * what this picture is. A deck page passes `DOCUMENT_EDGE`: it is read at
+   * nearly full page width, where the default 768 arrives visibly soft.
+   */
+  maxEdge?: number;
   className?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -50,7 +57,7 @@ export function ImageField({
     setError(null);
 
     try {
-      const webp = await toWebp(file);
+      const webp = await toWebp(file, maxEdge);
 
       const form = new FormData();
       form.append("file", webp);
