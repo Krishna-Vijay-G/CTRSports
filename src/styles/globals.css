@@ -34,6 +34,38 @@
     color: #f3f5f7;
   }
 
+  /*
+   * The list a <select> drops down.
+   *
+   * Every select in this project is `bg-transparent` — the fields are outlines
+   * on whatever card they sit on, which is what keeps both designs flat. That
+   * works for the CLOSED control, but the open list is painted by the browser
+   * from the OPTION's own colours, and a transparent option leaves it picking
+   * system ones: on Windows that is near-black type on a dark popup, so every
+   * choice but the highlighted one is invisible.
+   *
+   * So the two colours are stated here, literally. Options cannot be reached
+   * from the components that render them — the callers write the <option> tags
+   * — and utility classes on a child of a select are ignored by the popup in any
+   * case, so a base rule is the only place this can live.
+   *
+   * The site's palette is the default. `.font-ui` is the admin subtree, which
+   * marks itself with that class precisely because it has to be recognisable
+   * from outside the tree — Dialog carries it for the same reason, being
+   * portalled to the body. The two palettes never share a value.
+   */
+  option,
+  optgroup {
+    background-color: #1b2027; /* panel */
+    color: #ffffff; /* fg */
+  }
+
+  .font-ui option,
+  .font-ui optgroup {
+    background-color: #2c2c2c; /* card */
+    color: #fbfbfb; /* foreground */
+  }
+
   ::-webkit-scrollbar {
     width: 10px;
   }
