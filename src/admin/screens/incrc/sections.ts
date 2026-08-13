@@ -97,7 +97,7 @@ export const TABS: Tab[] = [
     id: "venues",
     short: "Venues",
     title: "Venues",
-    hint: "The circuits, each with its layout drawn.",
+    hint: "The heading over the first three circuits. The circuits themselves live on the Circuits screen.",
     preview: "venues",
     Icon: MapIcon,
   },

@@ -4,7 +4,7 @@ import type { IncrcContent } from "@/lib/incrcContent";
 import { getIncrcContentSafe, getLandingContentSafe } from "@/lib/server/contentRepo";
 import { listTracksSafe } from "@/lib/server/tracksRepo";
 import { sendAnchorsHome } from "@/lib/siteChrome";
-import { findTrack } from "@/lib/tracks";
+import { findTrack, trackHref } from "@/lib/tracks";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { IncrcSections } from "./_components/IncrcSections";
 import { IncrcTop } from "./_components/IncrcTop";
@@ -106,10 +106,13 @@ export default async function IncrcPage() {
       name: landing.brand.name,
       url: SITE.url,
     },
-    location: content.venues.items.map((venue) => ({
+    // The circuits themselves, from ctr_tracks — the same rows the venues
+    // section and /circuits render, so the markup cannot drift from the page.
+    location: tracks.map((track) => ({
       "@type": "Place",
-      name: venue.name,
-      address: { "@type": "PostalAddress", addressLocality: venue.city, addressCountry: "IN" },
+      name: track.name,
+      url: `${SITE.url}${trackHref(track)}`,
+      address: { "@type": "PostalAddress", addressLocality: track.location, addressCountry: "IN" },
     })),
     // Now that rounds carry real dates, say so: a SportsEvent with a startDate
     // is eligible for the dated event treatment in search results, and a bare

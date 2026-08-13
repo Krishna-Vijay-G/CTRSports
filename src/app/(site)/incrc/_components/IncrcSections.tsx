@@ -31,7 +31,10 @@ export function IncrcSections({
   tracks,
 }: {
   content: IncrcContent;
-  /** The circuits the calendar's rounds point at. Empty simply drops the maps. */
+  /**
+   * The circuits, from ctr_tracks: what the venues section lists and what the
+   * calendar's rounds point at. Empty drops the venue cards and the maps.
+   */
   tracks: Track[];
 }) {
   return (
@@ -60,7 +63,7 @@ function section(id: IncrcSectionId, content: IncrcContent, tracks: Track[]): Re
     case "grid":
       return <GridSection grid={content.grid} />;
     case "venues":
-      return <VenuesSection venues={content.venues} />;
+      return <VenuesSection venues={content.venues} tracks={tracks} />;
     case "calendar":
       return <CalendarSection calendar={content.calendar} tracks={tracks} />;
     case "partnership":

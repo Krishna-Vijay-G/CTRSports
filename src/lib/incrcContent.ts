@@ -82,8 +82,6 @@ export type VisionIcon = (typeof VISION_ICONS)[number];
 export type Partner = { name: string; logo: string };
 export type Stat = { value: string; label: string };
 export type VisionItem = { icon: VisionIcon; label: string; description: string };
-/** `map` is the circuit layout, uploaded like any other picture. Blank draws none. */
-export type Venue = { number: string; name: string; city: string; note: string; map: string };
 /**
  * One weekend of the season.
  *
@@ -164,7 +162,12 @@ export type IncrcContent = {
     inset: string;
     insetAlt: string;
   };
-  venues: { label: string; title: string; items: Venue[] };
+  /**
+   * The heading only. The circuits themselves are rows of ctr_tracks — the
+   * section shows the first three and sends the reader to /circuits for the
+   * rest — so there is nothing about a venue to type in here.
+   */
+  venues: { label: string; title: string };
   calendar: { label: string; title: string; rounds: Round[] };
   partnership: { label: string; title: string; body: string; shots: Shot[] };
   family: { image: string; lead: string; quote: string; showFlag: boolean };
@@ -298,33 +301,6 @@ export const DEFAULT_INCRC_CONTENT: IncrcContent = {
   venues: {
     label: "Championship venues",
     title: "Three iconic circuits. One championship.",
-    items: [
-      {
-        number: "01",
-        name: "Kari Motor Speedway",
-        city: "Coimbatore",
-        note: "The home of Indian motorsport — tight, technical and unforgiving.",
-        // Public domain, from Wikimedia. Small (300px), so upload a better one.
-        map: "https://upload.wikimedia.org/wikipedia/commons/f/fe/Kari_Motor_Speedway_Layout.jpg",
-      },
-      {
-        number: "02",
-        name: "Bren Raceway",
-        city: "Bengaluru",
-        // Too new to have a freely licensed layout anywhere. Upload one and the
-        // well appears; until then the card is the name, the city and the note.
-        map: "",
-        note: "India's newest permanent circuit, fast and flowing throughout.",
-      },
-      {
-        number: "03",
-        name: "Madras International Circuit",
-        city: "Chennai",
-        note: "A long back straight into a hairpin — the season's decider.",
-        // CC BY-SA 3.0, from Wikimedia — attribution is owed if this one stays.
-        map: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/63/Irungattukottai_Race_Track_map_--_Full_track.svg/960px-Irungattukottai_Race_Track_map_--_Full_track.svg.png",
-      },
-    ],
   },
 
   calendar: {
@@ -494,7 +470,6 @@ export const MAX_MARQUEE_ITEMS = 10;
 export const MAX_PARTNERS = 6;
 export const MAX_STATS = 6;
 export const MAX_VISION = 6;
-export const MAX_VENUES = 8;
 export const MAX_ROUNDS = 12;
 export const MAX_SHOTS = 6;
 export const MAX_ROWS = 12;
@@ -528,12 +503,6 @@ function sections(value: unknown): SectionState[] {
   }
 
   return order;
-}
-
-/** The built-in map for a circuit of this name, if there is one. */
-function defaultVenueMap(name: string): string {
-  const key = name.trim().toLowerCase();
-  return DEFAULT_INCRC_CONTENT.venues.items.find((v) => v.name.toLowerCase() === key)?.map ?? "";
 }
 
 /**
@@ -660,28 +629,12 @@ export function normaliseIncrcContent(input: unknown): IncrcContent {
       insetAlt: text(grid.insetAlt, d.grid.insetAlt),
     },
 
+    // Heading only. A document saved before the circuits moved to ctr_tracks
+    // still carries its `items`; they are dropped here, which is what retires
+    // the field — the section reads the tracks table instead.
     venues: {
       label: text(venues.label, d.venues.label),
       title: text(venues.title, d.venues.title),
-      items: list(
-        venues.items,
-        MAX_VENUES,
-        (entry) => {
-          const name = optionalText(entry.name);
-          return {
-            number: optionalText(entry.number, 8),
-            name,
-            city: optionalText(entry.city),
-            note: optionalText(entry.note, BODY_MAX),
-            // Falls back to the built-in map for a circuit of the same name,
-            // which is what carries the three original venues across from the
-            // drawings they used to have. A circuit with neither simply has no
-            // map, and the card is drawn without the well.
-            map: image(entry.map, defaultVenueMap(name)),
-          };
-        },
-        d.venues.items
-      ),
     },
 
     calendar: {

@@ -1,12 +1,19 @@
 "use client";
 
-import { MAX_VENUES, type IncrcContent, type Venue } from "@/lib/incrcContent";
-import { Field, Panel, Row, TextArea } from "@/admin/components/Fields";
-import { ImageField } from "@/admin/components/ImageField";
-import { Repeater } from "@/admin/components/Repeater";
+import type { IncrcContent } from "@/lib/incrcContent";
+import { Field, Note, Panel } from "@/admin/components/Fields";
 
 type Venues = IncrcContent["venues"];
 
+/**
+ * The venues heading, and nothing else.
+ *
+ * The circuits are not typed here any more: they are rows of ctr_tracks, edited
+ * on the Circuits screen, so a circuit is described once and the venues section,
+ * the calendar and /circuits all read the same row. This section shows the first
+ * three in that screen's order with a button to the rest — which means the three
+ * on the page are chosen by dragging the circuits list, not by editing copy.
+ */
 export function VenuesPanel({
   value,
   onChange,
@@ -17,54 +24,17 @@ export function VenuesPanel({
   const set = (patch: Partial<Venues>) => onChange({ ...value, ...patch });
 
   return (
-    <>
-      <Panel title="Heading">
-        <div className="space-y-3">
-          <Field label="Label" value={value.label} onChange={(label) => set({ label })} />
-          <Field label="Title" value={value.title} onChange={(title) => set({ title })} />
-        </div>
-      </Panel>
+    <Panel title="Heading">
+      <div className="space-y-3">
+        <Field label="Label" value={value.label} onChange={(label) => set({ label })} />
+        <Field label="Title" value={value.title} onChange={(title) => set({ title })} />
 
-      <Repeater<Venue>
-        title="Circuits"
-        addLabel="Add circuit"
-        items={value.items}
-        max={MAX_VENUES}
-        onChange={(items) => set({ items })}
-        blank={() => ({ number: "", name: "", city: "", note: "", map: "" })}
-        empty="No circuits — the section shows its heading and nothing else."
-        note="Three across on a laptop. The layout is a picture you upload — the circuit's own map, a screenshot of it, anything that reads small. It fills the head of the card, on white, cropped to fit."
-      >
-        {(venue, index, patch) => (
-          <>
-            <Row>
-              <Field
-                label="Number"
-                value={venue.number}
-                onChange={(number) => patch({ number })}
-                maxLength={8}
-                placeholder={String(index + 1).padStart(2, "0")}
-              />
-              <Field label="City" value={venue.city} onChange={(city) => patch({ city })} />
-            </Row>
-            <Field label="Name" value={venue.name} onChange={(name) => patch({ name })} />
-            <TextArea
-              label="Note"
-              value={venue.note}
-              onChange={(note) => patch({ note })}
-              rows={2}
-              hint="One line on what the circuit is like. Blank hides it."
-            />
-            <ImageField
-              label="Layout"
-              variant="logo"
-              value={venue.map}
-              onChange={(map) => patch({ map })}
-              hint="Fills the head of the card and is cropped to do it, so a very wide map loses its ends. Blank leaves the card with no drawing at all."
-            />
-          </>
-        )}
-      </Repeater>
-    </>
+        <Note>
+          The cards under this heading are the first three circuits on the Circuits screen —
+          their names, locations, layouts and notes come from there. Reorder that list to
+          change which three appear; the button under them goes to the page with all of them.
+        </Note>
+      </div>
+    </Panel>
   );
 }

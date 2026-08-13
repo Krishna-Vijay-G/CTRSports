@@ -1,75 +1,130 @@
+import Link from "next/link";
 import type { IncrcContent } from "@/lib/incrcContent";
+import { hasLayout, trackHref, type Track } from "@/lib/tracks";
+import { cn } from "@/lib/utils";
+import { ActionButton } from "@/components/ui/ActionButton";
 import { Reveal } from "@/components/ui/Reveal";
 import { SectionHeading } from "@/components/ui/SectionHeading";
+import { CircuitMap } from "@/app/(site)/circuits/_components/CircuitMap";
 import { PinIcon } from "./icons";
 
 /**
  * The circuits the championship runs on, each with its layout above it.
  *
+ * The circuits come from ctr_tracks — the same rows /circuits and the calendar
+ * read — so a circuit is described once and the three screens can never disagree
+ * about its name, its city or the shape of its lap. Nothing about a venue is
+ * typed into the incrc document any more; only the heading above them is.
+ *
+ * This is a taste, not the list: the first three in the admin's order, with the
+ * button under them going to the page that holds all of them. The order is the
+ * circuits screen's order, so which three appear here is dragged, not coded.
+ *
  * The layout is the point of these cards. A venue is a name and a city on every
  * other motorsport site; the shape of the track is the thing that actually tells
- * a driver what the weekend will be like.
+ * a driver what the weekend will be like. `CircuitMap` is what draws it, so a
+ * traced outline comes out in the accent and an uploaded picture comes out on
+ * white — the same two treatments the circuit's own page gives it.
  *
- * The map is an uploaded picture, so it is whatever the circuit publishes. It
- * fills the head of the card edge to edge and is cropped to do it, which is what
- * keeps three cards of different source images looking like one set. The ground
- * behind it is white, because track maps are drawn as dark ink on paper and a
- * map with a transparent background would otherwise be invisible.
- *
- * Cropping to fill means a very wide map loses its ends. That is the trade for a
- * full bleed; a map that must be seen whole should be uploaded on a canvas
- * closer to this card's shape.
- *
- * A venue with no map simply has no well — better a clean card than an empty
- * frame.
+ * A circuit with neither simply has no well — better a clean card than an empty
+ * frame — and an unreachable database leaves the heading with the button under
+ * it rather than taking the section down.
  */
-export function VenuesSection({ venues }: { venues: IncrcContent["venues"] }) {
+
+/** Three across on a laptop. More would be the /circuits page, badly. */
+const SHOWN = 3;
+
+export function VenuesSection({
+  venues,
+  tracks,
+}: {
+  venues: IncrcContent["venues"];
+  tracks: Track[];
+}) {
+  const shown = tracks.slice(0, SHOWN);
+
   return (
     <section id="venues" className="shell py-16 sm:py-20">
       <SectionHeading label={venues.label} title={venues.title} />
 
-      <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {venues.items.map((venue, index) => (
-          // The Reveal is INSIDE the li: a <div> between a <ul> and its <li> is
-          // invalid and browsers reparent it.
-          <li key={`${venue.name}-${index}`} className="flex">
-            <Reveal
-              delay={index * 0.06}
-              className="panel-card group relative w-full overflow-hidden transition-colors duration-300 hover:border-accent/40"
-            >
-              {/* Full bleed: no padding of its own, so the picture runs to the
-                  card's edges and the card's own overflow-hidden clips it to
-                  the top two corners. */}
-              {venue.map ? (
-                <div className="relative h-44 overflow-hidden bg-white">
-                  <img
-                    src={venue.map}
-                    alt={`Circuit layout — ${venue.name}`}
-                    loading="lazy"
-                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
-                  />
-                </div>
-              ) : null}
+      {shown.length > 0 ? (
+        <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {shown.map((track, index) => (
+            // The Reveal is INSIDE the li: a <div> between a <ul> and its <li> is
+            // invalid and browsers reparent it.
+            <li key={track.id} className="flex">
+              <Reveal delay={index * 0.06} className="flex w-full">
+                <VenueCard track={track} position={index + 1} />
+              </Reveal>
+            </li>
+          ))}
+        </ul>
+      ) : null}
 
-              <div className={venue.map ? "border-t border-line p-6" : "p-6"}>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-accent">
-                  Venue {venue.number}
-                </p>
-                <h3 className="mt-2 font-display text-lg font-bold leading-snug text-fg">
-                  {venue.name}
-                </h3>
-                <p className="mt-2 flex items-center gap-1.5 text-sm text-fg-faint">
-                  <PinIcon />
-                  {venue.city}
-                </p>
-                {venue.note ? (
-                  <p className="mt-3 text-sm leading-relaxed text-fg-muted">{venue.note}</p>
-                ) : null}
-              </div>
-            </Reveal>
-          </li>
-        ))}
-      </ul>
+      <Reveal className="mt-10 flex justify-center">
+        <ActionButton href="/circuits" variant="outline">
+          View all circuits
+        </ActionButton>
+      </Reveal>
     </section>
+  );
+}
+
+/**
+ * One circuit, as the card it was before the data moved — the layout above, the
+ * name, the city and the line about it below.
+ *
+ * The whole card is the link now that there is somewhere to go: every circuit
+ * has a page, so there is no dead card to worry about, and spans rather than
+ * divs inside it because it is an <a>.
+ */
+function VenueCard({ track, position }: { track: Track; position: number }) {
+  const drawn = hasLayout(track);
+
+  return (
+    <Link
+      href={trackHref(track)}
+      className="panel-card group relative flex h-full w-full flex-col overflow-hidden transition-colors duration-300 hover:border-accent/40"
+    >
+      {/* Full bleed: no padding of its own, so the drawing runs to the card's
+          edges and the card's own overflow-hidden clips it to the top two
+          corners. */}
+      {drawn ? (
+        <span className="relative block h-44 overflow-hidden">
+          <CircuitMap
+            track={track}
+            className="h-full w-full text-accent transition-transform duration-500 group-hover:scale-[1.04]"
+          />
+        </span>
+      ) : null}
+
+      <span className={cn("flex flex-1 flex-col p-6", drawn && "border-t border-line")}>
+        <span className="text-[11px] font-semibold uppercase tracking-[0.3em] text-accent">
+          Circuit {String(position).padStart(2, "0")}
+        </span>
+
+        <span className="mt-2 font-display text-lg font-bold leading-snug text-fg transition-colors group-hover:text-accent">
+          {track.name}
+        </span>
+
+        {track.location ? (
+          <span className="mt-2 flex items-center gap-1.5 text-sm text-fg-faint">
+            <PinIcon />
+            {track.location}
+          </span>
+        ) : null}
+
+        {track.note ? (
+          <span className="mt-3 text-sm leading-relaxed text-fg-muted">{track.note}</span>
+        ) : null}
+
+        <span className="mt-auto inline-flex items-center gap-2 pt-5 text-[13px] font-semibold text-fg-faint transition-colors group-hover:text-accent">
+          Track overview
+          <span aria-hidden className="transition-transform duration-300 group-hover:translate-x-1">
+            &rarr;
+          </span>
+        </span>
+      </span>
+    </Link>
   );
 }
