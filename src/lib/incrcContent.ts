@@ -29,6 +29,12 @@
 import { INCRC_PHOTOS } from "@/config/images";
 import { normaliseBanners, type Banner } from "@/lib/banners";
 import {
+  COLLAGE_LAYOUT_IDS,
+  MAX_COLLAGE_CELLS,
+  defaultLayoutFor,
+  type CollageLayoutId,
+} from "@/lib/collage";
+import {
   BODY_MAX,
   bool,
   image,
@@ -169,7 +175,15 @@ export type IncrcContent = {
    */
   venues: { label: string; title: string };
   calendar: { label: string; title: string; rounds: Round[] };
-  partnership: { label: string; title: string; body: string; shots: Shot[] };
+  partnership: {
+    label: string;
+    title: string;
+    body: string;
+    /** Which arrangement the photographs are laid out in. See src/lib/collage.ts. */
+    layout: CollageLayoutId;
+    /** Cell order: the first is the first cell of the layout. */
+    shots: Shot[];
+  };
   family: { image: string; lead: string; quote: string; showFlag: boolean };
   rows: { label: string; title: string; items: RowItem[] };
   posts: { label: string; title: string; ctaLabel: string; ctaHref: string; items: Post[] };
@@ -354,6 +368,9 @@ export const DEFAULT_INCRC_CONTENT: IncrcContent = {
     label: "Behind the grid",
     title: "A landmark partnership",
     body: "CTR, JK Tyre and FMSCI put pen to paper — bringing India's biggest multi-category national car racing championship to life.",
+    // The establishing shot large on the left, the other two stacked beside it —
+    // the arrangement this section has always drawn.
+    layout: "three-hero-left",
     shots: [
       {
         image: ART.signing[0],
@@ -471,7 +488,8 @@ export const MAX_PARTNERS = 6;
 export const MAX_STATS = 6;
 export const MAX_VISION = 6;
 export const MAX_ROUNDS = 12;
-export const MAX_SHOTS = 6;
+/** The most cells any collage arrangement has — see src/lib/collage.ts. */
+export const MAX_SHOTS = MAX_COLLAGE_CELLS;
 export const MAX_ROWS = 12;
 export const MAX_POSTS = 9;
 
@@ -661,11 +679,8 @@ export function normaliseIncrcContent(input: unknown): IncrcContent {
       ),
     },
 
-    partnership: {
-      label: text(partnership.label, d.partnership.label),
-      title: text(partnership.title, d.partnership.title),
-      body: text(partnership.body, d.partnership.body, BODY_MAX),
-      shots: list(
+    partnership: (() => {
+      const shots = list(
         partnership.shots,
         MAX_SHOTS,
         (entry) => ({
@@ -673,8 +688,21 @@ export function normaliseIncrcContent(input: unknown): IncrcContent {
           alt: optionalText(entry.alt),
         }),
         d.partnership.shots
-      ),
-    },
+      );
+
+      return {
+        label: text(partnership.label, d.partnership.label),
+        title: text(partnership.title, d.partnership.title),
+        body: text(partnership.body, d.partnership.body, BODY_MAX),
+        // Kept as stored even when it no longer fits the number of photographs:
+        // `resolveCollage` draws the right one for the count either way, and
+        // leaving the id alone is what lets a photograph be removed and put
+        // back without quietly losing the choice. An id from a retired
+        // arrangement falls back to the default for however many there are.
+        layout: oneOf(partnership.layout, COLLAGE_LAYOUT_IDS, defaultLayoutFor(shots.length)),
+        shots,
+      };
+    })(),
 
     family: {
       image: image(family.image, d.family.image),

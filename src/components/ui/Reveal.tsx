@@ -15,18 +15,25 @@ const easeOut = [0.25, 0.46, 0.45, 0.94] as const;
 export function Reveal({
   children,
   className,
+  style,
   delay = 0,
   y = 32,
 }: {
   children: React.ReactNode;
   className?: string;
+  /** For what a class cannot carry — a grid placement computed from data. */
+  style?: React.CSSProperties;
   delay?: number;
   y?: number;
 }) {
   // In the admin's preview pane nothing ever enters the window's viewport, so
   // the scroll trigger would never fire and the content would stay invisible.
   if (usePreviewMode()) {
-    return <div className={className}>{children}</div>;
+    return (
+      <div className={className} style={style}>
+        {children}
+      </div>
+    );
   }
 
   return (
@@ -36,6 +43,7 @@ export function Reveal({
       viewport={{ once: true, margin: "-12%" }}
       transition={{ duration: 0.6, delay, ease: easeOut }}
       className={className}
+      style={style}
     >
       {children}
     </motion.div>

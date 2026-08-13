@@ -85,6 +85,34 @@
       text-[11px] font-semibold tracking-wide text-fg-muted;
   }
 
+  /*
+   * A photo collage laid out from an arrangement chosen in the admin.
+   *
+   * The arrangement itself is data — src/lib/collage.ts — handed over as four
+   * custom properties, because grid-template-areas cannot be written as a
+   * utility class and a Tailwind class assembled from a variable is not in the
+   * stylesheet at all. What CAN be a rule is WHEN the arrangement applies, and
+   * that is the whole reason this is here rather than inline: below md the
+   * areas are dropped and the photographs stack, which is the only arrangement
+   * that works at 375px whatever was picked.
+   */
+  .collage {
+    @apply grid gap-3 sm:gap-4;
+  }
+
+  @media (min-width: 768px) {
+    .collage {
+      grid-template-areas: var(--collage-areas);
+      grid-template-columns: var(--collage-cols);
+      grid-template-rows: var(--collage-rows);
+      aspect-ratio: var(--collage-ratio);
+    }
+
+    .collage > * {
+      grid-area: var(--collage-cell);
+    }
+  }
+
   /* Chip laid over a photo. */
   .photo-chip {
     @apply inline-flex items-center rounded-full bg-black/70 px-3 py-1.5 text-[11px]
