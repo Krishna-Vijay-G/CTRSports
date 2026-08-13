@@ -27,7 +27,7 @@
  */
 
 import { INCRC_PHOTOS } from "@/config/images";
-import { normaliseBanners, type Banner } from "@/lib/banners";
+import { BANNER_PICTURE_DEFAULTS, normaliseBanners, type Banner } from "@/lib/banners";
 import {
   COLLAGE_LAYOUT_IDS,
   MAX_COLLAGE_CELLS,
@@ -263,6 +263,7 @@ export const DEFAULT_INCRC_CONTENT: IncrcContent = {
       id: "incrc-banner-1",
       template: "spotlight",
       image: INCRC_PHOTOS.banners[0],
+      ...BANNER_PICTURE_DEFAULTS,
       title: "One Nation.\nOne Championship.",
       subtitle: "India's biggest multi-category national car racing championship.",
       ctaLabel: "Register for 2026",
@@ -272,6 +273,7 @@ export const DEFAULT_INCRC_CONTENT: IncrcContent = {
       id: "incrc-banner-2",
       template: "centre",
       image: INCRC_PHOTOS.banners[1],
+      ...BANNER_PICTURE_DEFAULTS,
       title: "Seven categories. One grid.",
       subtitle: "Four national rounds on three of India's finest circuits.",
       ctaLabel: "See the calendar",
@@ -281,6 +283,7 @@ export const DEFAULT_INCRC_CONTENT: IncrcContent = {
       id: "incrc-banner-3",
       template: "split",
       image: INCRC_PHOTOS.banners[2],
+      ...BANNER_PICTURE_DEFAULTS,
       title: "CTR is not organising the future.\nCTR is building it.",
       subtitle: "Racing, live audiences, OTT broadcast and a fan ecosystem around every round.",
       ctaLabel: "Our vision",

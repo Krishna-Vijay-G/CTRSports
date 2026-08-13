@@ -15,6 +15,7 @@ import { Label } from "@/admin/ui/Input";
 import { CaretDownIcon, DragIcon, PlusIcon, TrashIcon } from "@/admin/ui/icons";
 import { ButtonFields, Field, Note, Panel, TextArea } from "@/admin/components/Fields";
 import { ImageField } from "@/admin/components/ImageField";
+import { PictureControls } from "./PictureControls";
 import { TemplatePicker } from "./TemplatePicker";
 
 /**
@@ -196,6 +197,11 @@ export function BannersPanel({
                         label="Photo"
                         value={banner.image}
                         onChange={(image) => setBanner(banner.id, { image })}
+                      />
+
+                      <PictureControls
+                        banner={banner}
+                        onChange={(patch) => setBanner(banner.id, patch)}
                       />
 
                       <TextArea

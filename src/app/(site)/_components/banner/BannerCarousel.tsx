@@ -57,7 +57,9 @@ export function BannerCarousel({
 
   return (
     <section
-      className="relative min-h-[600px] overflow-hidden rounded-card lg:min-h-[680px]"
+      // bg-surface so a photograph set to "Fit" letterboxes against the card's
+      // own colour rather than against whatever happens to be behind it.
+      className="relative min-h-[600px] overflow-hidden rounded-card bg-surface lg:min-h-[680px]"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       aria-roledescription="carousel"

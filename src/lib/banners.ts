@@ -20,16 +20,65 @@
  */
 
 import { BANNER_PHOTOS } from "@/config/images";
-import { BODY_MAX, image, link, optionalText } from "@/lib/normalise";
+import { BODY_MAX, image, link, oneOf, optionalText } from "@/lib/normalise";
 
 export const BANNER_TEMPLATES = ["spotlight", "centre", "split"] as const;
 export type BannerTemplate = (typeof BANNER_TEMPLATES)[number];
+
+/**
+ * How the photograph fills the banner's box.
+ *
+ * The box is a fixed height, so a photograph almost never matches it and
+ * something has to give: either part of the picture, or its proportions, or the
+ * edges of the frame. These are the four ways to decide which.
+ *
+ *   fill     the frame is filled and the overflow is cropped. Proportions kept.
+ *            Right for nearly every photograph, and the default.
+ *   zoom     the same, pushed in further. For a photo whose subject is small in
+ *            the frame, or when the edges are not worth keeping.
+ *   fit      the whole picture, letterboxed against the page colour. Right for
+ *            an artwork or a poster where cropping would cut off type.
+ *   stretch  the frame is filled exactly by distorting the picture. Included
+ *            because it is sometimes what a flat graphic wants; on a photograph
+ *            of a person it is always wrong, and the admin says so.
+ */
+export const BANNER_FITS = ["fill", "zoom", "fit", "stretch"] as const;
+export type BannerFit = (typeof BANNER_FITS)[number];
+
+/**
+ * Which part of the picture is kept when it is cropped.
+ *
+ * Only means anything for `fill` and `zoom` — the other two crop nothing. A
+ * photograph with the horizon high in the frame, or a driver's head near the
+ * top, is the case this exists for: the default centre crop cuts exactly the
+ * part that matters.
+ */
+export const BANNER_FOCUS = ["center", "top", "bottom", "left", "right"] as const;
+export type BannerFocus = (typeof BANNER_FOCUS)[number];
+
+/**
+ * How much of the black wash goes over the photograph.
+ *
+ * The washes are not decoration: white type over an unmodified photograph is
+ * unreadable wherever the picture happens to be pale, and the site HEADER is
+ * laid over this box too. `none` is offered because a photo that is already
+ * dark needs nothing — but it is the one setting here that can make a page
+ * unreadable, so the admin warns rather than just obeying.
+ */
+export const BANNER_OVERLAYS = ["normal", "light", "none"] as const;
+export type BannerOverlay = (typeof BANNER_OVERLAYS)[number];
 
 export type Banner = {
   /** Stable across reorders — it is the React key and the drag identity. */
   id: string;
   template: BannerTemplate;
   image: string;
+  /** How the photograph fills the box. */
+  fit: BannerFit;
+  /** Which part survives the crop. Ignored by `fit` and `stretch`. */
+  focus: BannerFocus;
+  /** How dark the wash over it is. */
+  overlay: BannerOverlay;
   title: string;
   subtitle: string;
   ctaLabel: string;
@@ -55,6 +104,45 @@ export const BANNER_TEMPLATE_META: Record<
   },
 };
 
+/** What the admin's picture controls show. */
+export const BANNER_FIT_META: Record<BannerFit, { name: string; description: string }> = {
+  fill: {
+    name: "Fill",
+    description: "Fills the box and crops what does not fit. Proportions kept.",
+  },
+  zoom: {
+    name: "Zoom",
+    description: "The same, pushed in closer. For a subject that sits small in the frame.",
+  },
+  fit: {
+    name: "Fit",
+    description: "The whole picture, with the page colour showing at the sides.",
+  },
+  stretch: {
+    name: "Stretch",
+    description: "Fills the box exactly by distorting the picture. Wrong for photographs.",
+  },
+};
+
+export const BANNER_FOCUS_LABELS: Record<BannerFocus, string> = {
+  center: "Middle",
+  top: "Top",
+  bottom: "Bottom",
+  left: "Left",
+  right: "Right",
+};
+
+export const BANNER_OVERLAY_META: Record<BannerOverlay, { name: string; description: string }> = {
+  normal: { name: "Normal", description: "The wash the template was drawn with." },
+  light: { name: "Light", description: "Half as dark. For a photo that is already moody." },
+  none: { name: "None", description: "No wash at all. Check the header is still readable." },
+};
+
+/** Whether this way of filling the box crops anything, and so reads `focus`. */
+export function fitCrops(fit: BannerFit): boolean {
+  return fit === "fill" || fit === "zoom";
+}
+
 export const MAX_BANNERS = 6;
 
 /** How long each banner holds before the next one, in milliseconds. */
@@ -73,6 +161,7 @@ export function blankBanner(id: string, ctaHref = "#"): Banner {
     id,
     template: "spotlight",
     image: BANNER_PHOTOS[0],
+    ...BANNER_PICTURE_DEFAULTS,
     title: "",
     subtitle: "",
     ctaLabel: "",
@@ -80,11 +169,25 @@ export function blankBanner(id: string, ctaHref = "#"): Banner {
   };
 }
 
+/**
+ * What every banner had before the picture could be adjusted.
+ *
+ * Exported so the two documents' built-in banners spread it rather than
+ * repeating three fields six times — and so "the way banners looked before
+ * these settings existed" has one definition.
+ */
+export const BANNER_PICTURE_DEFAULTS = {
+  fit: "fill",
+  focus: "center",
+  overlay: "normal",
+} as const;
+
 export const DEFAULT_BANNERS: Banner[] = [
   {
     id: "banner-1",
     template: "spotlight",
     image: BANNER_PHOTOS[0],
+    ...BANNER_PICTURE_DEFAULTS,
     title: "One Nation. One Championship.",
     subtitle: "Six programmes competing under one banner.",
     ctaLabel: "Explore Sports",
@@ -94,6 +197,7 @@ export const DEFAULT_BANNERS: Banner[] = [
     id: "banner-2",
     template: "centre",
     image: BANNER_PHOTOS[1],
+    ...BANNER_PICTURE_DEFAULTS,
     title: "Built for athletes, run like one team",
     subtitle: "One standard of preparation across every discipline CTR runs.",
     ctaLabel: "About CTR",
@@ -103,6 +207,7 @@ export const DEFAULT_BANNERS: Banner[] = [
     id: "banner-3",
     template: "split",
     image: BANNER_PHOTOS[2],
+    ...BANNER_PICTURE_DEFAULTS,
     title: "From karting to full circuit racing",
     subtitle: "A national ladder that takes drivers all the way through.",
     ctaLabel: "See the programmes",
@@ -143,6 +248,12 @@ export function normaliseBanners(value: unknown, fallback: Banner[]): Banner[] {
         // unrecognised, which is what makes removing a template safe.
         template: isBannerTemplate(entry.template) ? entry.template : "spotlight",
         image: image(entry.image, BANNER_PHOTOS[0]),
+        // A banner saved before the picture could be adjusted has none of these,
+        // and falls back to exactly what it was already being drawn with — so
+        // this reads back as no change at all on every existing document.
+        fit: oneOf(entry.fit, BANNER_FITS, BANNER_PICTURE_DEFAULTS.fit),
+        focus: oneOf(entry.focus, BANNER_FOCUS, BANNER_PICTURE_DEFAULTS.focus),
+        overlay: oneOf(entry.overlay, BANNER_OVERLAYS, BANNER_PICTURE_DEFAULTS.overlay),
         title: optionalText(entry.title, BODY_MAX),
         subtitle: optionalText(entry.subtitle),
         ctaLabel: optionalText(entry.ctaLabel),
