@@ -142,6 +142,7 @@ export default async function CircuitPage({ params }: Params) {
               header={
                 <SiteHeader
                   content={chrome}
+                  home={false}
                   className="relative z-20 border-b border-line bg-surface"
                 />
               }

@@ -98,7 +98,11 @@ export default async function CircuitsPage() {
           <main id="main-content">
             {/* No banner to lie over here, so the header is a solid bar in the
                 flow — the same fallback /incrc uses with its carousel emptied. */}
-            <SiteHeader content={chrome} className="relative z-20 border-b border-line bg-surface" />
+            <SiteHeader
+              content={chrome}
+              home={false}
+              className="relative z-20 border-b border-line bg-surface"
+            />
             <CircuitIndex tracks={tracks} />
           </main>
 

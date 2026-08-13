@@ -75,9 +75,23 @@ export function NavPanel({ value, onChange }: { value: Nav; onChange: (next: Nav
           on the page. Destinations are usually in-page anchors: <code>#about</code>,{" "}
           <code>#sports</code>, <code>#footer</code>.
         </Note>
+
+        <Note className="mt-2">
+          This header is on every page, so an anchor that only exists here is sent to the same
+          place on the home page from the others — <code>#about</code> becomes{" "}
+          <code>/#about</code>, and <code>#top</code> becomes the home page itself. On a phone the
+          links move into a dropdown behind the menu button.
+        </Note>
       </Panel>
 
-      <Panel title="Header button" hint="beside the links">
+      <Panel title="Header button" hint="home page only">
+        <Note className="mb-3">
+          Shown on the home page and nowhere else. It points at the footer, and the footer it means
+          is this one — on a circuit or a registration page it would be a second route to the same
+          contact details, competing with what the visitor came for. Those pages show a{" "}
+          <span className="text-foreground">Back</span> button in its place.
+        </Note>
+
         <ButtonFields
           label={value.cta.label}
           href={value.cta.href}

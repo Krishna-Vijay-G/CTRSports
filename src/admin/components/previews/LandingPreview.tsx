@@ -108,7 +108,7 @@ export function LandingPreview({
               <div data-preview="banners">
                 <BannerCarousel
                   banners={content.banners}
-                  header={<SiteHeader content={content} />}
+                  header={<SiteHeader content={content} home />}
                   activeIndex={bannerIndex}
                 />
               </div>

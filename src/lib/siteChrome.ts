@@ -25,7 +25,18 @@ export function sendAnchorsHome(
   localAnchors: Iterable<string>
 ): LandingContent {
   const local = new Set<string>([...SHELL_ANCHORS, ...localAnchors]);
-  const fix = (href: string) => (href.startsWith("#") && !local.has(href) ? `/${href}` : href);
+
+  const fix = (href: string) => {
+    if (!href.startsWith("#")) return href;
+
+    // Every page inside the card has an id="top", so this one IS local — but in
+    // the navigation it is the "Home" link, and Home has to mean the home page.
+    // Scrolling a visitor to the top of the page they are already on is the one
+    // reading of it nobody wants.
+    if (href === "#top") return "/";
+
+    return local.has(href) ? href : `/${href}`;
+  };
 
   return {
     ...content,

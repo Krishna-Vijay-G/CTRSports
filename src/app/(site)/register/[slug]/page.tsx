@@ -95,7 +95,11 @@ export default async function RegisterPage({ params }: Params) {
           rounded card, capped at 1920 so a full-HD window is filled. */}
       <div className="mx-auto max-w-[1920px] overflow-hidden rounded-card bg-surface">
         <main id="main-content">
-          <SiteHeader content={chrome} className="relative z-20 border-b border-line bg-surface" />
+          <SiteHeader
+            content={chrome}
+            home={false}
+            className="relative z-20 border-b border-line bg-surface"
+          />
 
           <section className="shell py-14 sm:py-20">
             <Reveal className="max-w-2xl">

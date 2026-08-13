@@ -27,13 +27,19 @@ export function IncrcTop({
   activeIndex?: number;
 }) {
   if (banners.length === 0) {
-    return <SiteHeader content={chrome} className="relative z-20 border-b border-line bg-surface" />;
+    return (
+      <SiteHeader
+        content={chrome}
+        home={false}
+        className="relative z-20 border-b border-line bg-surface"
+      />
+    );
   }
 
   return (
     <BannerCarousel
       banners={banners}
-      header={<SiteHeader content={chrome} />}
+      header={<SiteHeader content={chrome} home={false} />}
       activeIndex={activeIndex}
     />
   );

@@ -62,7 +62,7 @@ export default async function LandingPage() {
           <main id="main-content">
             <BannerCarousel
               banners={content.banners}
-              header={<SiteHeader content={content} />}
+              header={<SiteHeader content={content} home />}
             />
             <AboutSection about={content.about} />
             <SportsSection heading={content.sportsSection} sports={sports} />
