@@ -22,16 +22,24 @@
  * ── What a field is ───────────────────────────────────────────────────────
  *
  * Every type here is a real `<input type>` or a `<select>`; none of them is a
- * widget we have to build and maintain. Deliberately absent:
+ * widget we have to build and maintain.
+ *
+ * The four CHOICE types are a grid — dropdown or buttons, one answer or several
+ * — and they are four types rather than two with a flag because the shape is an
+ * editorial decision. Four options read at a glance as radio buttons and are
+ * hidden behind a click as a dropdown; twenty are the other way round, and only
+ * whoever writes the question knows which it is. What they store is shared:
+ * `select` and `radio` store one option, `checkboxes` and `multiselect` store a
+ * list, so the two pairs are the same answer drawn differently and swapping
+ * between them never invalidates a stored entry.
+ *
+ * Deliberately absent:
  *
  *   file upload   the only upload path in this project is behind an authed
  *                 admin route. Opening one to the public needs a size quota, an
  *                 expiry for the orphans a half-finished form leaves behind,
  *                 and an answer about what ends up in the bucket. None of that
  *                 is a form-builder problem, so it is not solved here.
- *   radio         a select stores exactly the same value. Whether it is drawn
- *                 as a ring of buttons is a rendering choice that can be added
- *                 as a flag later without touching a single stored entry.
  *
  * A field's `id` is stable for its whole life and is never reused, because a
  * stored answer is keyed by it. Renaming a label is free; deleting a field
@@ -70,29 +78,66 @@ export const FORM_FIELD_TYPES = [
   "phone",
   "number",
   "select",
+  "multiselect",
+  "radio",
   "checkboxes",
   "checkbox",
   "date",
 ] as const;
 export type FormFieldType = (typeof FORM_FIELD_TYPES)[number];
 
+/**
+ * The four choice types are a grid, and the labels say so: the SHAPE the
+ * question takes, then how many answers it allows.
+ *
+ * They are four types rather than two with a flag because the shape is a real
+ * editorial decision, not a rendering detail. Four options are read at a glance
+ * as buttons and hidden behind a click as a dropdown; twenty are the other way
+ * round. Whoever writes the question is the one who knows which.
+ */
 export const FIELD_TYPE_LABELS: Record<FormFieldType, string> = {
   text: "Short text",
   textarea: "Long text",
   email: "Email",
   phone: "Phone",
   number: "Number",
-  select: "Pick one",
-  checkboxes: "Pick several",
+  select: "Dropdown — one",
+  multiselect: "Dropdown — several",
+  radio: "Radio buttons — one",
+  checkboxes: "Tick boxes — several",
   checkbox: "Yes / no",
   date: "Date",
 };
 
+/** Guidance in the builder, where "which of these four" is the actual question. */
+export const FIELD_TYPE_HINTS: Partial<Record<FormFieldType, string>> = {
+  select: "One answer, hidden behind a click. Right for a long list — a state, a category.",
+  multiselect: "Several answers from one dropdown. Compact, but harder to use on a phone.",
+  radio: "One answer, all of them on screen. Right for a handful of options.",
+  checkboxes: "Several answers, all of them on screen. Right for a handful of options.",
+};
+
 /** The types that read `options`. Every other type ignores the list. */
-export const CHOICE_TYPES: readonly FormFieldType[] = ["select", "checkboxes"];
+export const CHOICE_TYPES: readonly FormFieldType[] = [
+  "select",
+  "multiselect",
+  "radio",
+  "checkboxes",
+];
 
 export function isChoice(type: FormFieldType): boolean {
   return CHOICE_TYPES.includes(type);
+}
+
+/**
+ * Whether an answer to this is a LIST rather than one value.
+ *
+ * The one thing that actually changes downstream: what is stored, what the
+ * blank value is, and whether the export joins it. Everything else about the
+ * four choice types is how they are drawn.
+ */
+export function isMultiChoice(type: FormFieldType): boolean {
+  return type === "checkboxes" || type === "multiselect";
 }
 
 export type FormField = {
@@ -380,7 +425,9 @@ export function validateSubmission(
         value = raw === true || raw === "Yes" || raw === "on" ? "Yes" : "";
         break;
 
-      case "checkboxes": {
+      // Tick boxes and a multiple dropdown differ only in how they are drawn.
+      case "checkboxes":
+      case "multiselect": {
         const picked = Array.isArray(raw) ? raw : [];
         value = picked
           .filter((entry): entry is string => typeof entry === "string")
@@ -389,7 +436,9 @@ export function validateSubmission(
         break;
       }
 
-      case "select": {
+      // As do radio buttons and a single dropdown.
+      case "select":
+      case "radio": {
         const one = clamp(raw, FORM_LIMITS.field_option);
         value = field.options.includes(one) ? one : "";
         break;

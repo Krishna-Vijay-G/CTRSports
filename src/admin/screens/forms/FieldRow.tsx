@@ -1,11 +1,13 @@
 "use client";
 
 import {
+  FIELD_TYPE_HINTS,
   FIELD_TYPE_LABELS,
   FORM_FIELD_TYPES,
   FORM_LIMITS,
   MAX_FIELD_OPTIONS,
   isChoice,
+  isMultiChoice,
   type FormField,
 } from "@/lib/forms";
 import { Label, Select } from "@/admin/ui/Input";
@@ -50,6 +52,9 @@ export function FieldRow({
             </option>
           ))}
         </Select>
+        {FIELD_TYPE_HINTS[field.type] ? (
+          <Hint className="mt-1">{FIELD_TYPE_HINTS[field.type]}</Hint>
+        ) : null}
       </div>
 
       <Field
@@ -70,13 +75,32 @@ export function FieldRow({
       />
 
       {isChoice(field.type) ? (
-        <TextArea
-          label="Options"
-          value={field.options.join("\n")}
-          onChange={(text) => patch({ options: text.split("\n").slice(0, MAX_FIELD_OPTIONS) })}
-          rows={5}
-          hint={`One per line, up to ${MAX_FIELD_OPTIONS}. What is typed here is what is stored, so renaming one later does not change what anybody has already chosen.`}
-        />
+        <>
+          <TextArea
+            label="Options"
+            value={field.options.join("\n")}
+            onChange={(text) => patch({ options: text.split("\n").slice(0, MAX_FIELD_OPTIONS) })}
+            rows={5}
+            hint={`One per line, up to ${MAX_FIELD_OPTIONS}. What is typed here is what is stored, so renaming one later does not change what anybody has already chosen.`}
+          />
+
+          {/* Swapping between the four choice kinds is safe, and saying so is
+              what stops somebody rebuilding a question to change its shape. */}
+          <Note>
+            {isMultiChoice(field.type)
+              ? "Takes several answers, stored as a list and exported separated by semicolons."
+              : "Takes one answer."}{" "}
+            Switching between the four choice kinds keeps the options and every answer already
+            given — as long as you stay on the same side of one-or-several.
+          </Note>
+
+          {field.type === "select" || field.type === "multiselect" ? (
+            <Note>
+              A dropdown hides its options until it is clicked. With five or fewer, radio buttons
+              or tick boxes are read at a glance and are easier to use on a phone.
+            </Note>
+          ) : null}
+        </>
       ) : field.type === "checkbox" ? (
         <Note>
           A single tick. It is stored as “Yes” or blank, which is what makes the export readable

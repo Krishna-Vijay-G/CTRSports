@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import {
-  isChoice,
+  isMultiChoice,
   validateSubmission,
   type Form,
   type FormField,
@@ -264,8 +264,13 @@ function Control({
     );
   }
 
-  if (field.type === "checkboxes") {
+  /* Tick boxes and radio buttons are one arrangement — every option on screen,
+     in a row of tiles. The only difference is how many can be lit at once, so
+     they are drawn together and the input type is the variable. */
+  if (field.type === "checkboxes" || field.type === "radio") {
+    const many = field.type === "checkboxes";
     const picked = Array.isArray(value) ? value : [];
+    const single = typeof value === "string" ? value : "";
 
     return (
       <fieldset>
@@ -273,31 +278,89 @@ function Control({
         {help}
 
         <div className="mt-2.5 grid gap-2 sm:grid-cols-2">
-          {field.options.map((option) => (
-            <label
-              key={option}
-              className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-line bg-panel px-3.5 py-2.5 text-[15px] text-fg transition hover:border-accent/40"
-            >
-              <input
-                type="checkbox"
-                disabled={disabled}
-                checked={picked.includes(option)}
-                onChange={(event) =>
-                  onChange(
-                    event.target.checked
-                      ? [...picked, option]
-                      : picked.filter((entry) => entry !== option)
-                  )
-                }
-                className="size-4 shrink-0 cursor-pointer rounded border-line bg-surface text-accent focus-visible:ring-2 focus-visible:ring-accent/30"
-              />
-              {option}
-            </label>
-          ))}
+          {field.options.map((option) => {
+            const on = many ? picked.includes(option) : single === option;
+
+            return (
+              <label
+                key={option}
+                className={cn(
+                  "flex cursor-pointer items-center gap-2.5 rounded-lg border bg-panel px-3.5 py-2.5 text-[15px] text-fg transition",
+                  on ? "border-accent/60" : "border-line hover:border-accent/40"
+                )}
+              >
+                <input
+                  type={many ? "checkbox" : "radio"}
+                  // A radio group is one control: the shared name is what makes
+                  // the browser treat these as alternatives to each other.
+                  name={many ? undefined : id}
+                  disabled={disabled}
+                  checked={on}
+                  onChange={(event) => {
+                    if (!many) {
+                      onChange(option);
+                      return;
+                    }
+                    onChange(
+                      event.target.checked
+                        ? [...picked, option]
+                        : picked.filter((entry) => entry !== option)
+                    );
+                  }}
+                  className={cn(
+                    "size-4 shrink-0 cursor-pointer border-line bg-surface text-accent focus-visible:ring-2 focus-visible:ring-accent/30",
+                    many ? "rounded" : "rounded-full"
+                  )}
+                />
+                {option}
+              </label>
+            );
+          })}
         </div>
 
         {problem}
       </fieldset>
+    );
+  }
+
+  /* A dropdown that takes several. Native `<select multiple>`, which is plain
+     and works everywhere — it is also the least pleasant of the four to use,
+     which is why the builder says so and offers tick boxes beside it. `size`
+     is set so it opens as a list rather than a one-line box nobody can tell is
+     scrollable. */
+  if (field.type === "multiselect") {
+    const picked = Array.isArray(value) ? value : [];
+
+    return (
+      <div>
+        <label htmlFor={id}>{label}</label>
+        {help}
+
+        <div className="mt-2">
+          <select
+            {...shared}
+            multiple
+            size={Math.min(Math.max(field.options.length, 3), 6)}
+            value={picked}
+            onChange={(event) =>
+              onChange(Array.from(event.target.selectedOptions, (option) => option.value))
+            }
+            className={cn(shared.className, "py-2")}
+          >
+            {field.options.map((option) => (
+              <option key={option} value={option} className="px-1 py-1">
+                {option}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <span className="mt-1.5 block text-[13px] text-fg-faint">
+          Pick as many as apply — hold Ctrl (or Cmd) to add another.
+        </span>
+
+        {problem}
+      </div>
     );
   }
 
@@ -318,7 +381,7 @@ function Control({
             onChange={(event) => onChange(event.target.value)}
             className={cn(shared.className, "resize-y leading-relaxed")}
           />
-        ) : isChoice(field.type) ? (
+        ) : field.type === "select" ? (
           <select {...shared} value={single} onChange={(event) => onChange(event.target.value)}>
             <option value="">{field.placeholder || "Choose one"}</option>
             {field.options.map((option) => (
@@ -354,6 +417,6 @@ function inputType(type: FormField["type"]): string {
 
 function blank(fields: FormField[]): Submission {
   const values: Submission = {};
-  for (const field of fields) values[field.id] = field.type === "checkboxes" ? [] : "";
+  for (const field of fields) values[field.id] = isMultiChoice(field.type) ? [] : "";
   return values;
 }
