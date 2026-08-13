@@ -16,6 +16,7 @@ import { Field, Note, Panel, Row, TextArea } from "@/admin/components/Fields";
 
 type Socials = LandingContent["socials"];
 type Contact = LandingContent["contact"];
+type Footer = LandingContent["footer"];
 
 /**
  * The foot of every page: how to reach the organisation, and the social links.
@@ -31,11 +32,15 @@ export function FooterPanel({
   onChange,
   contact,
   onContactChange,
+  footer,
+  onFooterChange,
 }: {
   value: Socials;
   onChange: (next: Socials) => void;
   contact: Contact;
   onContactChange: (next: Contact) => void;
+  footer: Footer;
+  onFooterChange: (next: Footer) => void;
 }) {
   function setSocial(index: number, patch: Partial<Socials[number]>) {
     onChange(value.map((social, i) => (i === index ? { ...social, ...patch } : social)));
@@ -45,6 +50,21 @@ export function FooterPanel({
 
   return (
     <>
+    <Panel title="About line">
+      <TextArea
+        label="Under the logo"
+        value={footer.blurb}
+        onChange={(blurb) => onFooterChange({ blurb })}
+        rows={3}
+        hint="One or two sentences saying what this organisation is. Blank hides it."
+      />
+
+      <Note className="mt-3">
+        For the reader who arrived on a deck or an entry form and has never seen the home page —
+        the footer is often the only thing on that page that says who you are.
+      </Note>
+    </Panel>
+
     <Panel title="Contact">
       <div className="space-y-3">
         <Field

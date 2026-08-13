@@ -63,7 +63,7 @@ const DEFAULT_PARTS: Record<SectionId, (keyof LandingContent)[]> = {
   about: ["about"],
   sports: ["sportsSection"],
   cta: ["ctaBand"],
-  footer: ["socials", "contact"],
+  footer: ["socials", "contact", "footer"],
 };
 
 export function LandingEditor({
@@ -230,6 +230,8 @@ export function LandingEditor({
             onChange={(v) => setPart("socials", v)}
             contact={draft.contact}
             onContactChange={(v) => setPart("contact", v)}
+            footer={draft.footer}
+            onFooterChange={(v) => setPart("footer", v)}
           />
         );
     }

@@ -111,7 +111,7 @@ export function FooterEnquiry({ heading, note }: { heading: string; note: string
 
   if (sent) {
     return (
-      <div className="rounded-panel border border-line bg-panel p-5">
+      <div className="rounded-md border border-line bg-panel p-4">
         {/* role="status" so it is announced: somebody who cannot see the panel
             appear otherwise has no idea the button did anything. */}
         <p role="status" className="text-sm leading-relaxed text-fg">
@@ -129,14 +129,14 @@ export function FooterEnquiry({ heading, note }: { heading: string; note: string
   }
 
   return (
-    <form ref={form} onSubmit={send} noValidate className="flex flex-col gap-3">
+    <form ref={form} onSubmit={send} noValidate className="flex flex-col gap-2.5">
       {heading ? (
-        <h2 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-fg-faint">
+        <h2 className="text-[10px] font-semibold uppercase tracking-[0.18em] text-fg-faint">
           {heading}
         </h2>
       ) : null}
 
-      {note ? <p className="-mt-1 text-[13px] leading-relaxed text-fg-muted">{note}</p> : null}
+      {note ? <p className="-mt-1 text-[12px] leading-snug text-fg-muted">{note}</p> : null}
 
       <Line
         id={`${id}-name`}
@@ -166,7 +166,7 @@ export function FooterEnquiry({ heading, note }: { heading: string; note: string
         onChange={(message) => set({ message })}
         error={errors.message}
         maxLength={ENQUIRY_LIMITS.message}
-        rows={3}
+        rows={2}
       />
 
       {/* The honeypot. `tabIndex={-1}` and `aria-hidden` keep every real input
@@ -183,10 +183,14 @@ export function FooterEnquiry({ heading, note }: { heading: string; note: string
       />
 
       <div className="flex flex-wrap items-center gap-3">
+        {/* The admin's button shape — a 9-unit rectangle with a small radius
+            and the same press — in the site's accent rather than the console's
+            primary. The pill it replaced read as a call to action on a page
+            that already has one; this reads as a control. */}
         <button
           type="submit"
           disabled={busy}
-          className="inline-flex items-center gap-2 rounded-full bg-accent px-5 py-2.5 text-[13px] font-bold uppercase tracking-wide text-accent-ink transition hover:brightness-95 disabled:opacity-60"
+          className="inline-flex h-9 select-none items-center justify-center gap-1.5 whitespace-nowrap rounded-md bg-accent px-4 text-[13px] font-bold uppercase tracking-wide text-accent-ink outline-none transition hover:brightness-95 focus-visible:ring-[3px] focus-visible:ring-accent/40 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-60"
         >
           {busy ? "Sending…" : "Send"}
           {busy ? null : (
@@ -242,11 +246,11 @@ function Line({
   autoComplete?: string;
 }) {
   const box =
-    "w-full rounded-[8px] border bg-page px-3 py-2 text-sm text-fg outline-none transition placeholder:text-fg-faint focus:border-accent";
+    "w-full rounded-md border bg-page px-2.5 py-1.5 text-[13px] text-fg outline-none transition placeholder:text-fg-faint focus:border-accent";
 
   return (
     <div>
-      <label htmlFor={id} className="mb-1.5 block text-[11px] font-medium text-fg-faint">
+      <label htmlFor={id} className="mb-1 block text-[11px] font-medium text-fg-faint">
         {label}
       </label>
 

@@ -82,6 +82,15 @@ export type LandingContent = {
     formNote: string;
   };
   socials: SocialLink[];
+  /**
+   * The footer's own copy.
+   *
+   * One line under the brand saying what this organisation is, for the reader
+   * who arrived on a deck or an entry form and has never seen the home page.
+   * Its own key rather than part of `brand`, because it appears in exactly one
+   * place — the header and the splash screen have no room for a sentence.
+   */
+  footer: { blurb: string };
 };
 
 export const DEFAULT_LANDING_CONTENT: LandingContent = {
@@ -134,6 +143,10 @@ export const DEFAULT_LANDING_CONTENT: LandingContent = {
     email: "admin@ctrsports.in",
     formHeading: "Send a message",
     formNote: "Tell us what you need and we will reply by email.",
+  },
+  footer: {
+    blurb:
+      "Athletes, teams and sporting communities under one organisation — from cricket and volleyball to national motorsport.",
   },
   socials: [
     { label: "Instagram", href: "https://www.instagram.com/incrc_", icon: "instagram" },
@@ -278,6 +291,7 @@ export function normaliseLandingContent(input: unknown): LandingContent {
   const sportsSection = isRecord(root.sportsSection) ? root.sportsSection : {};
   const ctaBand = isRecord(root.ctaBand) ? root.ctaBand : {};
   const contact = isRecord(root.contact) ? root.contact : {};
+  const footer = isRecord(root.footer) ? root.footer : {};
 
   return {
     brand: {
@@ -329,6 +343,7 @@ export function normaliseLandingContent(input: unknown): LandingContent {
       formNote: text(contact.formNote, d.contact.formNote, CONTACT_MAX.formNote),
     },
     socials: socials(root.socials, d.socials),
+    footer: { blurb: text(footer.blurb, d.footer.blurb, BODY_MAX) },
   };
 }
 
