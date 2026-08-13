@@ -1,10 +1,19 @@
 "use client";
 
-import type { IncrcContent } from "@/lib/incrcContent";
+import {
+  LINK_ICONS,
+  MAX_FAMILY_LINKS,
+  type IncrcContent,
+  type LinkChip,
+} from "@/lib/incrcContent";
 import { Button } from "@/admin/ui/Button";
 import { CheckIcon } from "@/admin/ui/icons";
-import { Field, Note, Panel, TextArea } from "@/admin/components/Fields";
+import { Label } from "@/admin/ui/Input";
+import { Field, Note, Panel, Row, TextArea } from "@/admin/components/Fields";
+import { IconPicker } from "@/admin/components/IconPicker";
 import { ImageField } from "@/admin/components/ImageField";
+import { Repeater } from "@/admin/components/Repeater";
+import { LINK_GLYPHS } from "@/app/(site)/incrc/_components/icons";
 
 type Family = IncrcContent["family"];
 
@@ -52,12 +61,72 @@ export function FamilyPanel({
             </span>
           </div>
 
-          <Note>
-            The follow button under the quote uses the same Instagram handle as the introduction,
-            and is edited there.
-          </Note>
         </div>
       </Panel>
+
+      <Repeater<LinkChip>
+        title="Chips"
+        addLabel="Add chip"
+        items={value.links}
+        max={MAX_FAMILY_LINKS}
+        onChange={(links) => set({ links })}
+        keyOf={(chip) => chip.id}
+        blank={() => ({
+          id: crypto.randomUUID(),
+          icon: "globe",
+          label: "",
+          note: "",
+          href: "",
+        })}
+        expand="accordion"
+        summary={(chip, index) => ({
+          title: chip.label || `Chip ${index + 1}`,
+          hint: [chip.note, chip.href].filter(Boolean).join(" · "),
+        })}
+        empty="No chips — the quote ends the band on its own."
+        note="They sit in a row under the quote, in this order, and wrap on a phone. The six network glyphs keep their own colour; the rest take the accent."
+      >
+        {(chip, index, patch) => (
+          <>
+            <div>
+              <Label>Glyph</Label>
+              <IconPicker
+                value={chip.icon}
+                options={LINK_ICONS}
+                glyphs={LINK_GLYPHS}
+                onChange={(icon) => patch({ icon })}
+                className="mt-1.5"
+              />
+            </div>
+
+            <Row>
+              <Field
+                label="Text"
+                value={chip.label}
+                onChange={(label) => patch({ label })}
+                maxLength={60}
+                placeholder={`Chip ${index + 1}`}
+              />
+              <Field
+                label="Tail"
+                value={chip.note}
+                onChange={(note) => patch({ note })}
+                maxLength={40}
+                placeholder="@incrc_"
+                hint="Printed after the text in the accent. Blank hides it."
+              />
+            </Row>
+
+            <Field
+              label="Links to"
+              value={chip.href}
+              onChange={(href) => patch({ href })}
+              placeholder="https://www.instagram.com/incrc_"
+              hint="A full address, a path on this site, or a #section. Addresses open in a new tab."
+            />
+          </>
+        )}
+      </Repeater>
     </>
   );
 }

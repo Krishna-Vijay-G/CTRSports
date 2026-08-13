@@ -1,15 +1,9 @@
 "use client";
 
-import {
-  MAX_VISION,
-  VISION_ICONS,
-  type IncrcContent,
-  type VisionIcon,
-  type VisionItem,
-} from "@/lib/incrcContent";
-import { cn } from "@/lib/utils";
+import { MAX_VISION, VISION_ICONS, type IncrcContent, type VisionItem } from "@/lib/incrcContent";
 import { Label } from "@/admin/ui/Input";
 import { Field, Panel, TextArea } from "@/admin/components/Fields";
+import { IconPicker } from "@/admin/components/IconPicker";
 import { Repeater } from "@/admin/components/Repeater";
 import { VISION_GLYPHS } from "@/app/(site)/incrc/_components/icons";
 
@@ -49,6 +43,8 @@ export function VisionPanel({
               <Label>Glyph</Label>
               <IconPicker
                 value={item.icon}
+                options={VISION_ICONS}
+                glyphs={VISION_GLYPHS}
                 onChange={(icon) => patch({ icon })}
                 className="mt-1.5"
               />
@@ -69,50 +65,5 @@ export function VisionPanel({
         )}
       </Repeater>
     </>
-  );
-}
-
-/**
- * The glyph on the card.
- *
- * Generated from the same list the page draws from, so a card can never be given
- * one that is not drawn — and adding a glyph to VISION_GLYPHS puts it here on
- * its own.
- */
-function IconPicker({
-  value,
-  onChange,
-  className,
-}: {
-  value: VisionIcon;
-  onChange: (icon: VisionIcon) => void;
-  className?: string;
-}) {
-  return (
-    <div className={cn("flex flex-wrap gap-1.5", className)}>
-      {VISION_ICONS.map((icon) => {
-        const Glyph = VISION_GLYPHS[icon];
-        const selected = icon === value;
-
-        return (
-          <button
-            key={icon}
-            type="button"
-            onClick={() => onChange(icon)}
-            aria-pressed={selected}
-            title={icon}
-            className={cn(
-              "flex size-10 items-center justify-center rounded-md border outline-none transition",
-              "focus-visible:ring-[3px] focus-visible:ring-ring/40",
-              selected
-                ? "border-primary bg-primary/[0.09] text-primary"
-                : "border-border text-muted-fg hover:border-input hover:bg-muted/50 hover:text-foreground"
-            )}
-          >
-            <Glyph />
-          </button>
-        );
-      })}
-    </div>
   );
 }

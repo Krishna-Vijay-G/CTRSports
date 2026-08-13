@@ -1,6 +1,6 @@
 import type { IncrcContent } from "@/lib/incrcContent";
 import { Reveal } from "@/components/ui/Reveal";
-import { FollowButton } from "./FollowButton";
+import { LinkPill } from "./LinkPill";
 import { Tricolour } from "./icons";
 
 /**
@@ -10,14 +10,14 @@ import { Tricolour } from "./icons";
  * Breaks the `.shell` rhythm on purpose — it is the page's single change of
  * pace, and a quote that stops at the same margin as the cards above it would
  * not read as one.
+ *
+ * The chips under the quote are the page's send-off, so they are a list rather
+ * than the one fixed Instagram button this band used to carry: the family the
+ * quote is about is more than one account, and where a reader should be sent
+ * next is an editorial decision, not a constant. No chips leaves the quote on
+ * its own, which is a perfectly good ending.
  */
-export function FamilyBanner({
-  family,
-  meta,
-}: {
-  family: IncrcContent["family"];
-  meta: IncrcContent["meta"];
-}) {
+export function FamilyBanner({ family }: { family: IncrcContent["family"] }) {
   return (
     <section className="relative min-h-[420px] overflow-hidden md:min-h-[520px]">
       <img
@@ -54,9 +54,20 @@ export function FamilyBanner({
             {family.quote}
           </p>
 
-          <div className="mt-9 flex justify-center">
-            <FollowButton href={meta.instagram} handle={meta.handle} tone="light" />
-          </div>
+          {family.links.length > 0 ? (
+            <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
+              {family.links.map((chip) => (
+                <LinkPill
+                  key={chip.id}
+                  icon={chip.icon}
+                  label={chip.label}
+                  note={chip.note}
+                  href={chip.href}
+                  tone="light"
+                />
+              ))}
+            </div>
+          ) : null}
         </div>
       </Reveal>
     </section>

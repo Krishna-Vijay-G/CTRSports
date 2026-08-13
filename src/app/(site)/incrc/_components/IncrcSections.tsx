@@ -69,7 +69,7 @@ function section(id: IncrcSectionId, content: IncrcContent, tracks: Track[]): Re
     case "partnership":
       return <PartnershipSection partnership={content.partnership} />;
     case "family":
-      return <FamilyBanner family={content.family} meta={content.meta} />;
+      return <FamilyBanner family={content.family} />;
     case "rows":
       return <RowsSection rows={content.rows} />;
     case "posts":

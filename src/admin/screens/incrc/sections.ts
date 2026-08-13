@@ -121,7 +121,7 @@ export const TABS: Tab[] = [
     id: "family",
     short: "Quote",
     title: "Motorsport family",
-    hint: "The full-bleed photograph and the quote over it.",
+    hint: "The full-bleed photograph, the quote over it, and the chips under it.",
     preview: "family",
     Icon: UsersIcon,
   },

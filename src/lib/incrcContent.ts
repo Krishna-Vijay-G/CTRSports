@@ -85,6 +85,45 @@ export type SectionState = { id: IncrcSectionId; visible: boolean };
 export const VISION_ICONS = ["star", "rocket", "shield", "globe", "flag", "spark"] as const;
 export type VisionIcon = (typeof VISION_ICONS)[number];
 
+/**
+ * The glyphs a link chip can wear.
+ *
+ * Six marks and four plain ones, because a chip is recognised by its logo
+ * before it is read: an Instagram chip is spotted, a chip saying "Instagram" is
+ * read. The plain four are for everything that is not a network — a site, an
+ * address, a number, or anywhere else worth sending someone.
+ *
+ * Drawn in LINK_GLYPHS, in the page's own components. Retiring one is safe: a
+ * stored chip asking for it reads back as `globe`.
+ */
+export const LINK_ICONS = [
+  "instagram",
+  "facebook",
+  "youtube",
+  "x",
+  "linkedin",
+  "whatsapp",
+  "globe",
+  "mail",
+  "phone",
+  "arrow",
+] as const;
+export type LinkIcon = (typeof LINK_ICONS)[number];
+
+/**
+ * One chip: a glyph, what it says, and where it goes.
+ *
+ * `note` is the tail printed in the accent after the label — a handle, a
+ * number, a city. Blank prints nothing, which is what most chips want.
+ */
+export type LinkChip = {
+  id: string;
+  icon: LinkIcon;
+  label: string;
+  note: string;
+  href: string;
+};
+
 export type Partner = { name: string; logo: string };
 export type Stat = { value: string; label: string };
 export type VisionItem = { icon: VisionIcon; label: string; description: string };
@@ -184,7 +223,14 @@ export type IncrcContent = {
     /** Cell order: the first is the first cell of the layout. */
     shots: Shot[];
   };
-  family: { image: string; lead: string; quote: string; showFlag: boolean };
+  family: {
+    image: string;
+    lead: string;
+    quote: string;
+    showFlag: boolean;
+    /** The chips under the quote. Empty leaves the quote on its own. */
+    links: LinkChip[];
+  };
   rows: { label: string; title: string; items: RowItem[] };
   posts: { label: string; title: string; ctaLabel: string; ctaHref: string; items: Post[] };
   register: { kicker: string; title: string; body: string; ctaLabel: string; ctaHref: string };
@@ -392,6 +438,15 @@ export const DEFAULT_INCRC_CONTENT: IncrcContent = {
     lead: "Entertainment isn't created by one organiser.",
     quote: "It is powered by an entire motorsport family.",
     showFlag: true,
+    links: [
+      {
+        id: "family-link-1",
+        icon: "instagram",
+        label: "Follow the championship",
+        note: "@incrc_",
+        href: "https://www.instagram.com/incrc_",
+      },
+    ],
   },
 
   rows: {
@@ -490,6 +545,8 @@ export const MAX_VISION = 6;
 export const MAX_ROUNDS = 12;
 /** The most cells any collage arrangement has — see src/lib/collage.ts. */
 export const MAX_SHOTS = MAX_COLLAGE_CELLS;
+/** A row of chips under a quote. More than four wraps into a list. */
+export const MAX_FAMILY_LINKS = 4;
 export const MAX_ROWS = 12;
 export const MAX_POSTS = 9;
 
@@ -581,14 +638,20 @@ export function normaliseIncrcContent(input: unknown): IncrcContent {
   const posts = isRecord(root.posts) ? root.posts : {};
   const register = isRecord(root.register) ? root.register : {};
 
+  // Read before the rest, because the family band's chips fall back to it:
+  // that band used to draw one fixed Instagram button from these two fields,
+  // so a document saved before the chips existed has to come back with that
+  // same button rather than the built-in default's address.
+  const identity = {
+    name: text(meta.name, d.meta.name),
+    short: text(meta.short, d.meta.short),
+    tagline: text(meta.tagline, d.meta.tagline),
+    handle: text(meta.handle, d.meta.handle),
+    instagram: link(meta.instagram, d.meta.instagram),
+  };
+
   return {
-    meta: {
-      name: text(meta.name, d.meta.name),
-      short: text(meta.short, d.meta.short),
-      tagline: text(meta.tagline, d.meta.tagline),
-      handle: text(meta.handle, d.meta.handle),
-      instagram: link(meta.instagram, d.meta.instagram),
-    },
+    meta: identity,
 
     banners: normaliseBanners(root.banners, d.banners),
 
@@ -709,6 +772,31 @@ export function normaliseIncrcContent(input: unknown): IncrcContent {
       lead: text(family.lead, d.family.lead),
       quote: text(family.quote, d.family.quote, BODY_MAX),
       showFlag: bool(family.showFlag, d.family.showFlag),
+      links: withIds(
+        list(
+          family.links,
+          MAX_FAMILY_LINKS,
+          (entry) => ({
+            id: optionalText(entry.id, 64),
+            icon: oneOf(entry.icon, LINK_ICONS, "globe"),
+            label: optionalText(entry.label, 60),
+            note: optionalText(entry.note, 40),
+            href: link(entry.href, "#"),
+          }),
+          // No stored list at all is a document from before the chips: it gets
+          // the follow button it used to draw, pointed where it used to point.
+          [
+            {
+              id: "family-link-1",
+              icon: "instagram" as LinkIcon,
+              label: d.family.links[0].label,
+              note: identity.handle,
+              href: identity.instagram,
+            },
+          ]
+        ),
+        "family-link"
+      ),
     },
 
     rows: {
