@@ -1,7 +1,14 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { fitCrops, type Banner, type BannerFit, type BannerFocus, type BannerTemplate } from "@/lib/banners";
+import {
+  BANNER_INTERVAL,
+  fitCrops,
+  type Banner,
+  type BannerFit,
+  type BannerFocus,
+  type BannerTemplate,
+} from "@/lib/banners";
 import { cn } from "@/lib/utils";
 import { ActionButton } from "@/components/ui/ActionButton";
 
@@ -54,6 +61,21 @@ const FOCUS_CLASS: Record<BannerFocus, string> = {
 };
 
 /**
+ * The vertical half of the focus, for the phone pan to hold on to.
+ *
+ * The pan owns the horizontal — that is the whole of what it does — so only the
+ * up-and-down part of the chosen focus survives it. A photo pinned to the top
+ * pans along its top edge instead of drifting back to the middle.
+ */
+const PAN_Y: Record<BannerFocus, string> = {
+  center: "50%",
+  top: "0%",
+  bottom: "100%",
+  left: "50%",
+  right: "50%",
+};
+
+/**
  * The photograph, and — when it is set to Fit — the blurred backdrop behind it.
  *
  * A wide graphic in a tall box leaves space at the sides, and flat colour there
@@ -73,6 +95,7 @@ const FOCUS_CLASS: Record<BannerFocus, string> = {
  */
 function Photo({ banner, className }: { banner: Banner; className?: string }) {
   const box = cn("absolute inset-0 h-full w-full", className);
+  const crops = fitCrops(banner.fit);
 
   return (
     <>
@@ -93,13 +116,25 @@ function Photo({ banner, className }: { banner: Banner; className?: string }) {
         // The page's LCP element — fetched at high priority, never lazily.
         fetchPriority="high"
         decoding="async"
+        // The pan reads both of these; on a wide screen it is not running and
+        // they do nothing. The sweep takes exactly as long as the banner is
+        // held, so it arrives at the far edge as the next one takes over.
+        style={
+          {
+            "--banner-pan-y": PAN_Y[banner.focus],
+            "--banner-pan-duration": `${BANNER_INTERVAL}ms`,
+          } as React.CSSProperties
+        }
         className={cn(
           box,
           FIT_CLASS[banner.fit],
           // Where the picture sits only means something when something is being
           // cut off. Fit and Stretch centre it, whatever `focus` last held from
           // a spell on one of the cropping modes.
-          FOCUS_CLASS[fitCrops(banner.fit) ? banner.focus : "center"]
+          FOCUS_CLASS[crops ? banner.focus : "center"],
+          // Only a cropped banner has anything to travel across — see the
+          // `banner-pan` note in globals.css.
+          crops && "banner-pan"
         )}
       />
     </>

@@ -77,6 +77,14 @@ export function PictureControls({
             Which part of the photograph survives the crop. Use it when the thing that matters —
             a face, the horizon — is near an edge.
           </Hint>
+
+          <Note className="mt-2">
+            On a phone this banner travels slowly from one side of the picture to the other, so
+            everything the narrow screen crops off is still seen. Only the up-and-down half of the
+            choice above applies there. The preview beside you is a desktop one, so it holds
+            still — pick <span className="text-foreground">Fit</span> if the whole picture should
+            be visible at once instead.
+          </Note>
         </div>
       ) : null}
 

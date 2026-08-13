@@ -126,13 +126,56 @@
    */
 }
 
+/*
+ * A cropped banner, panned across on a phone.
+ *
+ * A banner photograph is wide and a phone is tall, so filling that box means
+ * cutting most of the picture away — on a 390px screen roughly a third of it
+ * survives, and which third is a guess made in the admin on a desktop. The
+ * seven cars in a category line-up become two cars.
+ *
+ * So on a narrow screen a cropped banner travels: it starts at one edge of the
+ * picture and moves to the other, and everything that was cut off is seen
+ * before the banner hands over. `alternate` sends it back again for a page with
+ * only one banner, which does not rotate and would otherwise stop at the far
+ * edge and sit there.
+ *
+ * Only below `md`, and only where the picture is being cropped at all — Fit
+ * already shows the whole thing, and panning what is entirely visible would be
+ * motion for its own sake.
+ *
+ * `object-position` rather than a transform: it moves the picture INSIDE its
+ * box, so nothing overflows and no parent needs to know the image's
+ * proportions. It is the one property that means "show a different part of
+ * this" without anything else on the page having to move.
+ *
+ * The vertical half is held at whatever the banner's own focus asks for, so a
+ * photo pinned to the top pans along its top edge rather than drifting back to
+ * the middle.
+ */
+@keyframes banner-pan {
+  from {
+    object-position: 0% var(--banner-pan-y, 50%);
+  }
+  to {
+    object-position: 100% var(--banner-pan-y, 50%);
+  }
+}
+
+@media (max-width: 767px) {
+  .banner-pan {
+    animation: banner-pan var(--banner-pan-duration, 6500ms) ease-in-out infinite alternate;
+  }
+}
+
 /* Respect reduced motion — kill the looping motifs. */
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
   }
   .animate-float,
-  .animate-marquee {
+  .animate-marquee,
+  .banner-pan {
     animation: none !important;
   }
 }
