@@ -45,16 +45,30 @@ export async function PUT(request: Request, { params }: Params) {
       return NextResponse.json({ error: "No such entry." }, { status: 404 });
     }
 
+    /*
+     * Validated against the day the entry was MADE, not today.
+     *
+     * A derived age is a fact about the day somebody entered — the whole reason
+     * it is stored rather than worked out when the sheet is opened. Re-deriving
+     * it against the current date meant that correcting a misspelled surname on
+     * a two-year-old entry silently aged that person by two years, quietly
+     * rewriting the column the export is read from. `withOrphans` could not
+     * save it either: the age key is a current column, so the fresh value
+     * always won.
+     */
+    const submittedAt = new Date(existing.created_at);
     const { values, errors } = validateSubmission(
       form.fields,
-      (body as { values?: unknown })?.values
+      (body as { values?: unknown })?.values,
+      Number.isNaN(submittedAt.getTime()) ? new Date() : submittedAt,
+      form.sections
     );
 
     if (Object.keys(errors).length > 0) {
       return NextResponse.json({ errors }, { status: 422 });
     }
 
-    const entry = await updateEntry(id, entryId, withOrphans(form.fields, existing.answers, values));
+    const entry = await updateEntry(id, entryId, withOrphans(existing.answers, values));
     if (!entry) {
       return NextResponse.json({ error: "No such entry." }, { status: 404 });
     }

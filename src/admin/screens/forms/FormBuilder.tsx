@@ -1,16 +1,22 @@
 "use client";
 
 import {
-  BLANK_FIELD,
   FIELD_TYPE_LABELS,
   FORM_LIMITS,
   FORM_STATUSES,
   MAX_FORM_FIELDS,
+  MAX_SECTIONS,
   STATUS_LABELS,
+  blankField,
+  blankSection,
+  formState,
+  keysBefore,
+  sectionOf,
   isUsableSlug,
   slugify,
   type Form,
   type FormField,
+  type FormSection,
 } from "@/lib/forms";
 import { FORM_PAGE_KEYS, PAGE_LABELS } from "@/lib/roles";
 import { Button } from "@/admin/ui/Button";
@@ -18,7 +24,58 @@ import { Input, Label, Select } from "@/admin/ui/Input";
 import { TrashIcon } from "@/admin/ui/icons";
 import { Field, Hint, Note, Panel, Row, TextArea } from "@/admin/components/Fields";
 import { Repeater } from "@/admin/components/Repeater";
+import { ConditionEditor } from "./FieldRules";
 import { FieldRow } from "./FieldRow";
+
+/**
+ * An id for a new question.
+ *
+ * `crypto.randomUUID` exists only in a secure context, and this project's own
+ * dev setup serves the admin over plain HTTP on a LAN address — so "Add
+ * question" threw an uncaught TypeError for anyone reviewing the site from
+ * another machine. It only has to be unique within one form, and the normaliser
+ * de-duplicates whatever arrives anyway.
+ */
+function fieldId(): string {
+  const random = globalThis.crypto?.randomUUID?.() ?? `${Math.random()}${Date.now()}`;
+  return random.replace(/[^a-z0-9]/gi, "").slice(0, 8) || `f${Date.now() % 100000}`;
+}
+
+/**
+ * An instant, as `<input type="datetime-local">` wants it.
+ *
+ * That control speaks the visitor's own wall clock with no zone attached, so
+ * this converts out of UTC on the way in and `fromInput` converts back on the
+ * way out. The stored value is always an instant; only the box is local.
+ */
+function forInput(iso: string): string {
+  if (!iso) return "";
+
+  const at = new Date(iso);
+  if (Number.isNaN(at.getTime())) return "";
+
+  // Shifted into local time, then trimmed to the minute — the format the
+  // control accepts, and the precision it offers.
+  return new Date(at.getTime() - at.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+}
+
+function fromInput(value: string): string {
+  if (!value) return "";
+
+  const at = new Date(value);
+  return Number.isNaN(at.getTime()) ? "" : at.toISOString();
+}
+
+/** What the form is doing right now, for the panel's own heading. */
+function liveState(form: Form): string {
+  const state = formState(form);
+
+  if (state === "scheduled") return "waiting to open";
+  if (state === "closed") return "not taking entries";
+  if (state === "draft") return "a draft";
+
+  return form.max_entries > 0 ? `open · ${form.max_entries} places` : "open";
+}
 
 /**
  * One form's record: where it lives, what it says, and what it asks.
@@ -58,10 +115,28 @@ export function FormBuilder({
             label="Name"
             value={form.name}
             onChange={(name) =>
-              // The address follows the name until the address exists. After
-              // that it is left alone: a form that has been shared cannot have
-              // its URL move because somebody fixed a typo in the title.
-              set(form.slug ? { name } : { name, slug: slugify(name) })
+              /*
+               * The address follows the name until somebody takes charge of it.
+               *
+               * The test used to be "is the slug empty", which was never true:
+               * the row is created on the server and comes back with a slug
+               * already worked out from "New form". So the rule never once
+               * fired, and every form built here was published at
+               * `/register/new-form` unless the admin noticed and typed the
+               * address by hand.
+               *
+               * Asking whether the slug still MATCHES the name is the honest
+               * version of the same question, and it needs no extra state: once
+               * the address has been edited it stops matching, and from then on
+               * renaming the form leaves it alone — which is the part that
+               * matters, because a form that has been shared cannot have its URL
+               * move because somebody fixed a typo in the title.
+               */
+              set(
+                !form.slug || form.slug === slugify(form.name)
+                  ? { name, slug: slugify(name) }
+                  : { name }
+              )
             }
             maxLength={FORM_LIMITS.name}
             placeholder="2026 season entry"
@@ -140,6 +215,63 @@ export function FormBuilder({
         </div>
       </Panel>
 
+      <Panel title="When and how many" hint={liveState(form)}>
+        <div className="space-y-3">
+          <Row>
+            <div className="block">
+              <Label>Opens</Label>
+              <Input
+                type="datetime-local"
+                value={forInput(form.opens_at)}
+                onChange={(event) => set({ opens_at: fromInput(event.target.value) })}
+                className="mt-1.5"
+              />
+              <Hint className="mt-1">Blank means as soon as the status is Open.</Hint>
+            </div>
+
+            <div className="block">
+              <Label>Closes</Label>
+              <Input
+                type="datetime-local"
+                value={forInput(form.closes_at)}
+                onChange={(event) => set({ closes_at: fromInput(event.target.value) })}
+                className="mt-1.5"
+              />
+              <Hint className="mt-1">Blank means until somebody closes it by hand.</Hint>
+            </div>
+          </Row>
+
+          <div className="block">
+            <Label>Places</Label>
+            <Input
+              type="number"
+              min={0}
+              value={form.max_entries || ""}
+              onChange={(event) => set({ max_entries: Math.max(0, Number(event.target.value) || 0) })}
+              placeholder="No limit"
+              className="mt-1.5"
+            />
+            <Hint className="mt-1">
+              Blank or zero takes entries until it is closed. With a number, it shuts itself the
+              moment the last place goes — counted inside the write, so two people cannot both take
+              it.
+            </Hint>
+          </div>
+
+          {form.opens_at && form.closes_at && form.closes_at <= form.opens_at ? (
+            <Note className="text-destructive">
+              It closes before it opens, so it will never take an entry.
+            </Note>
+          ) : null}
+
+          <Note>
+            These are read in the visitor&rsquo;s browser as a moment in time, not as a wall clock —
+            a form closing at six on Friday closes at six here, whatever time that is for somebody
+            entering from abroad. Status still wins: none of this opens a form set to Draft.
+          </Note>
+        </div>
+      </Panel>
+
       <Panel title="Copy">
         <div className="space-y-3">
           <Field
@@ -190,6 +322,61 @@ export function FormBuilder({
         </div>
       </Panel>
 
+      <Repeater<FormSection>
+        title="Pages"
+        addLabel="Add page"
+        items={form.sections}
+        max={MAX_SECTIONS}
+        onChange={(sections) => set({ sections })}
+        keyOf={(section) => section.id}
+        blank={() => blankSection(fieldId())}
+        summary={(section, index) => ({
+          title: section.title || `Page ${index + 1}`,
+          hint: [
+            `${form.fields.filter((field) => sectionOf(form.sections, field)?.id === section.id).length} question(s)`,
+            section.when.key ? "only sometimes" : null,
+          ]
+            .filter(Boolean)
+            .join(" · "),
+        })}
+        empty="No pages — every question is on one screen, which is right for a short form."
+        note="Break a long form up and it gets finished; a three-question form does not need it. Questions are put in page order, and a page can be skipped entirely by an earlier answer."
+      >
+        {(section, index, patch) => (
+          <>
+            <Field
+              label="Title"
+              value={section.title}
+              onChange={(title) => patch({ title })}
+              maxLength={FORM_LIMITS.field_label}
+              placeholder={`Page ${index + 1}`}
+              hint="Shown above the questions, with the progress bar."
+            />
+            <Field
+              label="Blurb"
+              value={section.blurb}
+              onChange={(blurb) => patch({ blurb })}
+              maxLength={FORM_LIMITS.field_help}
+              hint="A line under the title. Blank prints nothing."
+            />
+
+            <ConditionEditor
+              value={section.when}
+              onChange={(when) => patch({ when })}
+              keys={keysBefore(
+                form.fields.filter((field) => {
+                  const home = sectionOf(form.sections, field);
+                  const order = form.sections.findIndex((s) => s.id === home?.id);
+                  return order >= 0 && order < index;
+                }),
+                Number.MAX_SAFE_INTEGER
+              )}
+              fields={form.fields}
+            />
+          </>
+        )}
+      </Repeater>
+
       <Repeater<FormField>
         title="Questions"
         addLabel="Add question"
@@ -197,7 +384,7 @@ export function FormBuilder({
         max={MAX_FORM_FIELDS}
         onChange={(fields) => set({ fields })}
         keyOf={(field) => field.id}
-        blank={() => ({ ...BLANK_FIELD, id: crypto.randomUUID().slice(0, 8) })}
+        blank={() => blankField(fieldId())}
         summary={(field, index) => ({
           title: field.label || `Question ${index + 1}`,
           // "Only sometimes" earns its place in the collapsed row: a question
@@ -217,7 +404,13 @@ export function FormBuilder({
         note="Drag to reorder. A question can only depend on one ABOVE it, so moving one above what it depends on clears its rule rather than leaving it broken. Deleting one does not delete the answers already given to it: they stay on the entries and come out in the export under “No longer asked”."
       >
         {(field, index, patch) => (
-          <FieldRow field={field} index={index} fields={form.fields} patch={patch} />
+          <FieldRow
+            field={field}
+            index={index}
+            fields={form.fields}
+            sections={form.sections}
+            patch={patch}
+          />
         )}
       </Repeater>
 

@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { FormEntry, Submission } from "@/lib/forms";
+import { CREATED_COLUMN, type EntryCursor, type FormEntry, type Submission } from "@/lib/forms";
 import { getSql } from "@/lib/server/db";
 
 /**
@@ -18,6 +18,21 @@ import { getSql } from "@/lib/server/db";
  * SORTED reading is the exception and uses OFFSET, because a cursor over an
  * answer nobody guarantees is unique is a cursor that skips rows — see
  * `listEntries`.
+ *
+ * ── Every read goes through `hydrate` ─────────────────────────────────────
+ *
+ * `FormEntry.created_at` is typed `string`, and the driver does not return one.
+ * `@neondatabase/serverless` registers a parser for `timestamptz` and hands back
+ * a JS `Date`, so the type was a lie on every row ever read — which is not a
+ * theoretical complaint: `cell()` in the CSV writer calls `.replace()` on it,
+ * `Date` has no such method, the handler swallowed the TypeError, and "Download
+ * CSV" saved a file containing `{"error":"Could not load the entries."}` for
+ * every form that had so much as one entry. The same `Date` reached the browser
+ * as a paging cursor and came back as "Wed Aug 13 2026 15:04:05 GMT+0530", which
+ * Postgres cannot parse, so the first "Load more" was a 500.
+ *
+ * Converting here rather than at the two places that broke: the type says
+ * `string` and this is the only boundary that can make that true.
  */
 
 /** A header is somebody's to write. Neither of these is ever trusted for length. */
@@ -29,16 +44,25 @@ export const MAX_BULK_DELETE = 500;
 
 export type EntrySort = { key: string; dir: "asc" | "desc" };
 
+/** The row as the rest of the project is entitled to assume it looks. */
+function hydrate(row: FormEntry): FormEntry {
+  const at = row.created_at as unknown;
+
+  return {
+    ...row,
+    created_at: at instanceof Date ? at.toISOString() : String(at ?? ""),
+  };
+}
+
 /**
  * The sort key that means the timestamp rather than an answer.
  *
- * It is not a field id and can never be one — a form's ids come out of
- * `normaliseFormFields`, which builds them as `f<n>` or takes what the builder
- * generated, and neither produces this word on its own by accident. Ordering by
- * it descending is the same order the default view uses; ascending is the one
- * thing the cursor path cannot do, which is why it is here.
+ * Reserved in `normaliseFormFields`, which refuses to hand this id to a
+ * question — so a form can never carry an answer key that this shadows.
+ * Ordering by it descending is the same order the default view uses; ascending
+ * is the one thing the cursor path cannot do, which is why it is here.
  */
-export const CREATED_KEY = "created";
+export const CREATED_KEY = CREATED_COLUMN;
 
 export async function createEntry(
   formId: string,
@@ -59,7 +83,47 @@ export async function createEntry(
     RETURNING id, form_id, answers, ip, user_agent, created_at
   `) as FormEntry[];
 
-  return rows[0];
+  // An INSERT … RETURNING that comes back empty is not a row we can pretend to
+  // have: returning `undefined` here made the caller's notification throw AFTER
+  // the entry was already committed.
+  if (!rows[0]) throw new Error("The entry was not written.");
+
+  return hydrate(rows[0]);
+}
+
+/**
+ * The same, but only while there is a place left. Null when there is not.
+ *
+ * The counting and the writing are ONE statement, which is the whole point.
+ * Reading the count and then inserting is two, and two simultaneous entries
+ * against a cap of one both read "nought so far" and both insert — the sixtieth
+ * place goes to two people, and nothing anywhere says so. Here the count is a
+ * sub-query of the insert itself, so the database serialises them: the second
+ * one sees the first and writes nothing.
+ *
+ * `INSERT … SELECT … WHERE` rather than `VALUES`, because a `VALUES` clause has
+ * nowhere to hang a condition.
+ */
+export async function createEntryWithinCap(
+  formId: string,
+  answers: Submission,
+  ip: string,
+  userAgent: string,
+  cap: number
+): Promise<FormEntry | null> {
+  if (cap <= 0) return createEntry(formId, answers, ip, userAgent);
+
+  const sql = getSql();
+
+  const rows = (await sql`
+    INSERT INTO ctr_form_entries (form_id, answers, ip, user_agent)
+    SELECT ${formId}, ${JSON.stringify(answers)}::jsonb,
+           ${ip.slice(0, IP_MAX)}, ${userAgent.slice(0, AGENT_MAX)}
+     WHERE (SELECT count(*) FROM ctr_form_entries WHERE form_id = ${formId}) < ${cap}
+    RETURNING id, form_id, answers, ip, user_agent, created_at
+  `) as FormEntry[];
+
+  return rows[0] ? hydrate(rows[0]) : null;
 }
 
 /**
@@ -68,11 +132,11 @@ export async function createEntry(
  * Two ways of paging, because there are two ways of ordering and a cursor only
  * works for one of them:
  *
- *   newest first   `before` is the created_at of the last row already shown, and
- *                  the id is the tie-break — two entries can land in the same
- *                  millisecond, and a cursor on the timestamp alone would either
- *                  repeat one or skip one. Nothing is ever inserted ABOVE what
- *                  is on screen, so this page cannot shift.
+ *   newest first   `before` is the (created_at, id) of the last row already
+ *                  shown. Both halves, compared as a row — two entries can land
+ *                  in the same millisecond, and a cursor on the timestamp alone
+ *                  either repeats one or skips one. Nothing is ever inserted
+ *                  ABOVE what is on screen, so this page cannot shift.
  *   by an answer   OFFSET. A cursor needs the thing it points at to be unique,
  *                  and "Priya" is not: a keyset on an answer would step over
  *                  every other row that shares it. The cost is the usual one —
@@ -94,28 +158,31 @@ export async function listEntries(
     before,
     sort,
     offset = 0,
-  }: { limit?: number; before?: string; sort?: EntrySort; offset?: number } = {}
+  }: { limit?: number; before?: EntryCursor; sort?: EntrySort; offset?: number } = {}
 ): Promise<FormEntry[]> {
   const sql = getSql();
   const take = Math.min(Math.max(limit, 1), 500);
   const skip = Math.max(offset, 0);
 
   if (sort?.key === CREATED_KEY) {
-    return sort.dir === "asc"
-      ? ((await sql`
-          SELECT id, form_id, answers, ip, user_agent, created_at
-            FROM ctr_form_entries
-           WHERE form_id = ${formId}
-           ORDER BY created_at ASC, id ASC
-           LIMIT ${take} OFFSET ${skip}
-        `) as FormEntry[])
-      : ((await sql`
-          SELECT id, form_id, answers, ip, user_agent, created_at
-            FROM ctr_form_entries
-           WHERE form_id = ${formId}
-           ORDER BY created_at DESC, id DESC
-           LIMIT ${take} OFFSET ${skip}
-        `) as FormEntry[]);
+    const rows =
+      sort.dir === "asc"
+        ? ((await sql`
+            SELECT id, form_id, answers, ip, user_agent, created_at
+              FROM ctr_form_entries
+             WHERE form_id = ${formId}
+             ORDER BY created_at ASC, id ASC
+             LIMIT ${take} OFFSET ${skip}
+          `) as FormEntry[])
+        : ((await sql`
+            SELECT id, form_id, answers, ip, user_agent, created_at
+              FROM ctr_form_entries
+             WHERE form_id = ${formId}
+             ORDER BY created_at DESC, id DESC
+             LIMIT ${take} OFFSET ${skip}
+          `) as FormEntry[]);
+
+    return rows.map(hydrate);
   }
 
   if (sort) {
@@ -147,7 +214,7 @@ export async function listEntries(
              LIMIT ${take} OFFSET ${skip}
           `) as FormEntry[]);
 
-    return rows;
+    return rows.map(hydrate);
   }
 
   const rows = before
@@ -155,7 +222,10 @@ export async function listEntries(
         SELECT id, form_id, answers, ip, user_agent, created_at
           FROM ctr_form_entries
          WHERE form_id = ${formId}
-           AND created_at < ${before}
+           -- Both halves, compared as a row: this is the tie-break the note
+           -- above promises, and without it rows sharing a timestamp with the
+           -- last one on screen were skipped for good.
+           AND (created_at, id) < (${before.at}::timestamptz, ${before.id}::uuid)
          ORDER BY created_at DESC, id DESC
          LIMIT ${take}
       `) as FormEntry[])
@@ -167,7 +237,7 @@ export async function listEntries(
          LIMIT ${take}
       `) as FormEntry[]);
 
-  return rows;
+  return rows.map(hydrate);
 }
 
 /** One entry, scoped by form. Read before an edit, to keep what it already holds. */
@@ -179,7 +249,7 @@ export async function getEntry(formId: string, entryId: string): Promise<FormEnt
      WHERE id = ${entryId} AND form_id = ${formId}
   `) as FormEntry[];
 
-  return rows[0] ?? null;
+  return rows[0] ? hydrate(rows[0]) : null;
 }
 
 /**
@@ -203,7 +273,23 @@ export async function updateEntry(
     RETURNING id, form_id, answers, ip, user_agent, created_at
   `) as FormEntry[];
 
-  return rows[0] ?? null;
+  return rows[0] ? hydrate(rows[0]) : null;
+}
+
+/**
+ * The same, but an unreachable database counts as nought rather than throwing.
+ *
+ * For the public page, which asks only to say how many places are left. A count
+ * it cannot get is not a reason to refuse to draw the form — and the cap is
+ * enforced by the insert regardless, so nothing depends on this being right.
+ */
+export async function countEntriesSafe(formId: string): Promise<number> {
+  try {
+    return await countEntries(formId);
+  } catch (error) {
+    console.error("[forms] could not count the entries for", formId, error);
+    return 0;
+  }
 }
 
 export async function countEntries(formId: string): Promise<number> {

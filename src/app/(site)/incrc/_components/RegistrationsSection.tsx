@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { formHref, type FormSummary } from "@/lib/forms";
+import { formHref, formState, placesLeft, type FormState, type FormSummary } from "@/lib/forms";
 import type { IncrcContent } from "@/lib/incrcContent";
 import { Reveal } from "@/components/ui/Reveal";
 import { SectionHeading } from "@/components/ui/SectionHeading";
@@ -37,7 +37,16 @@ export function RegistrationsSection({
   registrations: IncrcContent["registrations"];
   forms: FormSummary[];
 }) {
-  const shown = registrations.showClosed ? forms : forms.filter((form) => form.status === "open");
+  /*
+   * The state a card shows is the DERIVED one.
+   *
+   * A form whose closing time passed an hour ago, or whose last place has gone,
+   * is not open — however its switch is still set. Working that out here rather
+   * than reading `status` is what keeps the card, the form's own page and the
+   * submit route saying the same thing.
+   */
+  const cards = forms.map((form) => ({ form, state: formState(form, form.entries) }));
+  const shown = registrations.showClosed ? cards : cards.filter((card) => card.state === "open");
 
   if (shown.length === 0) return null;
 
@@ -52,12 +61,12 @@ export function RegistrationsSection({
       ) : null}
 
       <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {shown.map((form, index) => (
+        {shown.map((card, index) => (
           // The Reveal is INSIDE the li: a <div> between a <ul> and its <li> is
           // invalid and browsers reparent it.
-          <li key={form.id} className="flex">
+          <li key={card.form.id} className="flex">
             <Reveal delay={Math.min(index, 5) * 0.06} className="flex w-full">
-              <FormCard form={form} />
+              <FormCard form={card.form} state={card.state} />
             </Reveal>
           </li>
         ))}
@@ -66,8 +75,9 @@ export function RegistrationsSection({
   );
 }
 
-function FormCard({ form }: { form: FormSummary }) {
-  const closed = form.status !== "open";
+function FormCard({ form, state }: { form: FormSummary; state: FormState }) {
+  const closed = state !== "open";
+  const left = placesLeft(form, form.entries);
 
   /* A closed form is not a link. There is a page at the other end and it does
      explain itself, but a card that invites a click and then says "no" is a
@@ -82,8 +92,22 @@ function FormCard({ form }: { form: FormSummary }) {
               : "inline-flex items-center rounded-full bg-accent px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-accent-ink"
           }
         >
-          {closed ? "Entries closed" : "Open"}
+          {state === "open"
+            ? "Open"
+            : state === "scheduled"
+              ? "Soon"
+              : state === "full"
+                ? "Full"
+                : "Entries closed"}
         </span>
+
+        {/* Only worth saying when it is nearly gone. "58 places left" is noise;
+            "2 places left" is the reason somebody clicks now rather than later. */}
+        {state === "open" && left !== null && left <= 10 ? (
+          <span className="text-[11px] font-semibold text-accent">
+            {left === 1 ? "1 place left" : `${left} places left`}
+          </span>
+        ) : null}
       </span>
 
       <span className="mt-4 block font-display text-lg font-bold leading-snug text-fg transition-colors group-hover:text-accent">
@@ -101,7 +125,7 @@ function FormCard({ form }: { form: FormSummary }) {
             : "mt-auto inline-flex items-center gap-2 pt-6 text-[13px] font-semibold text-fg-faint transition-colors group-hover:text-accent"
         }
       >
-        {closed ? "Closed" : "Enter"}
+        {state === "open" ? "Enter" : state === "scheduled" ? "Not open yet" : state === "full" ? "Full" : "Closed"}
         {closed ? null : (
           <span aria-hidden className="transition-transform duration-300 group-hover:translate-x-1">
             &rarr;

@@ -62,9 +62,15 @@ export async function POST(request: Request) {
   }
 
   try {
-    const form = await createForm(body);
+    // Anything the normaliser had to change comes back with the form. A rule
+    // dropped or an address rewritten used to happen in total silence, behind a
+    // "Saved" badge — the admin's next clue was a question that had stopped
+    // appearing on the live site.
+    const notes: string[] = [];
+    const form = await createForm(body, notes);
+
     revalidateFormPages();
-    return NextResponse.json({ form });
+    return NextResponse.json({ form, notes });
   } catch (error) {
     if ((error as { code?: string })?.code === DUPLICATE) {
       return NextResponse.json({ error: "That link is already in use." }, { status: 409 });

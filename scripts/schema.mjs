@@ -323,6 +323,33 @@ export async function migrate(sql) {
   `;
 
   /*
+   * When a form takes entries, and how many.
+   *
+   * `status` stays the switch a person throws; these are the conditions that
+   * decide alongside it. A form is only open if it is set to open AND is inside
+   * its window AND has places left — which means nobody has to remember to come
+   * back at midnight on the closing date, and an event with sixty places stops
+   * at sixty rather than at whenever somebody notices.
+   *
+   * Null means no bound: no opening date is "as soon as it is published", no
+   * closing date is "until somebody closes it", and zero places is unlimited.
+   */
+  await sql`ALTER TABLE ctr_forms ADD COLUMN IF NOT EXISTS opens_at timestamptz`;
+  await sql`ALTER TABLE ctr_forms ADD COLUMN IF NOT EXISTS closes_at timestamptz`;
+  await sql`ALTER TABLE ctr_forms ADD COLUMN IF NOT EXISTS max_entries integer NOT NULL DEFAULT 0`;
+
+  /*
+   * The pages a long form is broken into.
+   *
+   * JSONB and not a table of its own, for the reason the questions are JSONB: a
+   * section has no life outside the form it belongs to, nothing ever queries
+   * one, and it is always read with the rest of the document. An empty list —
+   * which is every form that existed before this — means one page and no
+   * stepper, so nothing about those forms changes.
+   */
+  await sql`ALTER TABLE ctr_forms ADD COLUMN IF NOT EXISTS sections jsonb NOT NULL DEFAULT '[]'::jsonb`;
+
+  /*
    * One submission.
    *
    * `answers` is keyed by FIELD ID, never by label: a label is edited freely
@@ -350,6 +377,38 @@ export async function migrate(sql) {
   await sql`
     CREATE INDEX IF NOT EXISTS ctr_form_entries_form_idx
       ON ctr_form_entries (form_id, created_at DESC)
+  `;
+
+  /*
+   * Nonces that have been spent.
+   *
+   * The token stamped into a form page is an HMAC over the slug and the time it
+   * was rendered, which proves the page was served by this site and roughly
+   * when — but on its own proves nothing about how many times it has been used.
+   * It was replayable for its whole two-hour life, so one fetched page was two
+   * hours of submissions.
+   *
+   * A row here is "this one has been spent". The primary key does the work: two
+   * requests carrying the same nonce race to insert it and exactly one wins,
+   * across however many instances are running, which an in-process set could
+   * never manage.
+   *
+   * It doubles as the answer to the duplicate a flaky network produces — a
+   * retry after a response that was lost in transit carries the same nonce as
+   * the request that actually landed, and is refused rather than stored twice.
+   *
+   * Rows are swept when they expire; there is no scheduler here, so it happens
+   * opportunistically on write. See registerToken.ts.
+   */
+  await sql`
+    CREATE TABLE IF NOT EXISTS ctr_form_nonces (
+      nonce      text PRIMARY KEY,
+      expires_at timestamptz NOT NULL
+    )
+  `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS ctr_form_nonces_expiry_idx ON ctr_form_nonces (expires_at)
   `;
 }
 

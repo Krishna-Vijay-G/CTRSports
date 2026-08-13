@@ -48,19 +48,67 @@ export function FormsEditor({
   const [busy, setBusy] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notes, setNotes] = useState<string[]>([]);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const active = forms.find((form) => form.id === activeId) ?? null;
   const activeSaved = saved.find((form) => form.id === activeId) ?? null;
 
+  /**
+   * Everything about the last thing that happened belongs to the form it
+   * happened to.
+   *
+   * The delete confirmation was the dangerous one: it was raised for form A,
+   * survived a click on form B in the rail, and then aimed itself at whatever
+   * `active` had become — so "Delete form and entries" deleted B and cascaded
+   * every entry on it, while the panel's own text had quietly changed to name B
+   * so it did not even look wrong until it was done. It is the only
+   * unrecoverable action on this screen.
+   */
+  function choose(id: string | null) {
+    if (id === activeId) return;
+
+    setActiveId(id);
+    setConfirmingDelete(false);
+    setError(null);
+    setNotes([]);
+    setJustSaved(false);
+  }
+
   // Compared as documents: the questions are a list, so a field-by-field
   // comparison would have to walk it anyway. Position is left out — the list
   // owns it and saves it on its own.
-  const dirty =
-    active && activeSaved
-      ? JSON.stringify({ ...active, sort_order: 0 }) !==
-        JSON.stringify({ ...activeSaved, sort_order: 0 })
+  const changed = (form: Form | null, against: Form | null) =>
+    form && against
+      ? JSON.stringify({ ...form, sort_order: 0 }) !== JSON.stringify({ ...against, sort_order: 0 })
       : false;
+
+  const dirty = changed(active, activeSaved);
+
+  /*
+   * Unsaved work anywhere, not just on the form being looked at.
+   *
+   * Edits to one form survive in state while another is open, so it was
+   * possible to have three forms half-edited and a toolbar quietly reporting
+   * nothing to save — it only ever compared the active one. Closing the tab
+   * then took the lot with no warning.
+   */
+  const unsaved = forms.filter((form) => changed(form, saved.find((s) => s.id === form.id) ?? null));
+  const elsewhere = canManage ? unsaved.filter((form) => form.id !== activeId) : [];
+
+  useEffect(() => {
+    if (unsaved.length === 0) return;
+
+    const warn = (event: BeforeUnloadEvent) => {
+      // The only thing a browser still honours here: cancel it, and the browser
+      // shows its own wording. Anything we write is ignored.
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [unsaved.length]);
 
   /* ─────────────────────────── Order ─────────────────────────── */
 
@@ -70,15 +118,24 @@ export function FormsEditor({
 
   useEffect(() => {
     return () => {
-      if (orderTimer.current !== null) window.clearTimeout(orderTimer.current);
+      // Flushed, not just cancelled. Dragging a row and then clicking another
+      // screen inside the delay used to throw the reorder away silently, and
+      // the rail showed the old order on the way back.
+      if (orderTimer.current !== null) {
+        window.clearTimeout(orderTimer.current);
+        const ids = pendingOrder.current;
+        if (ids) void writeOrder(ids);
+      }
     };
+    // Deliberately once: this is an unmount flush, and re-running it on every
+    // render would fire the pending write on every keystroke.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function writeOrder(ids: string[]) {
     const key = ids.join(",");
     if (key === savedOrder.current) return;
 
-    savedOrder.current = key;
     setError(null);
 
     try {
@@ -91,7 +148,14 @@ export function FormsEditor({
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
         setError(data.error ?? "Could not save the new order.");
+        return;
       }
+
+      // Only once it has actually landed. Marking it saved before the await
+      // meant a failed reorder could never be corrected: dragging the row back
+      // produced the order this ref already claimed to have written, so the
+      // retry was discarded by the guard above and the database kept the old one.
+      savedOrder.current = key;
     } catch {
       setError("Network error while saving the order.");
     }
@@ -152,6 +216,7 @@ export function FormsEditor({
       const form = data.form as Form;
       setForms((current) => current.map((f) => (f.id === form.id ? form : f)));
       setSaved((current) => current.map((f) => (f.id === form.id ? form : f)));
+      setNotes(Array.isArray(data.notes) ? (data.notes as string[]) : []);
       setJustSaved(true);
     } catch {
       setError("Network error. Please try again.");
@@ -171,7 +236,11 @@ export function FormsEditor({
         body: JSON.stringify({
           ...BLANK_FORM,
           name: "New form",
-          sort_order: (forms.length + 1) * 10,
+          // From the largest position in use, not the count: deleting a form
+          // never renumbers the rest, so after one deletion the count collides
+          // with a row that already exists and `name ASC` breaks the tie —
+          // dropping the new form into the middle of the list.
+          sort_order: forms.reduce((top, form) => Math.max(top, form.sort_order), 0) + 10,
         }),
       });
 
@@ -187,6 +256,8 @@ export function FormsEditor({
       setSaved((current) => [...current, form]);
       savedOrder.current = [...forms.map((f) => f.id), form.id].join(",");
       setActiveId(form.id);
+      setConfirmingDelete(false);
+      setNotes(Array.isArray(data.notes) ? (data.notes as string[]) : []);
       setJustSaved(false);
     } catch {
       setError("Network error. Please try again.");
@@ -251,7 +322,7 @@ export function FormsEditor({
           heading="Forms"
           items={railItems}
           active={activeId ?? ""}
-          onSelect={setActiveId}
+          onSelect={choose}
           onReorder={canManage ? reorder : undefined}
         />
       </AdminRailSlot>
@@ -260,13 +331,20 @@ export function FormsEditor({
         Icon={TicketIcon}
         title={active ? active.name || "Untitled form" : "Registrations"}
         hint={
-          active
-            ? canManage
-              ? `Entries land in this admin. ${active.slug ? `/register/${active.slug}` : "Give it an address to publish it."}`
-              : "Registrations owns these. You can point a button at one."
-            : "No forms yet — add the first one."
+          // Other forms with unsaved edits are NAMED. "Unsaved" on a screen
+          // holding five forms does not say which, and the other four are not
+          // on screen to check — so the badge alone was a warning nobody could
+          // act on.
+          elsewhere.length > 0
+            ? `Unsaved elsewhere: ${elsewhere.map((form) => form.name || "Untitled form").join(", ")}`
+            : active
+              ? canManage
+                ? `Entries land in this admin. ${active.slug ? `/register/${active.slug}` : "Give it an address to publish it."}`
+                : "Registrations owns these. You can point a button at one."
+              : "No forms yet — add the first one."
         }
-        dirty={canManage && dirty}
+
+        dirty={canManage && (dirty || unsaved.length > 0)}
         justSaved={justSaved}
         busy={busy}
         error={error}
@@ -303,6 +381,33 @@ export function FormsEditor({
           )}
         >
           <div className="space-y-2.5 bg-background/40 p-3">
+            {/*
+              What the save had to change.
+              A rule that points at a question no longer above it, an option
+              group whose answer has been renamed, an address that had to be
+              tidied — all of these used to be corrected in silence behind a
+              "Saved" badge, and the first sign of it was a question that had
+              stopped appearing on the live site. Said here instead, once, until
+              the next save or a different form.
+            */}
+            {notes.length > 0 ? (
+              <div className="space-y-1.5 rounded-md border border-primary/40 bg-primary/10 p-3">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-foreground">
+                  Changed on save
+                </p>
+                <ul className="space-y-1">
+                  {notes.map((note, index) => (
+                    <li key={index} className="text-xs leading-relaxed text-foreground">
+                      {note}
+                    </li>
+                  ))}
+                </ul>
+                <Button variant="ghost" size="sm" onClick={() => setNotes([])}>
+                  Got it
+                </Button>
+              </div>
+            ) : null}
+
             {active ? (
               confirmingDelete ? (
                 <div className="space-y-2.5 rounded-md border border-destructive/40 bg-destructive/10 p-3">

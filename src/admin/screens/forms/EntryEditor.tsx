@@ -49,7 +49,13 @@ export function EntryEditor({
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const shape = useMemo(() => validateSubmission(form.fields, values), [form.fields, values]);
+  // The admin dialog puts every question on one screen whatever the sections
+  // say — but it still has to know which pages are SKIPPED, or it would offer
+  // questions the public form never asks.
+  const shape = useMemo(
+    () => validateSubmission(form.fields, values, new Date(), form.sections),
+    [form.fields, form.sections, values]
+  );
 
   function set(id: string, value: string | string[]) {
     setValues((current) => ({ ...current, [id]: value }));

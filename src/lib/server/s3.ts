@@ -1,12 +1,33 @@
 import "server-only";
 
-import { ListObjectsV2Command, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+  DeleteObjectsCommand,
+  GetObjectCommand,
+  ListObjectsV2Command,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 
 /**
  * Everything this project writes lives under one prefix, which is what keeps
  * the media library from listing another site's uploads — the bucket is shared.
  */
 export const MEDIA_PREFIX = "ctr-unified/media/";
+
+/**
+ * Where a registration attachment goes. A different prefix, deliberately.
+ *
+ * Everything under MEDIA_PREFIX is a logo or a photograph meant to be on a web
+ * page, and is served straight from the bucket with a public, immutable cache
+ * header. These are licence scans, indemnity forms and passport photographs
+ * belonging to named people — they are never given a public URL and never
+ * appear in the media library. They leave only through an authenticated admin
+ * route that streams them; see the attachment route.
+ *
+ * Separate prefixes are also what makes deleting a form's files possible
+ * without touching anything else.
+ */
+export const ENTRY_PREFIX = "ctr-unified/entries/";
 
 const BUCKET = process.env.S3_BUCKET;
 const REGION = process.env.S3_REGION;
@@ -99,4 +120,69 @@ export async function uploadObject(key: string, body: Buffer, contentType: strin
   );
 
   return publicUrl(key);
+}
+
+/**
+ * The same, for something nobody outside the admin may read.
+ *
+ * `private` and `no-store` rather than the immutable public header above: these
+ * objects are somebody's identity documents, and the difference between the two
+ * functions is the difference between a logo and a passport photograph. The key
+ * is unguessable either way, but "unguessable" is not a permission model —
+ * nothing ever hands out the URL, and the only way to read one is through an
+ * authenticated route.
+ */
+export async function uploadPrivateObject(
+  key: string,
+  body: Buffer,
+  contentType: string
+): Promise<void> {
+  await getClient().send(
+    new PutObjectCommand({
+      Bucket: BUCKET,
+      Key: key,
+      Body: body,
+      ContentType: contentType,
+      CacheControl: "private, no-store",
+    })
+  );
+}
+
+/** The bytes of one object, for streaming back through an authed route. */
+export async function getObject(
+  key: string
+): Promise<{ body: Uint8Array; contentType: string } | null> {
+  try {
+    const result = await getClient().send(new GetObjectCommand({ Bucket: BUCKET, Key: key }));
+    const body = await result.Body?.transformToByteArray();
+    if (!body) return null;
+
+    return { body, contentType: result.ContentType ?? "application/octet-stream" };
+  } catch {
+    // A missing key is a 404 to the caller, not a 500 — an entry can outlive
+    // its file if somebody has been into the bucket by hand.
+    return null;
+  }
+}
+
+/**
+ * Removes objects, in batches of the thousand the API allows.
+ *
+ * Needed the moment attachments exist: deleting a form cascades its entries in
+ * Postgres, and without this the bucket would go on holding the licence scans
+ * of everyone who ever entered it — with the only record of which files those
+ * were sitting in the rows that were just deleted.
+ */
+export async function deleteObjects(keys: string[]): Promise<void> {
+  const wanted = keys.filter(Boolean);
+  if (wanted.length === 0) return;
+
+  for (let from = 0; from < wanted.length; from += 1000) {
+    await getClient().send(
+      new DeleteObjectsCommand({
+        Bucket: BUCKET,
+        Delete: { Objects: wanted.slice(from, from + 1000).map((Key) => ({ Key })) },
+      })
+    );
+  }
 }

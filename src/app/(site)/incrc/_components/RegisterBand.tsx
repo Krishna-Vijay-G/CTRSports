@@ -9,9 +9,12 @@ import { Reveal } from "@/components/ui/Reveal";
  * allowed on top of it, so every piece of type here says so explicitly.
  */
 export function RegisterBand({ register }: { register: IncrcContent["register"] }) {
-  // The entry form lives on the older CTR site, so this usually leaves this
-  // site — and a link that leaves should open in its own tab rather than lose
-  // the page someone is reading. An in-page anchor must not.
+  // Registration lives on this site now — at /register/<slug>, or at the
+  // section on this page that lists the open forms. This is left in place for
+  // the one case it still serves: an admin who has deliberately typed an
+  // outside address into the picker's escape hatch. A link that leaves should
+  // open in its own tab rather than lose the page someone is reading; an
+  // in-page anchor and a path on this site must not.
   const offSite = register.ctaHref.startsWith("http");
 
   return (

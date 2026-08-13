@@ -90,9 +90,17 @@ export function canManageForms(session: Scoped | null | undefined): boolean {
   return session?.role === "owner" || session?.role === "registrations";
 }
 
-/** The same, plus a page admin — who needs the LIST to point a button at one. */
+/**
+ * The same, plus a page admin — who needs the LIST to point a button at one.
+ *
+ * "Any page" is not the test, because not every page can carry a form:
+ * `FORM_PAGE_KEYS` leaves out the circuits, which are a record rather than
+ * somewhere an entry is asked for. An admin scoped only to those was given a
+ * Registrations screen whose entire content was a sentence explaining it had
+ * nothing for them. A screen that exists only to say that should not exist.
+ */
 export function canSeeForms(session: Scoped | null | undefined): boolean {
-  return canManageForms(session) || canEditAnyPage(session);
+  return canManageForms(session) || visibleFormPages(session).length > 0;
 }
 
 /**

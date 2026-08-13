@@ -2,6 +2,8 @@ import "server-only";
 
 import { createHmac, timingSafeEqual } from "node:crypto";
 
+import { getSql } from "@/lib/server/db";
+
 /**
  * Proof that a submission came from a page this site served, and roughly when.
  *
@@ -71,9 +73,57 @@ export function checkToken(slug: string, nonce: unknown, issuedAt: unknown): Tok
   if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) return "bad";
 
   const age = Date.now() - at;
-  // A negative age is a clock ahead of ours, not an attack worth a page about.
-  if (age < MIN_FILL_MS && age > -MIN_FILL_MS) return "too-fast";
+  // A negative age means this server's own clock has moved backwards since it
+  // issued the token — `issuedAt` is ours, not the visitor's. Treated as
+  // too-fast rather than accepted, because a form that was rendered "in the
+  // future" cannot have been filled in yet either way.
+  if (age < MIN_FILL_MS) return "too-fast";
   if (age > MAX_AGE_MS) return "stale";
 
   return "ok";
+}
+
+/**
+ * Spends a nonce, once.
+ *
+ * `checkToken` proves the token is genuine and recent; this proves it has not
+ * been used before. They are separate calls because they belong at different
+ * points in the request: the signature is worth checking before any database
+ * work, and the nonce must only be SPENT on an attempt that is actually going
+ * to be stored. Burning it on a validation failure would force a reload to fix
+ * a typo — and a reload loses everything typed.
+ *
+ * Returns false when the nonce has already been spent, which is one of two
+ * things: a replay, or a genuine retry after a response that never arrived. The
+ * second is why the caller reports it as "already received" rather than as an
+ * error — the entry is there.
+ *
+ * With no secret set there is no nonce to spend, and this passes, matching the
+ * posture `checkToken` takes.
+ */
+export async function consumeToken(nonce: unknown, issuedAt: unknown): Promise<boolean> {
+  if (!secret()) return true;
+  if (typeof nonce !== "string" || !nonce) return false;
+
+  const at = Number(issuedAt);
+  const expiresAt = new Date((Number.isFinite(at) ? at : Date.now()) + MAX_AGE_MS).toISOString();
+
+  const sql = getSql();
+
+  const rows = (await sql`
+    INSERT INTO ctr_form_nonces (nonce, expires_at)
+    VALUES (${nonce.slice(0, 200)}, ${expiresAt})
+    ON CONFLICT (nonce) DO NOTHING
+    RETURNING nonce
+  `) as { nonce: string }[];
+
+  // Nothing schedules a clean-up, so it rides along with the writes. One in
+  // fifty keeps the table small without putting a DELETE on every submission.
+  if (Math.random() < 0.02) {
+    await sql`DELETE FROM ctr_form_nonces WHERE expires_at < now()`.catch((error: unknown) => {
+      console.error("[register] could not sweep spent nonces", error);
+    });
+  }
+
+  return rows.length > 0;
 }

@@ -36,16 +36,21 @@ export async function PUT(request: Request, { params }: Params) {
   }
 
   try {
-    const form = await updateForm(id, body);
+    // What the save had to change, so the screen can say so. See the note on
+    // `keepRulesHonest` — a rule dropped in silence is a question that stops
+    // appearing on the live site with nothing anywhere to explain why.
+    const notes: string[] = [];
+    const form = await updateForm(id, body, notes);
+
     if (!form) {
       return NextResponse.json({ error: "No such form." }, { status: 404 });
     }
 
     revalidateFormPages();
-    return NextResponse.json({ form });
+    return NextResponse.json({ form, notes });
   } catch (error) {
     if ((error as { code?: string })?.code === DUPLICATE) {
-      return NextResponse.json({ error: "That link is already in use." }, { status: 409 });
+      return NextResponse.json({ error: (error as Error).message || "That link is already in use." }, { status: 409 });
     }
 
     console.error("[admin/forms] PUT", error);

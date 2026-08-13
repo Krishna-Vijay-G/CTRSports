@@ -56,12 +56,28 @@ export function ConditionEditor({
         <Hint className="mt-1">
           Always — this is the first question, so there is no earlier answer to depend on.
         </Hint>
+
+        {/*
+          Dragging a conditional question to the top is how this happens, and
+          saying nothing let two halves of the same screen disagree: the
+          collapsed row still read "only sometimes" while this panel asserted
+          the rule was gone — before the save that actually removed it.
+        */}
+        {value.key ? (
+          <Note className="mt-2 text-destructive">
+            It had a rule, and moving it to the top has broken it. Saving now will ask this of
+            everybody — move it back below the question it depends on to keep the rule.
+          </Note>
+        ) : null}
       </div>
     );
   }
 
   const target = keys.find((key) => key.key === value.key);
   const options = value.key ? optionsForKey(fields, value.key) : [];
+
+  // Values the rule still names that the parent has stopped offering.
+  const missing = value.values.filter((option) => !options.includes(option));
 
   return (
     <div className="block space-y-2 rounded-md border border-border bg-background/60 p-3">
@@ -155,6 +171,22 @@ export function ConditionEditor({
               Nothing to compare against yet, so this question will never be asked.
             </Note>
           ) : null}
+
+          {/*
+            The rule names an answer the parent no longer offers.
+            Renaming an option is the ordinary way to get here, and the dropdown
+            above cannot show it — it has no matching entry, so it falls back to
+            "pick an answer" and looks merely unset. The rule is still stored,
+            still compares against the old text, and the question silently never
+            appears.
+          */}
+          {opTakesValue(value.op) && options.length > 0 && missing.length > 0 ? (
+            <Note className="text-destructive">
+              This compares against {missing.map((option) => `“${option}”`).join(", ")}, which
+              “{target?.label || "the question above"}” no longer offers — so the question never
+              appears. Pick an answer that exists, or set this back to “always ask this”.
+            </Note>
+          ) : null}
         </>
       ) : null}
     </div>
@@ -182,11 +214,42 @@ export function OptionGroups({
   /** Only the earlier answers worth branching on: the choice questions. */
   keys: { key: string; label: string; options: string[] }[];
 }) {
-  if (!isChoice(field.type) || keys.length === 0) return null;
-
   const filter = field.optionsWhen;
   const parent = keys.find((key) => key.key === filter.key);
   const grouped = new Set(Object.values(filter.groups).flat());
+
+  /*
+   * A filter whose parent has disappeared from the picker.
+   *
+   * Changing the parent question's type away from a dropdown is how this
+   * happens. The panel used to return `null` or quietly display "offer all of
+   * them", while `offeredOptions` on the live site went on filtering against a
+   * parent that could no longer answer — hiding every grouped option from every
+   * visitor, permanently, with the admin insisting nothing was filtered.
+   */
+  if (!isChoice(field.type) || keys.length === 0) {
+    return filter.key ? (
+      <Note className="text-destructive">
+        This question’s options were being filtered by an earlier answer, and that question is no
+        longer a choice question. Saving will put every option back on offer.
+      </Note>
+    ) : null;
+  }
+
+  if (filter.key && !parent) {
+    return (
+      <div className="block space-y-2 rounded-md border border-border bg-background/60 p-3">
+        <Label>Which options to offer</Label>
+        <Note className="text-destructive">
+          The question this depended on is no longer a choice question, so nothing can unlock these
+          options. Saving will put every option back on offer.
+        </Note>
+        <Button variant="outline" size="sm" onClick={() => onChange({ ...ALL_OPTIONS })}>
+          Offer all of them now
+        </Button>
+      </div>
+    );
+  }
 
   function toggle(answer: string, option: string) {
     const current = filter.groups[answer] ?? [];

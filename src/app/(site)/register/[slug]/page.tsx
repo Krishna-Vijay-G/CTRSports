@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import { SITE } from "@/config/site";
-import { formHref, type Form } from "@/lib/forms";
+import { formHref, formState, placesLeft, stateMessage } from "@/lib/forms";
 import { getLandingContentSafe } from "@/lib/server/contentRepo";
+import { countEntriesSafe } from "@/lib/server/entriesRepo";
 import { getFormBySlug } from "@/lib/server/formsRepo";
 import { issueToken } from "@/lib/server/registerToken";
 import { sendAnchorsHome } from "@/lib/siteChrome";
@@ -89,6 +90,17 @@ export default async function RegisterPage({ params }: Params) {
   const chrome = sendAnchorsHome(landing, LOCAL_ANCHORS);
   const { nonce, issuedAt } = issueToken(form.slug);
 
+  /*
+   * Whether it is taking entries, decided the same way the submit route decides
+   * it — status, opening and closing times, and the cap, weighed together.
+   *
+   * The count is only asked for when there IS a cap: without one it changes
+   * nothing, and it is a query on every view of a public page.
+   */
+  const taken = form.max_entries > 0 ? await countEntriesSafe(form.id) : 0;
+  const state = formState(form, taken);
+  const left = placesLeft(form, taken);
+
   return (
     <div id="top" className="min-h-screen bg-page p-2 sm:p-3">
       {/* Same shell as every other route: the page colour showing around one
@@ -104,7 +116,13 @@ export default async function RegisterPage({ params }: Params) {
           <section className="shell py-14 sm:py-20">
             <Reveal className="max-w-2xl">
               <span className="pill-label">
-                {form.status === "closed" ? "Entries closed" : "Registration"}
+                {state === "open"
+                  ? "Registration"
+                  : state === "scheduled"
+                    ? "Not open yet"
+                    : state === "full"
+                      ? "Full"
+                      : "Entries closed"}
               </span>
 
               <h1 className="headline mt-4 text-[clamp(1.9rem,4.5vw,3.2rem)]">
@@ -116,11 +134,26 @@ export default async function RegisterPage({ params }: Params) {
               ) : null}
             </Reveal>
 
+            {/* Said before the questions rather than after them: somebody
+                looking at the last few places should know that before they
+                start filling it in, not when they press send. */}
+            {state === "open" && left !== null ? (
+              <Reveal delay={0.05} className="mt-6 max-w-2xl">
+                <p className="text-[13px] text-fg-muted">
+                  {left === 0
+                    ? "No places left."
+                    : left === 1
+                      ? "One place left."
+                      : `${left} places left of ${form.max_entries}.`}
+                </p>
+              </Reveal>
+            ) : null}
+
             <Reveal delay={0.08} className="mt-10 max-w-2xl">
-              {form.status === "closed" ? (
-                <ClosedNote form={form} />
-              ) : (
+              {state === "open" ? (
                 <RegisterForm form={form} nonce={nonce} issuedAt={issuedAt} />
+              ) : (
+                <ClosedNote message={stateMessage(form, state)} />
               )}
             </Reveal>
           </section>
@@ -132,10 +165,10 @@ export default async function RegisterPage({ params }: Params) {
   );
 }
 
-function ClosedNote({ form }: { form: Form }) {
+function ClosedNote({ message }: { message: string }) {
   return (
     <div className="panel-card p-8 text-center sm:p-10">
-      <p className="body-copy">{form.closed_note || "Entries for this one have closed."}</p>
+      <p className="body-copy">{message}</p>
     </div>
   );
 }

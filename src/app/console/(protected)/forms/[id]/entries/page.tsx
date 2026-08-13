@@ -33,11 +33,18 @@ export default async function EntriesAdminPage({ params }: Params) {
 
   const [entries, total] = await Promise.all([listEntries(id, { limit: PAGE }), countEntries(id)]);
 
+  const last = entries[entries.length - 1];
+
   return (
     <EntriesTable
       form={form}
       initialEntries={entries}
-      initialCursor={entries.length === PAGE ? entries[entries.length - 1].created_at : null}
+      // Both halves of the cursor, and only when there is a further page to
+      // ask for. The repo hands back an ISO string now, so what crosses to the
+      // browser is what the browser can send back.
+      initialCursor={
+        entries.length === PAGE && last ? { at: last.created_at, id: last.id } : null
+      }
       total={total}
     />
   );

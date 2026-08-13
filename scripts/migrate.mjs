@@ -27,7 +27,7 @@ const sql = neon(process.env.DATABASE_URL);
 try {
   await migrate(sql);
   console.log(
-    "Schema applied: ctr_admins, ctr_sessions, ctr_sports, ctr_tracks, ctr_content, ctr_forms, ctr_form_entries."
+    "Schema applied: ctr_admins, ctr_sessions, ctr_sports, ctr_tracks, ctr_content, ctr_forms, ctr_form_entries, ctr_form_nonces."
   );
   console.log("Existing admin accounts keep full access: role defaults to 'owner' on this run.");
 

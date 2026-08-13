@@ -57,14 +57,25 @@ export function FormPicker({
 
   const slug = slugFromHref(value);
   const chosen = slug ? options.find((form) => form.slug === slug) : undefined;
-  const missing = slug !== "" && !chosen;
+
+  /*
+   * Two different things used to read as "deleted".
+   *
+   * `options` is already narrowed to this page, so a form Registrations MOVED
+   * to another page dropped out of it and the picker declared it gone —
+   * "anyone clicking it gets a not found page" — about a link that works
+   * perfectly well. `forms` is the unnarrowed list this account may see, so
+   * looking there first tells the two apart.
+   */
+  const elsewhere = !chosen && slug ? forms.find((form) => form.slug === slug) : undefined;
+  const missing = slug !== "" && !chosen && !elsewhere;
 
   return (
     <div className="block">
       <Label>{label}</Label>
 
       <Select
-        value={chosen ? chosen.id : missing ? "__missing" : "__url"}
+        value={chosen ? chosen.id : missing || elsewhere ? "__missing" : "__url"}
         onChange={(event) => {
           const picked = options.find((form) => form.id === event.target.value);
           // Choosing the escape hatch empties the field rather than keeping the
@@ -77,6 +88,10 @@ export function FormPicker({
 
         {missing ? (
           <option value="__missing">/register/{slug} — no longer exists</option>
+        ) : null}
+
+        {elsewhere ? (
+          <option value="__missing">/register/{slug} — now on another page</option>
         ) : null}
 
         {options.map((form) => (
@@ -103,6 +118,11 @@ export function FormPicker({
           <span className="text-destructive">
             This points at a form that no longer exists — anyone clicking it gets a
             &ldquo;not found&rdquo; page.
+          </span>
+        ) : elsewhere ? (
+          <span>
+            <span className="text-foreground">{elsewhere.name}</span> has been moved to another
+            page. The link still works — you just cannot pick it from this list any more.
           </span>
         ) : chosen && chosen.status !== "open" ? (
           <span className="text-destructive">

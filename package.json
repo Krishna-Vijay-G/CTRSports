@@ -10,7 +10,8 @@
     "lint": "next lint",
     "webp": "node scripts/convert-webp.mjs",
     "migrate": "node --env-file=.env --env-file-if-exists=.env.local scripts/migrate.mjs",
-    "create-admin": "node --env-file=.env --env-file-if-exists=.env.local scripts/create-admin.mjs"
+    "create-admin": "node --env-file=.env --env-file-if-exists=.env.local scripts/create-admin.mjs",
+    "check:forms": "tsx scripts/check-forms.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.716.0",
@@ -32,6 +33,7 @@
     "postcss": "^8.5.1",
     "sharp": "^0.33.5",
     "tailwindcss": "^3.4.17",
+    "tsx": "^4.21.0",
     "typescript": "^5.7.3"
   }
 }

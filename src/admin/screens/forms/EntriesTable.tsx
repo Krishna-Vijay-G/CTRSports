@@ -5,7 +5,9 @@ import {
   answerColumns,
   answerText,
   entryCells,
+  fileOf,
   orphanAnswers,
+  type EntryCursor,
   type Form,
   type FormEntry,
 } from "@/lib/forms";
@@ -56,8 +58,8 @@ export function EntriesTable({
 }: {
   form: Form;
   initialEntries: FormEntry[];
-  /** The created_at to ask for the next page from, or null at the end. */
-  initialCursor: string | null;
+  /** Where the next page starts — both halves — or null at the end. */
+  initialCursor: EntryCursor | null;
   total: number;
 }) {
   const [entries, setEntries] = useState(initialEntries);
@@ -75,19 +77,28 @@ export function EntriesTable({
   const columns = answerColumns(form.fields);
   const more = cursor !== null || offset !== null;
 
-  function query(next: typeof sort, from: { before?: string; offset?: number }): string {
+  function query(next: typeof sort, from: { before?: EntryCursor; offset?: number }): string {
     const params = new URLSearchParams();
     if (next) {
       params.set("sort", next.key);
       params.set("dir", next.dir);
       if (from.offset) params.set("offset", String(from.offset));
     } else if (from.before) {
-      params.set("before", from.before);
+      params.set("before", from.before.at);
+      params.set("beforeId", from.before.id);
     }
     return params.toString();
   }
 
-  /** A fresh run of the list. Used when the sort changes and after a bulk delete. */
+  /**
+   * A fresh run of the list.
+   *
+   * Used when the sort changes and after ANY change to the rows. That second
+   * case matters more than it looks: under a sort the list pages by offset, and
+   * deleting ten rows leaves the offset pointing ten rows further down than it
+   * should — the next page then skips exactly the ten that moved up, silently.
+   * Rebuilding from the top is the only honest answer to a set that shifted.
+   */
   async function reload(next: typeof sort) {
     setBusy(true);
     setError(null);
@@ -97,7 +108,21 @@ export function EntriesTable({
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
+        // The column was deleted from the form while this screen was open.
+        // Fall back to the default order rather than leaving the table showing
+        // an order the server has just refused to produce.
+        if (data.staleSort && next) {
+          setError("That column is no longer on this form — showing newest first.");
+          await reload(null);
+          return;
+        }
+
         setError(data.error ?? "Could not load the entries.");
+        return;
+      }
+
+      if (!Array.isArray(data.entries)) {
+        setError("The entries came back in a shape this screen could not read.");
         return;
       }
 
@@ -106,6 +131,15 @@ export function EntriesTable({
       setCursor(data.nextCursor ?? null);
       setOffset(data.nextOffset ?? null);
       if (typeof data.total === "number") setTotal(data.total);
+
+      // Ticks are held by id and the rows underneath them have just been
+      // replaced. Keeping a selection that now names rows nobody can see would
+      // arm "Delete N" against them.
+      setPicked((current) => {
+        const shown = new Set((data.entries as FormEntry[]).map((entry) => entry.id));
+        const kept = new Set([...current].filter((id) => shown.has(id)));
+        return kept.size === current.size ? current : kept;
+      });
     } catch {
       setError("Network error. Please try again.");
     } finally {
@@ -133,7 +167,18 @@ export function EntriesTable({
         return;
       }
 
-      setEntries((current) => [...current, ...(data.entries as FormEntry[])]);
+      if (!Array.isArray(data.entries)) {
+        setError("The entries came back in a shape this screen could not read.");
+        return;
+      }
+
+      // Guarded against a row arriving twice — which offset paging can do if
+      // the set shifted between pages — because a duplicate id means two rows
+      // that tick together and a React key collision.
+      setEntries((current) => {
+        const known = new Set(current.map((entry) => entry.id));
+        return [...current, ...(data.entries as FormEntry[]).filter((entry) => !known.has(entry.id))];
+      });
       setCursor(data.nextCursor ?? null);
       setOffset(data.nextOffset ?? null);
     } catch {
@@ -174,7 +219,11 @@ export function EntriesTable({
 
       const data = await response.json().catch(() => ({}));
 
-      if (!response.ok) {
+      // A row somebody else has already deleted is gone, which is what was
+      // wanted. The single-entry route says 404 and the bulk one says
+      // "deleted: 0" — treating the 404 as failure left a phantom row on
+      // screen that no amount of clicking could remove.
+      if (!response.ok && response.status !== 404) {
         setError(data.error ?? "Could not delete those entries.");
         return;
       }
@@ -194,6 +243,10 @@ export function EntriesTable({
       });
       setOpen(null);
       setConfirming(false);
+
+      // Offset paging counts from the top of a set that has just lost rows, so
+      // the position it holds is wrong by exactly the number deleted. Rebuild.
+      if (sort) await reload(sort);
     } catch {
       setError("Network error. Please try again.");
     } finally {
@@ -202,19 +255,30 @@ export function EntriesTable({
   }
 
   /** An entry added or corrected, folded back into the list in place. */
-  function saved(entry: FormEntry) {
-    setEntries((current) => {
-      const known = current.some((row) => row.id === entry.id);
-      if (known) return current.map((row) => (row.id === entry.id ? entry : row));
-      // A new one goes to the top, which is where the default order would put
-      // it. Under a sort it may not belong there — but it is where somebody who
-      // has just typed it will look for it.
-      return [entry, ...current];
-    });
+  async function saved(entry: FormEntry) {
+    const known = entries.some((row) => row.id === entry.id);
 
-    if (!entries.some((row) => row.id === entry.id)) setTotal((current) => current + 1);
     setEditing(null);
     setOpen(null);
+
+    if (known) {
+      setEntries((current) => current.map((row) => (row.id === entry.id ? entry : row)));
+      return;
+    }
+
+    setTotal((current) => current + 1);
+
+    // Under a sort, a new row has a place in the order and prepending it is a
+    // guess — one that also pushes every later row down by one, which offset
+    // paging then re-reads as a duplicate. Ask the server where it goes.
+    if (sort) {
+      await reload(sort);
+      return;
+    }
+
+    // Newest-first: the top is exactly where it belongs, and where whoever
+    // just typed it will look.
+    setEntries((current) => [entry, ...current]);
   }
 
   const allShown = entries.length > 0 && entries.every((entry) => picked.has(entry.id));
@@ -261,6 +325,21 @@ export function EntriesTable({
           size="sm"
         >
           Download CSV
+        </ButtonLink>
+
+        {/* The export with the sender's address and browser on it. It has always
+            existed on the route and nothing in the admin ever asked for it, so
+            the one thing it is for — telling a burst of spam from a busy
+            afternoon — could not actually be done. Separate from the ordinary
+            export because those columns are not what an entry list is for. */}
+        <ButtonLink
+          href={`/api/admin/forms/${form.id}/entries?format=csv&meta=1`}
+          download
+          variant="ghost"
+          size="sm"
+          title="The same file, plus the address and browser each entry came from"
+        >
+          + sender details
         </ButtonLink>
 
         <Button size="sm" onClick={() => setEditing({ entry: null })} disabled={busy}>
@@ -381,10 +460,23 @@ export function EntriesTable({
                   {column.label}
                 </dt>
                 <dd className="mt-0.5 whitespace-pre-wrap text-[13px] text-foreground">
-                  {/* A question that was never put reads as a dash, the same as
-                      one left blank — the difference is real but it is not what
-                      somebody scanning entries is looking for. */}
-                  {answerText(open.answers[column.key]) || "—"}
+                  {/* An attachment is a link, not a name: it is the only way to
+                      see it, since these are never given a public address. */}
+                  {fileOf(open.answers[column.key]) ? (
+                    <a
+                      href={`/api/admin/forms/${form.id}/entries/${open.id}/file/${column.key}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-primary underline underline-offset-2"
+                    >
+                      {fileOf(open.answers[column.key])?.name}
+                    </a>
+                  ) : (
+                    // A question that was never put reads as a dash, the same as
+                    // one left blank — the difference is real but it is not what
+                    // somebody scanning entries is looking for.
+                    answerText(open.answers[column.key]) || "—"
+                  )}
                 </dd>
               </div>
             ))}

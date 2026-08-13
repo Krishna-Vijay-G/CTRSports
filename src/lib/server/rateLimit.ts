@@ -17,18 +17,26 @@ import "server-only";
  * `countRecentEntries` in entriesRepo — a count of what really landed, which
  * holds however many instances there are.
  *
- * Entries are pruned as they are met rather than on a timer, so nothing here
- * keeps the process awake. The map is capped and cleared wholesale when it
- * overflows: blunt, but bounded, and losing the counts is a worse outcome for
- * an attacker than for anyone else.
+ * A key is pruned when it is next met, so nothing here keeps the process awake.
+ * When the map fills, EXPIRED keys are swept first and only a still-full map is
+ * cleared wholesale — clearing unconditionally meant filling it with junk keys
+ * was itself a way to wipe everyone's counters, which is the one thing a
+ * limiter must not let a caller do.
  */
 
 type Bucket = { count: number; resetAt: number };
 
 const buckets = new Map<string, Bucket>();
 
-/** Past this many distinct keys the map is cleared rather than grown. */
+/** Past this many distinct keys the map is swept, then cleared if that failed. */
 const MAX_KEYS = 5_000;
+
+/** Drops every window that has already ended. Cheap, and usually enough. */
+function sweep(now: number): void {
+  for (const [key, bucket] of buckets) {
+    if (bucket.resetAt <= now) buckets.delete(key);
+  }
+}
 
 export function take(
   key: string,
@@ -39,7 +47,11 @@ export function take(
   const bucket = buckets.get(key);
 
   if (!bucket || bucket.resetAt <= now) {
-    if (buckets.size >= MAX_KEYS) buckets.clear();
+    if (buckets.size >= MAX_KEYS) {
+      sweep(now);
+      if (buckets.size >= MAX_KEYS) buckets.clear();
+    }
+
     buckets.set(key, { count: 1, resetAt: now + windowMs });
     return { ok: true, retryAfter: 0 };
   }
@@ -56,16 +68,40 @@ export function take(
 /**
  * The caller's address, as well as it can be known behind a proxy.
  *
- * `x-forwarded-for` is a list and the first entry is the original client. It is
- * also a header anyone can send, so this is a key for counting, never an
- * identity for deciding anything.
+ * ── Why not the first `x-forwarded-for` entry ─────────────────────────────
+ *
+ * Because the client writes it. `X-Forwarded-For` is a list that each proxy
+ * APPENDS to, so the leftmost entry is whatever the original request claimed —
+ * and a request can claim anything. Reading it meant a loop sending a fresh
+ * random value on every attempt got a fresh counter every time, which nullified
+ * the in-process burst limit AND the durable hourly cap, since the same string
+ * is what `countRecentEntries` counts. Both defences, defeated by one header.
+ *
+ * The value this process can trust is the one its OWN proxy appended, which is
+ * the last entry. Platform-specific headers are better still, because the
+ * platform sets them from the connection rather than from the request, so they
+ * are tried first.
+ *
+ * It is also written to the `ip` column on every entry, so this is not only a
+ * counting key: a forgeable one made the stored provenance of every entry a
+ * fiction. Still not an identity to *decide* anything about a person on — but
+ * it should at least be an address someone actually connected from.
  *
  * A request with no address at all gets the literal "unknown", which shares one
  * bucket with every other such request — a missing header is not a free pass.
  */
 export function callerIp(request: Request): string {
+  // Set by the platform from the connection, not copied from the request.
+  const platform =
+    request.headers.get("x-vercel-forwarded-for") ?? request.headers.get("cf-connecting-ip");
+  if (platform) return platform.trim().slice(0, 60);
+
   const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0].trim().slice(0, 60);
+  if (forwarded) {
+    const hops = forwarded.split(",");
+    const nearest = hops[hops.length - 1]?.trim();
+    if (nearest) return nearest.slice(0, 60);
+  }
 
   const real = request.headers.get("x-real-ip");
   return real ? real.trim().slice(0, 60) : "unknown";
