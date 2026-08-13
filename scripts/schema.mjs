@@ -447,6 +447,40 @@ export async function migrate(sql) {
   await sql`
     CREATE INDEX IF NOT EXISTS ctr_decks_order_idx ON ctr_decks (sort_order, name)
   `;
+
+  /*
+   * A message sent from the footer.
+   *
+   * Its own table rather than a registration form with three questions on it:
+   * an entry belongs to a form and is read on that form's screen, while this
+   * belongs to nobody and arrives from every page on the site. Giving it a
+   * table is also what makes the send button honest — a form that validates
+   * politely and then drops what it was given is worse than no form.
+   *
+   * `handled` is the one piece of state a message has: somebody has replied, or
+   * has not. It is a flag rather than a status column because there is no third
+   * answer, and no screen reads it yet.
+   *
+   * The ip and the user agent are kept for the reason the entries table keeps
+   * them: telling a burst of spam from a busy afternoon. They are never shown
+   * on the public site.
+   */
+  await sql`
+    CREATE TABLE IF NOT EXISTS ctr_enquiries (
+      id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      name       text NOT NULL,
+      email      text NOT NULL,
+      message    text NOT NULL,
+      handled    boolean NOT NULL DEFAULT false,
+      ip         text NOT NULL DEFAULT '',
+      user_agent text NOT NULL DEFAULT '',
+      created_at timestamptz NOT NULL DEFAULT now()
+    )
+  `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS ctr_enquiries_recent_idx ON ctr_enquiries (created_at DESC)
+  `;
 }
 
 /**

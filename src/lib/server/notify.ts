@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { Form, FormEntry } from "@/lib/forms";
+import type { StoredEnquiry } from "@/lib/server/enquiriesRepo";
 
 /**
  * Tells whoever owns a form that somebody has entered it.
@@ -25,4 +26,20 @@ export async function notifyNewEntry(form: Form, entry: FormEntry): Promise<void
   if (!form.notify_to) return;
 
   console.info("[register] entry %s on %s → %s", entry.id, form.slug, form.notify_to);
+}
+
+/**
+ * The same, for a message sent from the footer.
+ *
+ * There is no screen that reads these yet, so until there is, this log line is
+ * the only thing that says one arrived. Whatever fills the function above in
+ * should fill this in at the same time and send it to the footer's own email
+ * address — the one edited in the admin, which is by definition the address the
+ * organisation publishes for exactly this.
+ *
+ * The message body is deliberately not logged. It is somebody's enquiry, and a
+ * server log is not where it should be readable.
+ */
+export async function notifyNewEnquiry(enquiry: StoredEnquiry): Promise<void> {
+  console.info("[enquiry] %s from %s <%s>", enquiry.id, enquiry.name, enquiry.email);
 }

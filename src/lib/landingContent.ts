@@ -58,6 +58,29 @@ export type LandingContent = {
   };
   sportsSection: { label: string; title: string };
   ctaBand: { label: string; title: string; body: string; ctaLabel: string; ctaHref: string };
+  /**
+   * Where the organisation actually is, and how to reach it.
+   *
+   * In the footer, which is where the header's "Get in Touch" has always
+   * pointed — the button existed before there was anything at the other end of
+   * it. Part of the LANDING document rather than a page of its own, because the
+   * footer is drawn on every route from this one document: an address edited
+   * here is corrected on /incrc, on a circuit and on a deck at the same time.
+   *
+   * Every field is optional. Blank leaves that line out of the footer entirely
+   * rather than printing a label with nothing after it, so an organisation with
+   * no public phone number simply has no phone line.
+   */
+  contact: {
+    heading: string;
+    address: string;
+    phone: string;
+    email: string;
+    /** The small line over the message box. Blank hides it. */
+    formHeading: string;
+    /** One sentence under that heading. Blank hides it. */
+    formNote: string;
+  };
   socials: SocialLink[];
 };
 
@@ -101,6 +124,17 @@ export const DEFAULT_LANDING_CONTENT: LandingContent = {
     ctaLabel: "See the Programmes",
     ctaHref: "#sports",
   },
+  contact: {
+    heading: "Get in touch",
+    // Newlines are kept and printed as written — an address is read line by
+    // line, and the one line it would otherwise become is a paragraph nobody
+    // scans.
+    address: "29, Tilak Street,\nT. Nagar, Chennai,\nTamil Nadu 600017",
+    phone: "9500016999",
+    email: "admin@ctrsports.in",
+    formHeading: "Send a message",
+    formNote: "Tell us what you need and we will reply by email.",
+  },
   socials: [
     { label: "Instagram", href: "https://www.instagram.com/incrc_", icon: "instagram" },
     { label: "Facebook", href: "https://www.facebook.com/chennaiturboriders", icon: "facebook" },
@@ -114,6 +148,40 @@ export const DEFAULT_LANDING_CONTENT: LandingContent = {
    document. Only what is specific to this page is below. */
 
 export const MAX_SOCIALS = 8;
+
+/**
+ * What the contact block will hold.
+ *
+ * The address is the long one because it is several lines; the other two are
+ * the lengths a phone number and an address can actually be. They are here
+ * rather than inline so the admin's inputs and the normaliser cannot disagree
+ * about where the text is cut.
+ */
+export const CONTACT_MAX = { address: 300, phone: 40, email: 200, formNote: 200 } as const;
+
+/**
+ * `tel:` and `mailto:` addresses for what somebody typed.
+ *
+ * A phone number is written for a human — "9500016999", "+91 95000 16999",
+ * "044 2834 1234" — and a `tel:` link has to be the digits, so the two cannot
+ * be the same string. Everything that is not a digit goes, except a leading
+ * plus, which is the one piece of punctuation that changes what is dialled.
+ *
+ * Returns "" when there is nothing dialable left, and the footer then prints
+ * the line as plain text rather than as a link to nowhere.
+ */
+export function telHref(phone: string): string {
+  const trimmed = phone.trim();
+  const plus = trimmed.startsWith("+") ? "+" : "";
+  const digits = trimmed.replace(/\D/g, "");
+  return digits ? `tel:${plus}${digits}` : "";
+}
+
+/** The same for an address, which is only a link if it looks like one. */
+export function mailHref(email: string): string {
+  const trimmed = email.trim();
+  return /^[^\s@]+@[^\s@.]+\.[^\s@]+$/.test(trimmed) ? `mailto:${trimmed}` : "";
+}
 export const MAX_NAV_LINKS = 8;
 /** The layout puts these either side of the about copy; a third has nowhere to go. */
 export const ABOUT_PHOTO_COUNT = 2;
@@ -209,6 +277,7 @@ export function normaliseLandingContent(input: unknown): LandingContent {
   const about = isRecord(root.about) ? root.about : {};
   const sportsSection = isRecord(root.sportsSection) ? root.sportsSection : {};
   const ctaBand = isRecord(root.ctaBand) ? root.ctaBand : {};
+  const contact = isRecord(root.contact) ? root.contact : {};
 
   return {
     brand: {
@@ -247,6 +316,17 @@ export function normaliseLandingContent(input: unknown): LandingContent {
       body: text(ctaBand.body, d.ctaBand.body, BODY_MAX),
       ctaLabel: text(ctaBand.ctaLabel, d.ctaBand.ctaLabel),
       ctaHref: link(ctaBand.ctaHref, d.ctaBand.ctaHref),
+    },
+    contact: {
+      heading: text(contact.heading, d.contact.heading),
+      // `text` keeps an empty string and only falls back on a MISSING or
+      // wrong-typed field, which is what makes clearing a line a real editorial
+      // choice here rather than a change that silently reverts on the next read.
+      address: text(contact.address, d.contact.address, CONTACT_MAX.address),
+      phone: text(contact.phone, d.contact.phone, CONTACT_MAX.phone),
+      email: text(contact.email, d.contact.email, CONTACT_MAX.email),
+      formHeading: text(contact.formHeading, d.contact.formHeading),
+      formNote: text(contact.formNote, d.contact.formNote, CONTACT_MAX.formNote),
     },
     socials: socials(root.socials, d.socials),
   };

@@ -110,7 +110,7 @@ export const SECTIONS: Section[] = [
     id: "footer",
     short: "Footer",
     title: "Footer",
-    hint: "The social links at the foot of the page.",
+    hint: "The address and number at the foot of every page, and the social links.",
     preview: "footer",
     Icon: GlobeIcon,
   },

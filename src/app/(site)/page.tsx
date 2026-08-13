@@ -43,6 +43,23 @@ export default async function LandingPage() {
       ? `${SITE.url}${content.brand.logo}`
       : content.brand.logo,
     sameAs: content.socials.map((social) => social.href),
+    // The footer's contact block, said in a way a search engine can read. Each
+    // is omitted when it is blank rather than emitted empty: a property with
+    // nothing in it is worse than an absent one, because it asserts that there
+    // is no phone number rather than saying nothing about it.
+    ...(content.contact.address
+      ? {
+          address: {
+            "@type": "PostalAddress",
+            // The lines as typed, joined — Schema wants one string here, and
+            // this is the one place the newlines are not the presentation.
+            streetAddress: content.contact.address.split("\n").join(", "),
+            addressCountry: "IN",
+          },
+        }
+      : {}),
+    ...(content.contact.phone ? { telephone: content.contact.phone } : {}),
+    ...(content.contact.email ? { email: content.contact.email } : {}),
   };
 
   return (
