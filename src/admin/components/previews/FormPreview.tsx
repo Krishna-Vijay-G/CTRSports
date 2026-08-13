@@ -11,8 +11,9 @@ import { RegisterForm } from "@/app/(site)/register/_components/RegisterForm";
  *
  * The same `RegisterForm` the public page mounts — not a mock — so a question
  * type that renders wrongly here renders wrongly there too, which is the point.
- * `disabled` is what makes it a preview: everything draws, nothing sends, and
- * the button says what it will say without doing it.
+ * `preview` is what makes it a preview: the questions can be answered, so a
+ * rule that hides a question or filters a dropdown can actually be tried, and
+ * the send is the only thing blocked.
  *
  * The banner across the top is the one thing the real page does not have. A
  * draft form and an open one look identical from the inside, and the difference
@@ -78,7 +79,7 @@ export function FormPreview({ form, className }: { form: Form; className?: strin
                       </p>
                     </div>
                   ) : (
-                    <RegisterForm form={form} disabled />
+                    <RegisterForm form={form} preview />
                   )}
                 </div>
               </div>

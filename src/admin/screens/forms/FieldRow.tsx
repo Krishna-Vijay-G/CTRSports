@@ -8,12 +8,15 @@ import {
   MAX_FIELD_OPTIONS,
   isChoice,
   isMultiChoice,
+  keysBefore,
+  optionsForKey,
   type FormField,
 } from "@/lib/forms";
 import { Label, Select } from "@/admin/ui/Input";
 import { Button } from "@/admin/ui/Button";
 import { CheckIcon } from "@/admin/ui/icons";
 import { Field, Hint, Note, TextArea } from "@/admin/components/Fields";
+import { ConditionEditor, OptionGroups } from "./FieldRules";
 
 /**
  * One question, as it is edited.
@@ -27,16 +30,31 @@ import { Field, Hint, Note, TextArea } from "@/admin/components/Fields";
  * The type is a plain select rather than a row of icons: nine types with names
  * like "Pick several" are read, not recognised, so a picker of glyphs would be
  * nine tooltips.
+ *
+ * It takes the WHOLE list of questions, not just this one, because the rules at
+ * the bottom point at earlier answers and have to be able to name them. Only
+ * what is above this row is offered — see `keysBefore`.
  */
 export function FieldRow({
   field,
   index,
+  fields,
   patch,
 }: {
   field: FormField;
   index: number;
+  /** Every question on the form, in order. Read for the rule pickers only. */
+  fields: FormField[];
   patch: (patch: Partial<FormField>) => void;
 }) {
+  const earlier = keysBefore(fields, index);
+
+  // Only the choice questions can sort another question's options into groups.
+  const branchable = earlier
+    .filter((key) => !key.derived)
+    .map((key) => ({ ...key, options: optionsForKey(fields, key.key) }))
+    .filter((key) => key.options.length > 0);
+
   return (
     <>
       <div className="block">
@@ -72,6 +90,14 @@ export function FieldRow({
         onChange={(help) => patch({ help })}
         maxLength={FORM_LIMITS.field_help}
         hint="The smaller line under the question. Blank hides it."
+      />
+
+      <TextArea
+        label="Info button"
+        value={field.info}
+        onChange={(info) => patch({ info })}
+        rows={3}
+        hint="Puts a small circled “i” beside the question, which opens this. For the paragraph that would make the form twice as long printed under every question — an eligibility rule, where to find a licence number. Blank means no button."
       />
 
       {isChoice(field.type) ? (
@@ -116,6 +142,29 @@ export function FieldRow({
         />
       )}
 
+      {field.type === "date" ? (
+        <div className="block">
+          <Label>Age</Label>
+          <div className="mt-1.5">
+            <Button
+              variant={field.age ? "default" : "outline"}
+              size="sm"
+              onClick={() => patch({ age: !field.age })}
+              aria-pressed={field.age}
+            >
+              {field.age ? <CheckIcon /> : null}
+              {field.age ? "Work out their age too" : "Just the date"}
+            </Button>
+          </div>
+          <Hint className="mt-1">
+            Adds a second column beside the date, filled in when the form is sent. It is stored, not
+            recalculated later — somebody who was 17 the day they entered stays 17 in the export
+            after their birthday. Later questions can be asked only of an age over or under a
+            number.
+          </Hint>
+        </div>
+      ) : null}
+
       <div className="block">
         <Label>Required</Label>
         <div className="mt-1.5">
@@ -131,9 +180,22 @@ export function FieldRow({
         </div>
         <Hint className="mt-1">
           Checked on the server as well as in the browser, so an entry can never arrive without
-          it.
+          it. A question that is not being asked is not required — the rule below wins.
         </Hint>
       </div>
+
+      <ConditionEditor
+        value={field.when}
+        onChange={(when) => patch({ when })}
+        keys={earlier}
+        fields={fields}
+      />
+
+      <OptionGroups
+        field={field}
+        onChange={(optionsWhen) => patch({ optionsWhen })}
+        keys={branchable}
+      />
     </>
   );
 }

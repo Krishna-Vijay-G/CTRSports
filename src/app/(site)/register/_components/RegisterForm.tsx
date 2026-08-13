@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
+  ageKey,
+  answerColumns,
   isMultiChoice,
   validateSubmission,
   type Form,
@@ -24,6 +26,13 @@ import { cn } from "@/lib/utils";
  * the same function again on what actually arrives and its answer is the only
  * one that counts. Treat everything in this file as a courtesy to the person
  * filling it in.
+ *
+ * That goes for the branching too, and it is the reason this file has no logic
+ * of its own about which questions apply. `validateSubmission` runs on every
+ * keystroke and hands back the questions to ask and the options to offer, and
+ * this draws exactly that. The alternative is the same branching written twice,
+ * agreeing until somebody edits one copy — after which a question is either
+ * asked and thrown away, or hidden and then demanded.
  *
  * The honeypot is the exception, and it is deliberately dumb: a field placed
  * off-screen with a name a form-filler will recognise ("company"), no label,
@@ -49,14 +58,22 @@ export function RegisterForm({
   form,
   nonce = "",
   issuedAt = 0,
-  disabled = false,
+  preview = false,
 }: {
   form: Form;
   /** Proof the page was served, not fabricated. Checked by the route. */
   nonce?: string;
   issuedAt?: number;
-  /** The admin's preview: everything renders, nothing sends. */
-  disabled?: boolean;
+  /**
+   * The admin's preview: the questions WORK, the send does not.
+   *
+   * They used to be dead controls, which was fine when a form was a flat list —
+   * you could see all of it at once. It stopped being fine the moment a question
+   * could depend on an answer: a branch that only appears once something is
+   * ticked is invisible in a preview where nothing can be ticked, and the one
+   * place to check a rule would be the live site.
+   */
+  preview?: boolean;
 }) {
   const [values, setValues] = useState<Submission>(() => blank(form.fields));
   const [honeypot, setHoneypot] = useState("");
@@ -64,6 +81,24 @@ export function RegisterForm({
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
+
+  /**
+   * The form as it currently stands: which questions apply, what each of them
+   * offers, and what would be stored. Recomputed on every answer, because every
+   * answer can change all three.
+   *
+   * Cheap enough to do on a keystroke — one pass over at most forty fields —
+   * and doing it any other way would mean this file deciding for itself what to
+   * draw, which is the duplication the note at the top is about.
+   */
+  const shape = useMemo(() => validateSubmission(form.fields, values), [form.fields, values]);
+
+  /** Question labels by answer key, for "choose X first" and the age line. */
+  const labels = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const column of answerColumns(form.fields)) map[column.key] = column.label;
+    return map;
+  }, [form.fields]);
 
   function set(id: string, value: string | string[]) {
     setValues((current) => ({ ...current, [id]: value }));
@@ -74,9 +109,9 @@ export function RegisterForm({
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    if (disabled || busy) return;
+    if (preview || busy) return;
 
-    const checked = validateSubmission(form.fields, values);
+    const checked = shape;
     if (Object.keys(checked.errors).length > 0) {
       setErrors(checked.errors);
       setProblem("Some answers need another look.");
@@ -132,13 +167,24 @@ export function RegisterForm({
   return (
     <form onSubmit={handleSubmit} noValidate className="panel-card p-6 sm:p-8">
       <div className="space-y-6">
-        {form.fields.map((field) => (
+        {shape.asked.map((field) => (
           <Control
             key={field.id}
             field={field}
             value={values[field.id]}
+            options={shape.options[field.id] ?? field.options}
+            // Only ever set for a dropdown whose options are still waiting on an
+            // earlier answer — an empty list with nothing said about it reads as
+            // a broken control.
+            waitingFor={
+              field.optionsWhen.key && (shape.options[field.id] ?? []).length === 0
+                ? labels[field.optionsWhen.key] || "the question above"
+                : ""
+            }
+            age={field.age ? (shape.values[ageKey(field.id)] as string) || "" : ""}
             error={errors[field.id]}
-            disabled={disabled || busy}
+            // Live even in the preview — that is how a rule gets checked.
+            disabled={busy}
             onChange={(value) => set(field.id, value)}
           />
         ))}
@@ -171,7 +217,7 @@ export function RegisterForm({
       <div className="mt-8 flex flex-wrap items-center gap-4">
         <button
           type="submit"
-          disabled={disabled || busy}
+          disabled={preview || busy}
           className={cn(
             "inline-flex items-center gap-2.5 rounded-full bg-accent px-7 py-3 text-sm font-semibold text-accent-ink",
             "transition-all duration-300 hover:bg-accent-dark hover:-translate-y-0.5 active:translate-y-0",
@@ -181,9 +227,15 @@ export function RegisterForm({
           {busy ? "Sending…" : form.submit_label || "Send"}
         </button>
 
-        {form.fields.some((field) => field.required) ? (
+        {shape.asked.some((field) => field.required) ? (
           <span className="text-[13px] text-fg-faint">
             <span className="text-accent">*</span> is required
+          </span>
+        ) : null}
+
+        {preview ? (
+          <span className="text-[13px] text-fg-faint">
+            Preview — answer the questions to try the rules. Nothing is sent.
           </span>
         ) : null}
       </div>
@@ -196,27 +248,82 @@ export function RegisterForm({
 function Control({
   field,
   value,
+  options,
+  waitingFor,
+  age,
   error,
   disabled,
   onChange,
 }: {
   field: FormField;
   value: string | string[] | undefined;
+  /** What this question offers RIGHT NOW — not always `field.options`. */
+  options: string[];
+  /** The question this one's options are still waiting on, if any. */
+  waitingFor: string;
+  /** The age worked out from a date answer. Blank for everything else. */
+  age: string;
   error?: string;
   disabled: boolean;
   onChange: (value: string | string[]) => void;
 }) {
+  const [showInfo, setShowInfo] = useState(false);
+
   const id = `field-${field.id}`;
-  const described = [field.help ? `${id}-help` : null, error ? `${id}-error` : null]
+  const described = [
+    field.help ? `${id}-help` : null,
+    showInfo ? `${id}-info` : null,
+    error ? `${id}-error` : null,
+  ]
     .filter(Boolean)
     .join(" ");
 
+  /*
+   * The circled "i".
+   *
+   * A disclosure rather than a hover tooltip: a tooltip cannot be opened by
+   * touch, which is most of the people filling this in, and one long enough to
+   * be worth writing is too long to hang off a cursor. What it opens is
+   * ordinary text in the flow, so it pushes the rest of the form down rather
+   * than covering it, and it is wired to the control with aria-describedby so
+   * it is read out with the question and not as loose text somewhere after it.
+   */
   const label = (
-    <span className="block text-[15px] font-semibold text-fg">
-      {field.label || "Question"}
-      {field.required ? <span className="ms-1 text-accent">*</span> : null}
+    <span className="flex items-start gap-2 text-[15px] font-semibold text-fg">
+      <span>
+        {field.label || "Question"}
+        {field.required ? <span className="ms-1 text-accent">*</span> : null}
+      </span>
+
+      {field.info ? (
+        <button
+          type="button"
+          onClick={() => setShowInfo((was) => !was)}
+          aria-expanded={showInfo}
+          aria-controls={`${id}-info`}
+          aria-label={showInfo ? "Hide the note on this question" : "More about this question"}
+          className={cn(
+            "mt-0.5 inline-flex size-[18px] shrink-0 items-center justify-center rounded-full border text-[11px] font-bold leading-none transition",
+            showInfo
+              ? "border-accent bg-accent text-accent-ink"
+              : "border-fg-faint/60 text-fg-faint hover:border-accent hover:text-accent"
+          )}
+        >
+          i
+        </button>
+      ) : null}
     </span>
   );
+
+  const info =
+    field.info && showInfo ? (
+      <span
+        id={`${id}-info`}
+        className="mt-2 block whitespace-pre-line rounded-lg border border-line bg-surface px-3.5 py-2.5 text-[13px] leading-relaxed text-fg-muted"
+      >
+        {field.info}
+      </span>
+    ) : null;
 
   const help = field.help ? (
     <span id={`${id}-help`} className="mt-1 block text-[13px] leading-relaxed text-fg-faint">
@@ -257,6 +364,7 @@ function Control({
           <span>
             {label}
             {help}
+            {info}
           </span>
         </label>
         {problem}
@@ -276,9 +384,12 @@ function Control({
       <fieldset>
         <legend>{label}</legend>
         {help}
+        {info}
+
+        {options.length === 0 ? <Waiting for={waitingFor} /> : null}
 
         <div className="mt-2.5 grid gap-2 sm:grid-cols-2">
-          {field.options.map((option) => {
+          {options.map((option) => {
             const on = many ? picked.includes(option) : single === option;
 
             return (
@@ -335,19 +446,22 @@ function Control({
       <div>
         <label htmlFor={id}>{label}</label>
         {help}
+        {info}
+
+        {options.length === 0 ? <Waiting for={waitingFor} /> : null}
 
         <div className="mt-2">
           <select
             {...shared}
             multiple
-            size={Math.min(Math.max(field.options.length, 3), 6)}
+            size={Math.min(Math.max(options.length, 3), 6)}
             value={picked}
             onChange={(event) =>
               onChange(Array.from(event.target.selectedOptions, (option) => option.value))
             }
             className={cn(shared.className, "py-2")}
           >
-            {field.options.map((option) => (
+            {options.map((option) => (
               <option key={option} value={option} className="px-1 py-1">
                 {option}
               </option>
@@ -370,6 +484,9 @@ function Control({
     <div>
       <label htmlFor={id}>{label}</label>
       {help}
+      {info}
+
+      {field.type === "select" && options.length === 0 ? <Waiting for={waitingFor} /> : null}
 
       <div className="mt-2">
         {field.type === "textarea" ? (
@@ -384,7 +501,7 @@ function Control({
         ) : field.type === "select" ? (
           <select {...shared} value={single} onChange={(event) => onChange(event.target.value)}>
             <option value="">{field.placeholder || "Choose one"}</option>
-            {field.options.map((option) => (
+            {options.map((option) => (
               <option key={option} value={option}>
                 {option}
               </option>
@@ -401,8 +518,32 @@ function Control({
         )}
       </div>
 
+      {/* The age is shown back rather than kept quiet. It is stored, it decides
+          what gets asked next, and a date typed a year out is the easiest
+          mistake to make on a form — so it is put where it can be caught. */}
+      {age ? (
+        <span className="mt-1.5 block text-[13px] text-fg-muted">
+          That makes them <span className="font-semibold text-fg">{age}</span>.
+        </span>
+      ) : null}
+
       {problem}
     </div>
+  );
+}
+
+/**
+ * A choice whose options have not arrived yet.
+ *
+ * An empty dropdown is indistinguishable from a broken one, so it says which
+ * answer it is waiting on instead of showing nothing at all.
+ */
+function Waiting({ for: question }: { for: string }) {
+  return (
+    <span className="mt-2 block rounded-lg border border-dashed border-line px-3.5 py-2.5 text-[13px] text-fg-faint">
+      Answer {question ? <span className="text-fg-muted">{question}</span> : "the question above"}{" "}
+      first — what you can pick here depends on it.
+    </span>
   );
 }
 

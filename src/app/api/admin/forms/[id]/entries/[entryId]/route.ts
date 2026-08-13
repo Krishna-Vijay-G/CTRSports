@@ -1,12 +1,70 @@
 import { NextResponse } from "next/server";
-import { isFormId } from "@/lib/forms";
+import { isFormId, validateSubmission, withOrphans } from "@/lib/forms";
 import { guardForms } from "@/lib/server/access";
-import { deleteEntry } from "@/lib/server/entriesRepo";
+import { deleteEntry, getEntry, updateEntry } from "@/lib/server/entriesRepo";
+import { getForm } from "@/lib/server/formsRepo";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type Params = { params: Promise<{ id: string; entryId: string }> };
+
+/**
+ * Corrects one entry.
+ *
+ * A misheard phone number and a name spelled from a bad line are the ordinary
+ * case for an entry list, and the alternative to correcting one is deleting it
+ * and typing it again — which loses when it was made.
+ *
+ * The answers go through the same `validateSubmission` as everything else, so
+ * an edit cannot put a shape into the table that the form itself could not
+ * produce. What it must NOT do is save that output straight over the row: it
+ * covers only the questions being asked now, and the entry may hold answers to
+ * questions since deleted. `withOrphans` is what keeps those.
+ */
+export async function PUT(request: Request, { params }: Params) {
+  const denied = await guardForms();
+  if (denied) return denied;
+
+  const { id, entryId } = await params;
+  if (!isFormId(id) || !isFormId(entryId)) {
+    return NextResponse.json({ error: "No such entry." }, { status: 404 });
+  }
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "That was not readable." }, { status: 400 });
+  }
+
+  try {
+    const [form, existing] = await Promise.all([getForm(id), getEntry(id, entryId)]);
+
+    if (!form || !existing) {
+      return NextResponse.json({ error: "No such entry." }, { status: 404 });
+    }
+
+    const { values, errors } = validateSubmission(
+      form.fields,
+      (body as { values?: unknown })?.values
+    );
+
+    if (Object.keys(errors).length > 0) {
+      return NextResponse.json({ errors }, { status: 422 });
+    }
+
+    const entry = await updateEntry(id, entryId, withOrphans(form.fields, existing.answers, values));
+    if (!entry) {
+      return NextResponse.json({ error: "No such entry." }, { status: 404 });
+    }
+
+    return NextResponse.json({ entry });
+  } catch (error) {
+    console.error("[admin/forms] entry PUT", error);
+    return NextResponse.json({ error: "Could not save the entry." }, { status: 500 });
+  }
+}
 
 /**
  * Removes one entry.

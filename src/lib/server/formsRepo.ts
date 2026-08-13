@@ -1,6 +1,6 @@
 import "server-only";
 
-import { normaliseFormInput, type Form, type FormSummary } from "@/lib/forms";
+import { normaliseFormFields, normaliseFormInput, type Form, type FormSummary } from "@/lib/forms";
 import type { FormPageKey } from "@/lib/roles";
 import { getSql } from "@/lib/server/db";
 
@@ -20,7 +20,28 @@ import { getSql } from "@/lib/server/db";
  * A duplicate slug is left to the unique index and comes back as Postgres
  * 23505. The route turns that into a sentence; catching it here would mean
  * either swallowing it or inventing a return value for "no".
+ *
+ * Every read of the questions goes through `hydrate`. See its note — it is not
+ * decoration, and leaving it off any one query would be a crash.
  */
+
+/**
+ * The questions, put through the normaliser on the way OUT as well as in.
+ *
+ * `fields` is a JSONB document, so a row written by an older version of this
+ * code is a shape the current code has never seen: a question saved before
+ * questions could depend on each other has no rule on it at all, and anything
+ * reading `field.when.key` finds nothing to read it from.
+ *
+ * Normalising on write is not enough for that, because the rows that need it
+ * are precisely the ones that are not being written. This is the same
+ * read-and-write pair every content document here uses, and the reason is the
+ * same: a new setting has to arrive with a value for every row that already
+ * exists, without a migration and without a write.
+ */
+function hydrate(row: Form): Form {
+  return { ...row, fields: normaliseFormFields(row.fields) };
+}
 
 export async function listForms(): Promise<Form[]> {
   const sql = getSql();
@@ -32,7 +53,7 @@ export async function listForms(): Promise<Form[]> {
      ORDER BY sort_order ASC, name ASC
   `) as Form[];
 
-  return rows;
+  return rows.map(hydrate);
 }
 
 /**
@@ -80,7 +101,7 @@ export async function getForm(id: string): Promise<Form | null> {
      WHERE id = ${id}
   `) as Form[];
 
-  return rows[0] ?? null;
+  return rows[0] ? hydrate(rows[0]) : null;
 }
 
 /** The current slug first, then the former ones — see the note at the top. */
@@ -97,7 +118,7 @@ export async function getFormBySlug(slug: string): Promise<Form | null> {
      LIMIT 1
   `) as Form[];
 
-  return rows[0] ?? null;
+  return rows[0] ? hydrate(rows[0]) : null;
 }
 
 export async function createForm(input: unknown): Promise<Form> {
@@ -121,7 +142,7 @@ export async function createForm(input: unknown): Promise<Form> {
               fields, former_slugs, sort_order
   `) as Form[];
 
-  return rows[0];
+  return hydrate(rows[0]);
 }
 
 /**
@@ -172,7 +193,7 @@ export async function updateForm(id: string, input: unknown): Promise<Form | nul
               fields, former_slugs, sort_order
   `) as Form[];
 
-  return rows[0] ?? null;
+  return rows[0] ? hydrate(rows[0]) : null;
 }
 
 /** Spaced by ten, one transaction — the same rule the circuits list follows. */

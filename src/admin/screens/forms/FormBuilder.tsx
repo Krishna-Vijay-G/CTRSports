@@ -200,12 +200,25 @@ export function FormBuilder({
         blank={() => ({ ...BLANK_FIELD, id: crypto.randomUUID().slice(0, 8) })}
         summary={(field, index) => ({
           title: field.label || `Question ${index + 1}`,
-          hint: `${FIELD_TYPE_LABELS[field.type]}${field.required ? " · required" : ""}`,
+          // "Only sometimes" earns its place in the collapsed row: a question
+          // that is not always asked is the one thing about this list you cannot
+          // work out by reading it.
+          hint: [
+            FIELD_TYPE_LABELS[field.type],
+            field.required ? "required" : null,
+            field.when.key ? "only sometimes" : null,
+            field.optionsWhen.key ? "options depend" : null,
+            field.age ? "+ age" : null,
+          ]
+            .filter(Boolean)
+            .join(" · "),
         })}
         empty="No questions — the page shows the introduction and nothing to fill in."
-        note="Drag to reorder. Deleting one does not delete the answers already given to it: they stay on the entries and come out in the export under “No longer asked”."
+        note="Drag to reorder. A question can only depend on one ABOVE it, so moving one above what it depends on clears its rule rather than leaving it broken. Deleting one does not delete the answers already given to it: they stay on the entries and come out in the export under “No longer asked”."
       >
-        {(field, index, patch) => <FieldRow field={field} index={index} patch={patch} />}
+        {(field, index, patch) => (
+          <FieldRow field={field} index={index} fields={form.fields} patch={patch} />
+        )}
       </Repeater>
 
       <Panel title="Notifications">

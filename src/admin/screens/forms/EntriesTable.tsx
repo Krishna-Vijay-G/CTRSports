@@ -1,13 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { answerText, entryCells, orphanAnswers, type Form, type FormEntry } from "@/lib/forms";
+import {
+  answerColumns,
+  answerText,
+  entryCells,
+  orphanAnswers,
+  type Form,
+  type FormEntry,
+} from "@/lib/forms";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/admin/ui/Badge";
 import { Button, ButtonLink } from "@/admin/ui/Button";
 import { Dialog } from "@/admin/ui/Dialog";
-import { CaretDownIcon, ListIcon, TrashIcon } from "@/admin/ui/icons";
+import { CaretDownIcon, ListIcon, PencilIcon, PlusIcon, TrashIcon } from "@/admin/ui/icons";
 import { ErrorNote } from "@/admin/components/Fields";
+import { EntryEditor } from "./EntryEditor";
 
 /**
  * Who has entered.
@@ -16,20 +24,35 @@ import { ErrorNote } from "@/admin/components/Fields";
  * by scanning down a column, and half a screen of that is half a screen of
  * scrolling. It is the one editor here with no preview for that reason.
  *
- * The columns are the form's questions as they stand now. An entry answering a
- * question that has since been deleted still holds that answer — it is in the
- * row when it is opened, under "no longer asked", and it is in the export. It
- * is only missing from the table itself, because a column for a question nobody
- * is asked any more would be mostly blank.
+ * The columns are the form's questions as they stand now, plus a column for any
+ * age it works out. An entry answering a question that has since been deleted
+ * still holds that answer — it is in the row when it is opened, under "no longer
+ * asked", and it is in the export. It is only missing from the table itself,
+ * because a column for a question nobody is asked any more would be mostly
+ * blank.
  *
- * Paging is a button rather than an infinite scroll: a table you cannot reach
- * the bottom of is not a table, and the export is what "all of them" means.
+ * ── Sorting, and what it costs ────────────────────────────────────────────
+ *
+ * Sorting is done by the DATABASE, over every entry, not by reordering the rows
+ * already loaded. Sorting a page of fifty out of two hundred would put the
+ * fifty newest in alphabetical order and call it "sorted by name", which is a
+ * wrong answer that looks like a right one.
+ *
+ * The cost is that changing the sort starts the list again, and that a sorted
+ * list pages by offset rather than by cursor — see `listEntries`. Both are
+ * worth it; neither is worth hiding.
+ *
+ * ── Selection ─────────────────────────────────────────────────────────────
+ *
+ * Ticks are kept by id, so they survive paging. The header tick covers what is
+ * ON SCREEN, which is the only thing it can honestly promise: "all" of a list
+ * that has not been fully loaded is a claim this screen cannot make.
  */
 export function EntriesTable({
   form,
   initialEntries,
   initialCursor,
-  total,
+  total: initialTotal,
 }: {
   form: Form;
   initialEntries: FormEntry[];
@@ -38,20 +61,70 @@ export function EntriesTable({
   total: number;
 }) {
   const [entries, setEntries] = useState(initialEntries);
+  const [total, setTotal] = useState(initialTotal);
   const [cursor, setCursor] = useState(initialCursor);
+  const [offset, setOffset] = useState<number | null>(null);
+  const [sort, setSort] = useState<{ key: string; dir: "asc" | "desc" } | null>(null);
+  const [picked, setPicked] = useState<Set<string>>(() => new Set());
   const [open, setOpen] = useState<FormEntry | null>(null);
+  const [editing, setEditing] = useState<{ entry: FormEntry | null } | null>(null);
+  const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const columns = answerColumns(form.fields);
+  const more = cursor !== null || offset !== null;
+
+  function query(next: typeof sort, from: { before?: string; offset?: number }): string {
+    const params = new URLSearchParams();
+    if (next) {
+      params.set("sort", next.key);
+      params.set("dir", next.dir);
+      if (from.offset) params.set("offset", String(from.offset));
+    } else if (from.before) {
+      params.set("before", from.before);
+    }
+    return params.toString();
+  }
+
+  /** A fresh run of the list. Used when the sort changes and after a bulk delete. */
+  async function reload(next: typeof sort) {
+    setBusy(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/admin/forms/${form.id}/entries?${query(next, {})}`);
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        setError(data.error ?? "Could not load the entries.");
+        return;
+      }
+
+      setSort(next);
+      setEntries(data.entries as FormEntry[]);
+      setCursor(data.nextCursor ?? null);
+      setOffset(data.nextOffset ?? null);
+      if (typeof data.total === "number") setTotal(data.total);
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function loadMore() {
-    if (!cursor) return;
+    if (!more) return;
 
     setBusy(true);
     setError(null);
 
     try {
       const response = await fetch(
-        `/api/admin/forms/${form.id}/entries?before=${encodeURIComponent(cursor)}`
+        `/api/admin/forms/${form.id}/entries?${query(sort, {
+          before: cursor ?? undefined,
+          offset: offset ?? undefined,
+        })}`
       );
       const data = await response.json().catch(() => ({}));
 
@@ -62,6 +135,7 @@ export function EntriesTable({
 
       setEntries((current) => [...current, ...(data.entries as FormEntry[])]);
       setCursor(data.nextCursor ?? null);
+      setOffset(data.nextOffset ?? null);
     } catch {
       setError("Network error. Please try again.");
     } finally {
@@ -69,29 +143,81 @@ export function EntriesTable({
     }
   }
 
-  async function remove(entry: FormEntry) {
+  /**
+   * Ascending, then descending, then back to newest first.
+   *
+   * Three states rather than two because "the order it arrived in" is a real
+   * choice and the only one that pages by cursor — a sort with no way back to it
+   * makes the cheap path unreachable for the rest of the session.
+   */
+  function toggleSort(key: string) {
+    if (!sort || sort.key !== key) return reload({ key, dir: "asc" });
+    if (sort.dir === "asc") return reload({ key, dir: "desc" });
+    return reload(null);
+  }
+
+  async function remove(ids: string[]) {
+    if (ids.length === 0) return;
+
     setBusy(true);
     setError(null);
 
     try {
-      const response = await fetch(`/api/admin/forms/${form.id}/entries/${entry.id}`, {
-        method: "DELETE",
-      });
+      const response =
+        ids.length === 1
+          ? await fetch(`/api/admin/forms/${form.id}/entries/${ids[0]}`, { method: "DELETE" })
+          : await fetch(`/api/admin/forms/${form.id}/entries`, {
+              method: "DELETE",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ids }),
+            });
+
+      const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        setError(data.error ?? "Could not delete this entry.");
+        setError(data.error ?? "Could not delete those entries.");
         return;
       }
 
-      setEntries((current) => current.filter((e) => e.id !== entry.id));
+      const gone = new Set(ids);
+      setEntries((current) => current.filter((entry) => !gone.has(entry.id)));
+      // The server's count, not the length of the list sent: somebody else may
+      // have deleted one of these already, and a total that drifts down further
+      // than the rows that actually went is a total nobody can trust.
+      setTotal((current) =>
+        Math.max(current - (typeof data.deleted === "number" ? data.deleted : ids.length), 0)
+      );
+      setPicked((current) => {
+        const next = new Set(current);
+        for (const id of ids) next.delete(id);
+        return next;
+      });
       setOpen(null);
+      setConfirming(false);
     } catch {
       setError("Network error. Please try again.");
     } finally {
       setBusy(false);
     }
   }
+
+  /** An entry added or corrected, folded back into the list in place. */
+  function saved(entry: FormEntry) {
+    setEntries((current) => {
+      const known = current.some((row) => row.id === entry.id);
+      if (known) return current.map((row) => (row.id === entry.id ? entry : row));
+      // A new one goes to the top, which is where the default order would put
+      // it. Under a sort it may not belong there — but it is where somebody who
+      // has just typed it will look for it.
+      return [entry, ...current];
+    });
+
+    if (!entries.some((row) => row.id === entry.id)) setTotal((current) => current + 1);
+    setEditing(null);
+    setOpen(null);
+  }
+
+  const allShown = entries.length > 0 && entries.every((entry) => picked.has(entry.id));
 
   return (
     <div className="flex min-h-0 flex-col gap-2 p-2 md:h-full">
@@ -104,9 +230,22 @@ export function EntriesTable({
           </h1>
           <p className="truncate text-[11px] text-muted-fg">
             {total === 0 ? "Nothing yet" : `${total} in all`}
+            {picked.size > 0 ? ` · ${picked.size} selected` : ""}
             {form.slug ? ` · /register/${form.slug}` : ""}
           </p>
         </div>
+
+        {picked.size > 0 ? (
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => setConfirming(true)}
+            disabled={busy}
+          >
+            <TrashIcon />
+            Delete {picked.size}
+          </Button>
+        ) : null}
 
         <ButtonLink href="/forms" variant="ghost" size="sm">
           <CaretDownIcon className="rotate-90" />
@@ -123,6 +262,11 @@ export function EntriesTable({
         >
           Download CSV
         </ButtonLink>
+
+        <Button size="sm" onClick={() => setEditing({ entry: null })} disabled={busy}>
+          <PlusIcon />
+          Add entry
+        </Button>
       </div>
 
       {error ? <ErrorNote>{error}</ErrorNote> : null}
@@ -137,10 +281,35 @@ export function EntriesTable({
           <table className="w-full border-collapse text-left text-[13px]">
             <thead className="sticky top-0 bg-card">
               <tr className="border-b border-border">
-                <Th>Submitted</Th>
-                {form.fields.map((field) => (
-                  <Th key={field.id}>{field.label || "Question"}</Th>
+                <th className="w-10 px-3 py-2">
+                  <input
+                    type="checkbox"
+                    checked={allShown}
+                    onChange={() =>
+                      setPicked((current) => {
+                        const next = new Set(current);
+                        for (const entry of entries) {
+                          if (allShown) next.delete(entry.id);
+                          else next.add(entry.id);
+                        }
+                        return next;
+                      })
+                    }
+                    aria-label={allShown ? "Clear the selection" : "Select every row shown"}
+                    className="size-4 cursor-pointer rounded border-input bg-transparent text-primary"
+                  />
+                </th>
+
+                <SortableTh sort={sort} column="created" onSort={toggleSort}>
+                  Submitted
+                </SortableTh>
+
+                {columns.map((column) => (
+                  <SortableTh key={column.key} sort={sort} column={column.key} onSort={toggleSort}>
+                    {column.label}
+                  </SortableTh>
                 ))}
+
                 <Th className="w-10" />
               </tr>
             </thead>
@@ -150,12 +319,35 @@ export function EntriesTable({
                 <tr
                   key={entry.id}
                   onClick={() => setOpen(entry)}
-                  className="cursor-pointer border-b border-border/60 transition-colors last:border-b-0 hover:bg-muted/50"
+                  className={cn(
+                    "cursor-pointer border-b border-border/60 transition-colors last:border-b-0 hover:bg-muted/50",
+                    picked.has(entry.id) && "bg-muted/40"
+                  )}
                 >
+                  {/* The tick is not the row: clicking it selects, clicking
+                      anywhere else opens. Without this the box could never be
+                      ticked without a dialog appearing over it. */}
+                  <td className="px-3 py-2" onClick={(event) => event.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={picked.has(entry.id)}
+                      onChange={() =>
+                        setPicked((current) => {
+                          const next = new Set(current);
+                          if (next.has(entry.id)) next.delete(entry.id);
+                          else next.add(entry.id);
+                          return next;
+                        })
+                      }
+                      aria-label="Select this entry"
+                      className="size-4 cursor-pointer rounded border-input bg-transparent text-primary"
+                    />
+                  </td>
+
                   <Td className="whitespace-nowrap text-muted-fg">{when(entry.created_at)}</Td>
 
-                  {entryCells(form.fields, entry).map(({ field, text }) => (
-                    <Td key={field.id} className="max-w-[22rem] truncate">
+                  {entryCells(form.fields, entry).map(({ key, text }) => (
+                    <Td key={key} className="max-w-[22rem] truncate">
                       {text || <span className="text-muted-fg/50">—</span>}
                     </Td>
                   ))}
@@ -168,7 +360,7 @@ export function EntriesTable({
         )}
       </div>
 
-      {cursor ? (
+      {more ? (
         <Button variant="outline" size="sm" onClick={loadMore} disabled={busy} className="shrink-0">
           {busy ? "Loading…" : "Load more"}
         </Button>
@@ -183,13 +375,16 @@ export function EntriesTable({
           className="max-w-2xl"
         >
           <dl className="space-y-3">
-            {form.fields.map((field) => (
-              <div key={field.id}>
+            {columns.map((column) => (
+              <div key={column.key}>
                 <dt className="text-[11px] font-medium uppercase tracking-wide text-muted-fg">
-                  {field.label || "Question"}
+                  {column.label}
                 </dt>
                 <dd className="mt-0.5 whitespace-pre-wrap text-[13px] text-foreground">
-                  {answerText(open.answers[field.id]) || "—"}
+                  {/* A question that was never put reads as a dash, the same as
+                      one left blank — the difference is real but it is not what
+                      somebody scanning entries is looking for. */}
+                  {answerText(open.answers[column.key]) || "—"}
                 </dd>
               </div>
             ))}
@@ -205,6 +400,9 @@ export function EntriesTable({
                     <dd className="whitespace-pre-wrap text-[13px] text-foreground">{text}</dd>
                   </div>
                 ))}
+                <p className="mt-2 text-[11px] text-muted-fg">
+                  Kept, and exported. Editing this entry does not disturb them.
+                </p>
               </div>
             ) : null}
           </dl>
@@ -214,15 +412,64 @@ export function EntriesTable({
             <Button
               variant="destructive"
               size="sm"
-              onClick={() => remove(open)}
+              onClick={() => remove([open.id])}
               disabled={busy}
               className="ml-auto"
             >
               <TrashIcon />
               Remove
             </Button>
+            <Button variant="outline" size="sm" onClick={() => setEditing({ entry: open })}>
+              <PencilIcon />
+              Edit
+            </Button>
             <Button size="sm" onClick={() => setOpen(null)}>
               Close
+            </Button>
+          </div>
+        </Dialog>
+      ) : null}
+
+      {editing ? (
+        <EntryEditor
+          form={form}
+          entry={editing.entry}
+          onClose={() => setEditing(null)}
+          onSaved={saved}
+        />
+      ) : null}
+
+      {/*
+        Bulk delete asks first, and a single one does not.
+        One row is recoverable by retyping it; forty are not, and the tick that
+        selected them may have been the header one.
+      */}
+      {confirming ? (
+        <Dialog
+          open
+          onClose={() => setConfirming(false)}
+          title={`Delete ${picked.size} ${picked.size === 1 ? "entry" : "entries"}?`}
+          description="There is no undo, and the export does not bring them back."
+          className="max-w-md"
+        >
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setConfirming(false)}
+              disabled={busy}
+              className="ml-auto"
+            >
+              Keep them
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => remove([...picked])}
+              disabled={busy}
+            >
+              <TrashIcon />
+              {busy ? "Deleting…" : "Delete them"}
             </Button>
           </div>
         </Dialog>
@@ -241,6 +488,40 @@ function Th({ children, className }: { children?: React.ReactNode; className?: s
     >
       {children}
     </th>
+  );
+}
+
+/** A heading that is also the control for ordering by it. */
+function SortableTh({
+  children,
+  column,
+  sort,
+  onSort,
+}: {
+  children: React.ReactNode;
+  column: string;
+  sort: { key: string; dir: "asc" | "desc" } | null;
+  onSort: (key: string) => void;
+}) {
+  const on = sort?.key === column;
+
+  return (
+    <Th>
+      <button
+        type="button"
+        onClick={() => onSort(column)}
+        aria-label={`Sort by ${typeof children === "string" ? children : column}`}
+        className={cn(
+          "inline-flex items-center gap-1 uppercase tracking-wide transition hover:text-foreground",
+          on && "text-foreground"
+        )}
+      >
+        {children}
+        <span aria-hidden className={cn("text-[9px]", !on && "opacity-0")}>
+          {sort?.dir === "asc" ? "▲" : "▼"}
+        </span>
+      </button>
+    </Th>
   );
 }
 
