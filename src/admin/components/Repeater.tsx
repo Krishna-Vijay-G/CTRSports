@@ -54,6 +54,16 @@ export type RepeaterProps<T> = {
   keyOf?: (item: T, index: number) => string;
   /** Reduces each entry to one line. Omit to keep every entry open inline. */
   summary?: (item: T, index: number) => { title: string; hint?: string; image?: string };
+  /**
+   * How `summary().image` fills its thumbnail.
+   *
+   * `cover` is right for a photograph, where filling the box matters more than
+   * the edges. `contain` is for a picture whose whole shape is the point — a
+   * wordmark cropped to a 36×56 box is a letter and a half, which identifies
+   * nothing. Those come with a white backing for the same reason the site gives
+   * them one: most are dark ink and go invisible on the panel colour.
+   */
+  imageFit?: "cover" | "contain";
   /** What opening a one-line entry does. Ignored when there is no `summary`. */
   expand?: "dialog" | "accordion";
   /** What the list says when it is empty. */
@@ -73,6 +83,7 @@ export function Repeater<T>({
   blank,
   keyOf,
   summary,
+  imageFit = "cover",
   expand = "dialog",
   empty,
   note,
@@ -164,8 +175,20 @@ export function Repeater<T>({
                   </button>
 
                   {head?.image ? (
-                    <span className="h-9 w-14 shrink-0 overflow-hidden rounded border border-border bg-background">
-                      <img src={head.image} alt="" className="h-full w-full object-cover" />
+                    <span
+                      className={cn(
+                        "h-9 w-14 shrink-0 overflow-hidden rounded border border-border",
+                        imageFit === "contain" ? "bg-white p-1" : "bg-background"
+                      )}
+                    >
+                      <img
+                        src={head.image}
+                        alt=""
+                        className={cn(
+                          "h-full w-full",
+                          imageFit === "contain" ? "object-contain" : "object-cover"
+                        )}
+                      />
                     </span>
                   ) : null}
 

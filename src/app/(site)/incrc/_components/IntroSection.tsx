@@ -69,16 +69,10 @@ export function IntroSection({
                 {intro.partners.map((partner) => (
                   <li
                     key={`${partner.name}-${partner.logo}`}
-                    className="flex h-16 items-center justify-center rounded-panel bg-white px-6"
+                    className="h-16 overflow-hidden rounded-panel bg-white"
                     title={partner.name}
                   >
-                    <img
-                      src={partner.logo}
-                      alt={partner.name}
-                      loading="lazy"
-                      decoding="async"
-                      className="h-9 w-auto max-w-[160px] object-contain"
-                    />
+                    <PartnerMark partner={partner} />
                   </li>
                 ))}
               </ul>
@@ -87,5 +81,48 @@ export function IntroSection({
         ) : null}
       </div>
     </section>
+  );
+}
+
+/**
+ * One mark, as a link when it has somewhere to go and a picture when it does not.
+ *
+ * The tile is the same either way — a mark that happens to be linked must not
+ * look like a different kind of thing from the one beside it that is not — so
+ * the only difference a visitor sees is the cursor and a slight lift on hover.
+ *
+ * The whole tile is the target rather than the image inside it, padding
+ * included. A wordmark is a wide thin shape with a lot of white either side of
+ * it, and a link that only answers on the ink is a link most people miss.
+ */
+function PartnerMark({ partner }: { partner: IncrcContent["intro"]["partners"][number] }) {
+  const mark = (
+    <img
+      src={partner.logo}
+      alt={partner.name}
+      loading="lazy"
+      decoding="async"
+      className="h-9 w-auto max-w-[160px] object-contain"
+    />
+  );
+
+  const inside = "flex h-full w-full items-center justify-center px-6";
+
+  if (!partner.href) return <span className={inside}>{mark}</span>;
+
+  // Somewhere else entirely opens in its own tab rather than taking away the
+  // page being read; a path on this site and a #section must not. The same rule
+  // the register band and the family chips follow.
+  const offSite = partner.href.startsWith("http");
+
+  return (
+    <a
+      href={partner.href}
+      target={offSite ? "_blank" : undefined}
+      rel={offSite ? "noreferrer" : undefined}
+      className={`${inside} transition-opacity duration-300 hover:opacity-70`}
+    >
+      {mark}
+    </a>
   );
 }
