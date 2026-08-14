@@ -16,7 +16,20 @@
  */
 
 import {
+  MAX_FORM_FIELDS,
+  MAX_OPTION_BANDS,
+  MAX_SECTIONS,
   MAX_UPLOAD_MB,
+  keyIsNumeric,
+  addField,
+  addSection,
+  fieldsOn,
+  keysBeforeSection,
+  moveSection,
+  nudgeField,
+  placeField,
+  removeSection,
+  type Outline,
   ageFrom,
   ageKey,
   answerColumns,
@@ -205,6 +218,289 @@ section("Branching decides what is asked, offered and kept — in one pass");
   const checked = validateSubmission(fields, { p: "B" });
   check("nothing on offer means nothing is required", checked.errors.c, undefined);
   check("and the answer is simply blank", checked.values.c, "");
+}
+
+/* ─────────────────────── Branching on a number ────────────────────────── */
+
+section("Options can be decided by a number as well as by words");
+{
+  const fields = normaliseFormFields([
+    { id: "dob", type: "date", age: true },
+    {
+      id: "cls",
+      type: "select",
+      options: ["Micro Max", "Senior Max", "Formula 4", "Other"],
+      optionsWhen: {
+        key: "dob.age",
+        bands: [
+          { min: "", max: "15", options: ["Micro Max"] },
+          { min: "16", max: "", options: ["Senior Max", "Formula 4"] },
+        ],
+      },
+    },
+  ]);
+  const cls = fields[1];
+
+  check("both ranges survive the way in", cls.optionsWhen.bands.length, 2);
+  check("a fourteen-year-old", offeredOptions(cls, { [ageKey("dob")]: "14" }), [
+    "Micro Max",
+    "Other",
+  ]);
+  // Both ends count, so the two ranges meet without a gap and without an overlap.
+  check("the top of a range is in it", offeredOptions(cls, { [ageKey("dob")]: "15" }), [
+    "Micro Max",
+    "Other",
+  ]);
+  check("and so is the bottom of the next", offeredOptions(cls, { [ageKey("dob")]: "16" }), [
+    "Senior Max",
+    "Formula 4",
+    "Other",
+  ]);
+  check("no age given yet, so only the unclaimed one", offeredOptions(cls, {}), ["Other"]);
+  check("an answer that is not a number matches no range", offeredOptions(cls, { [ageKey("dob")]: "grown up" }), [
+    "Other",
+  ]);
+
+  // The whole way through, in the order the server does it: the date is read,
+  // the age is written, and the age decides what the next question offers.
+  const noon = new Date("2026-08-14T12:00:00Z");
+  const young = validateSubmission(fields, { dob: "2014-01-01", cls: "Formula 4" }, noon);
+
+  check("the age is written before the filter reads it", young.values[ageKey("dob")], "12");
+  check("so a class that age does not unlock is dropped", young.values.cls, "");
+  check("and the offer says the same", young.options.cls, ["Micro Max", "Other"]);
+
+  const grown = validateSubmission(fields, { dob: "2000-01-01", cls: "Formula 4" }, noon);
+  check("one it does unlock is kept", grown.values.cls, "Formula 4");
+}
+
+{
+  const fields = normaliseFormFields([
+    { id: "seats", type: "number" },
+    {
+      id: "kit",
+      type: "checkboxes",
+      options: ["A", "B", "C"],
+      optionsWhen: {
+        key: "seats",
+        bands: [
+          { min: "1", max: "2", options: ["A"] },
+          { min: "2", max: "4", options: ["B"] },
+          { min: "5", max: "", options: ["C"] },
+        ],
+      },
+    },
+  ]);
+
+  check("overlapping ranges both apply, once each", offeredOptions(fields[1], { seats: "2" }), [
+    "A",
+    "B",
+  ]);
+  check("a number in no range at all", offeredOptions(fields[1], { seats: "0" }), []);
+  check("a decimal falls where it lands", offeredOptions(fields[1], { seats: "1.5" }), ["A"]);
+}
+
+{
+  const fields = normaliseFormFields([
+    { id: "n", type: "number" },
+    {
+      id: "c",
+      type: "select",
+      options: ["A", "B"],
+      optionsWhen: {
+        key: "n",
+        bands: [
+          { min: "", max: "", options: ["A"] },
+          { min: "1", max: "2", options: [] },
+          { min: "3", max: "", options: ["B", "not an option"] },
+        ],
+      },
+    },
+  ]);
+
+  check("a range with no numbers, and one with no options, are dropped", fields[1].optionsWhen.bands, [
+    { min: "3", max: "", options: ["B"] },
+  ]);
+  // A claimed by nothing now, so it is offered to everybody — the same reading
+  // an option in no group gets.
+  check("and what they claimed comes back", offeredOptions(fields[1], {}), ["A"]);
+
+  // Before the save, a half-written range must be inert rather than hiding what
+  // it has ticked: the builder writes one of these the moment "Add a range" is
+  // pressed, and options vanishing under an empty box is not an edit anybody made.
+  const halfWritten = {
+    ...fields[1],
+    optionsWhen: {
+      ...fields[1].optionsWhen,
+      bands: [...fields[1].optionsWhen.bands, { min: "", max: "", options: ["A"] }],
+    },
+  };
+  check("a half-written range hides nothing in the meantime", offeredOptions(halfWritten, {}), ["A"]);
+}
+
+{
+  const many = Array.from({ length: 12 }, (_, at) => ({
+    min: String(at),
+    max: String(at),
+    options: ["X"],
+  }));
+  const fields = normaliseFormFields([
+    { id: "n", type: "number" },
+    { id: "c", type: "select", options: ["X"], optionsWhen: { key: "n", bands: many } },
+  ]);
+
+  check("the number of ranges is capped", fields[1].optionsWhen.bands.length, MAX_OPTION_BANDS);
+}
+
+section("The two halves of a filter never apply to the wrong kind of parent");
+{
+  const notes: string[] = [];
+  const fields = normaliseFormFields(
+    [
+      { id: "p", type: "radio", options: ["A", "B"] },
+      {
+        id: "c",
+        type: "select",
+        options: ["X"],
+        optionsWhen: { key: "p", bands: [{ min: "1", max: "2", options: ["X"] }] },
+      },
+    ],
+    notes
+  );
+
+  check("ranges against a choice question are dropped", fields[1].optionsWhen.bands, []);
+  check("and reported", notes.some((note) => note.includes("number ranges")), true);
+  check("the filter itself survives", fields[1].optionsWhen.key, "p");
+}
+
+{
+  const notes: string[] = [];
+  const fields = normaliseFormFields(
+    [
+      { id: "n", type: "number" },
+      { id: "c", type: "select", options: ["X"], optionsWhen: { key: "n", groups: { "1": ["X"] } } },
+    ],
+    notes
+  );
+
+  check("groups against a number question are dropped", Object.keys(fields[1].optionsWhen.groups), []);
+  check("and reported", notes.some((note) => note.includes("option groups")), true);
+  check("so every option is on offer meanwhile", offeredOptions(fields[1], { n: "1" }), ["X"]);
+}
+
+{
+  const fields = normaliseFormFields([
+    // The age is NOT switched on, so `dob.age` is not an answer anybody gives.
+    { id: "dob", type: "date" },
+    {
+      id: "c",
+      type: "select",
+      options: ["X"],
+      optionsWhen: { key: "dob.age", bands: [{ min: "18", max: "", options: ["X"] }] },
+    },
+  ]);
+
+  check("an age that is never worked out cannot decide anything", fields[1].optionsWhen.key, "");
+}
+
+check("a number question answers with a number", keyIsNumeric([{ id: "n", type: "number" }] as never, "n"), true);
+check("a text question does not", keyIsNumeric([{ id: "t", type: "text" }] as never, "t"), false);
+check(
+  "a date does not, but the age it works out does",
+  [
+    keyIsNumeric([{ id: "d", type: "date", age: true }] as never, "d"),
+    keyIsNumeric([{ id: "d", type: "date", age: true }] as never, ageKey("d")),
+    keyIsNumeric([{ id: "d", type: "date", age: false }] as never, ageKey("d")),
+  ],
+  [false, true, false]
+);
+
+section("A range is one comparison, and it keeps both of its ends");
+{
+  const fields = normaliseFormFields([
+    { id: "dob", type: "date", age: true },
+    { id: "j", type: "text", when: { key: ageKey("dob"), op: "between", values: ["12", "16"] } },
+  ]);
+  const noon = new Date("2026-08-14T12:00:00Z");
+  const asked = (dob: string) =>
+    validateSubmission(fields, { dob }, noon).asked.map((field) => field.id);
+
+  check("below the range", asked("2020-01-01"), ["dob"]);
+  check("the bottom of it", asked("2014-01-01"), ["dob", "j"]);
+  check("the top of it", asked("2010-01-01"), ["dob", "j"]);
+  check("above it", asked("2009-01-01"), ["dob"]);
+  check("and no answer at all", asked(""), ["dob"]);
+}
+
+{
+  /*
+   * A range is a PAIR held by position, not a list of values. Through
+   * `optionList` — which every other comparison uses — "between 12 and 12" would
+   * lose its second end to the repeat check, and a blank first end would slide
+   * the second one into its place and quietly become "at least 16".
+   */
+  const [, same] = normaliseFormFields([
+    { id: "n", type: "number" },
+    { id: "c", type: "text", when: { key: "n", op: "between", values: ["12", "12"] } },
+  ]);
+  check("both ends survive being the same number", same.when.values, ["12", "12"]);
+
+  const fields = normaliseFormFields([
+    { id: "n", type: "number" },
+    { id: "c", type: "text", when: { key: "n", op: "between", values: ["", "16"] } },
+  ]);
+  check("a missing end stays missing rather than sliding along", fields[1].when.values, ["", "16"]);
+  check(
+    "and a range with a missing end asks nobody",
+    validateSubmission(fields, { n: "3" }).asked.map((field) => field.id),
+    ["n"]
+  );
+}
+
+{
+  const notes: string[] = [];
+  const fields = normaliseFormFields(
+    [
+      { id: "p", type: "radio", options: ["A", "B"] },
+      { id: "c", type: "text", when: { key: "p", op: "atLeast", values: ["18"] } },
+    ],
+    notes
+  );
+
+  check("a number compared against words is dropped whole", fields[1].when.key, "");
+  check("and reported as what it is", notes.some((note) => note.includes("answers with words")), true);
+}
+
+{
+  /*
+   * A bound nobody typed is not a bound of zero.
+   *
+   * `Number("")` is 0, so "is at least [blank]" was true of every positive
+   * answer and "is at most [blank]" of every negative one — a rule the builder
+   * draws as unfinished and the form treated as satisfied.
+   */
+  const fields = normaliseFormFields([
+    { id: "n", type: "number" },
+    { id: "c", type: "text", when: { key: "n", op: "atLeast", values: [] } },
+  ]);
+
+  check(
+    "an empty bound asks nobody rather than everybody",
+    validateSubmission(fields, { n: "40" }).asked.map((field) => field.id),
+    ["n"]
+  );
+
+  const bands = normaliseFormFields([
+    { id: "n", type: "number" },
+    {
+      id: "c",
+      type: "select",
+      options: ["A"],
+      optionsWhen: { key: "n", bands: [{ min: " ", max: "", options: ["A"] }] },
+    },
+  ]);
+
+  check("and a range of nothing but a space is no range", bands[1].optionsWhen.bands, []);
 }
 
 /* ──────────────────────────── Dates and ages ──────────────────────────── */
@@ -489,6 +785,183 @@ section("A form can be broken into pages");
   check("no pages means no stepper", checked.sectionsAsked, []);
   check("and every question is still asked", checked.asked.map((f) => f.id), ["a"]);
   check("and still required", checked.errors.a, "A is required.");
+}
+
+/* ─────────────────────────────── The outline ──────────────────────────── */
+
+section("The builder writes the order the server would have sorted into");
+{
+  // Built the way the outline builds it: a page, then questions onto it.
+  let o: Outline = { sections: [], fields: [] };
+  o = addSection(o, "s1");
+  o = addField(o, "s1", "a");
+  o = addField(o, "s1", "b");
+  o = addSection(o, "s2");
+  o = addField(o, "s2", "c");
+  o = addSection(o, "s3");
+  o = addField(o, "s3", "d");
+
+  // Shuffle it about the way somebody would.
+  o = nudgeField(o, "b", 1);
+  o = nudgeField(o, "d", -1);
+
+  const server = normaliseFormFields(o.fields, [], o.sections);
+
+  check(
+    "the array the builder holds is the array the server would store",
+    server.map((f) => f.id),
+    o.fields.map((f) => f.id)
+  );
+  check(
+    "and every question keeps the page the outline put it on",
+    server.map((f) => f.sectionId),
+    o.fields.map((f) => f.sectionId)
+  );
+}
+
+{
+  let o: Outline = { sections: [], fields: [] };
+  o = addSection(o, "s1");
+  o = addField(o, "s1", "a");
+  o = addField(o, "s1", "b");
+  o = addSection(o, "s2");
+  o = addField(o, "s2", "c");
+
+  const down = nudgeField(o, "b", 1);
+  check("past the end of a page is the top of the next", fieldsOn(down, "s2").map((f) => f.id), ["b", "c"]);
+  check("and the question says so", down.fields.find((f) => f.id === "b")?.sectionId, "s2");
+
+  const back = nudgeField(down, "b", -1);
+  check("and back again", fieldsOn(back, "s1").map((f) => f.id), ["a", "b"]);
+
+  // The dirty check compares whole documents, and a drag fires this on every
+  // pointer move — a no-op has to be free.
+  check("the very top does not move", nudgeField(o, "a", -1), o);
+  check("nor the very bottom", nudgeField(o, "c", 1), o);
+  check("nor a drop where it already is", placeField(o, "a", "s1", 0), o);
+}
+
+{
+  // An empty page is a stop on the way, not something to jump over — otherwise
+  // a page you have just made cannot be reached by the keyboard at all.
+  let o: Outline = { sections: [], fields: [] };
+  o = addSection(o, "s1");
+  o = addField(o, "s1", "a");
+  o = addSection(o, "s2");
+  o = addSection(o, "s3");
+  o = addField(o, "s3", "b");
+
+  const once = nudgeField(o, "a", 1);
+  check("it lands on the empty page", once.fields.find((f) => f.id === "a")?.sectionId, "s2");
+
+  const twice = nudgeField(once, "a", 1);
+  check("and moves off it on the next press", fieldsOn(twice, "s3").map((f) => f.id), ["a", "b"]);
+}
+
+section("Page surgery never costs a question");
+{
+  let o: Outline = { sections: [], fields: [] };
+  o = addSection(o, "s1");
+  o = addField(o, "s1", "a");
+  o = addSection(o, "s2");
+  o = addField(o, "s2", "b");
+  o = addField(o, "s2", "c");
+  o = addSection(o, "s3");
+  o = addField(o, "s3", "d");
+
+  const before = o.fields.map((f) => f.id);
+
+  const middle = removeSection(o, "s2");
+  check("the questions survive", middle.fields.map((f) => f.id), before);
+  check("in exactly the order they were in", middle.fields.map((f) => f.id), ["a", "b", "c", "d"]);
+  check("on the page above", fieldsOn(middle, "s1").map((f) => f.id), ["a", "b", "c"]);
+
+  const first = removeSection(o, "s1");
+  check("deleting the first page keeps the order too", first.fields.map((f) => f.id), before);
+  check("and its questions join the new first page", fieldsOn(first, "s2").map((f) => f.id), ["a", "b", "c"]);
+
+  const moved = moveSection(o, "s3", 0);
+  check("a page carries its questions with it", moved.fields.map((f) => f.id), ["d", "a", "b", "c"]);
+}
+
+{
+  // Down to one page, then none: the form goes back to a single screen.
+  let o: Outline = { sections: [], fields: [] };
+  o = addSection(o, "s1");
+  o = addField(o, "s1", "a");
+  o = addField(o, "s1", "b");
+
+  const none = removeSection(o, "s1");
+  check("the last page leaves no pages", none.sections, []);
+  check("every question stays", none.fields.map((f) => f.id), ["a", "b"]);
+  check("and none of them names a page", none.fields.map((f) => f.sectionId), ["", ""]);
+
+  const asked = validateSubmission(none.fields, {}, new Date(), none.sections);
+  check("which is a form with no stepper", asked.sectionsAsked, []);
+}
+
+{
+  // The first page adopts everything, which is why adding one is invisible on
+  // the public form: the stepper only appears at two pages.
+  let o: Outline = { sections: [], fields: [] };
+  o = addField(o, "", "a");
+  o = addField(o, "", "b");
+
+  const paged = addSection(o, "s1");
+  check("every question joins the first page", paged.fields.map((f) => f.sectionId), ["s1", "s1"]);
+  check("in the order they were in", paged.fields.map((f) => f.id), ["a", "b"]);
+
+  const one = validateSubmission(paged.fields, {}, new Date(), paged.sections);
+  const flat = validateSubmission(o.fields, {}, new Date(), o.sections);
+  check("one page is one page", one.sectionsAsked.map((s) => s.id), ["s1"]);
+  check("and asks exactly what no pages asked", one.asked.map((f) => f.id), flat.asked.map((f) => f.id));
+}
+
+{
+  // A page with nothing on it is never reached — the push onto `sectionsAsked`
+  // happens inside the per-question loop. The outline warns about this, so the
+  // warning is pinned to a checked fact rather than to a belief.
+  const form = normaliseFormInput({
+    name: "X",
+    sections: [{ id: "s1", title: "One" }, { id: "s2", title: "Empty" }],
+    fields: [{ id: "a", type: "text", label: "A", sectionId: "s1" }],
+  });
+
+  const checked = validateSubmission(form.fields, {}, new Date(), form.sections);
+  check("an empty page is not on the form at all", checked.sectionsAsked.map((s) => s.id), ["s1"]);
+}
+
+{
+  // The caps hold whether or not the button that respects them was the caller.
+  let full: Outline = { sections: [], fields: [] };
+  for (let n = 0; n < MAX_FORM_FIELDS; n += 1) full = addField(full, "", `f${n}`);
+  check("forty questions is forty", full.fields.length, MAX_FORM_FIELDS);
+  check("and the next is refused", addField(full, "", "over"), full);
+
+  let pages: Outline = { sections: [], fields: [] };
+  for (let n = 0; n < MAX_SECTIONS; n += 1) pages = addSection(pages, `s${n}`);
+  check("twelve pages is twelve", pages.sections.length, MAX_SECTIONS);
+  check("and the next is refused", addSection(pages, "over"), pages);
+}
+
+{
+  // What a page's own rule may point at: only what is asked before it.
+  const form = normaliseFormInput({
+    name: "X",
+    sections: [{ id: "s1" }, { id: "s2" }, { id: "s3" }],
+    fields: [
+      { id: "born", type: "date", label: "Born", sectionId: "s1", age: true },
+      { id: "car", type: "text", label: "Car", sectionId: "s2" },
+      { id: "note", type: "text", label: "Note", sectionId: "s3" },
+    ],
+  });
+
+  check("the first page may look at nothing", keysBeforeSection(form.sections, form.fields, 0), []);
+  check(
+    "the third sees both earlier pages, and a derived age",
+    keysBeforeSection(form.sections, form.fields, 2).map((column) => column.key),
+    ["born", "born.age", "car"]
+  );
 }
 
 section("An attachment is a note saying where the bytes are");

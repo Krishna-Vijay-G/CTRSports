@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   FORM_LIMITS,
   ageKey,
@@ -76,6 +76,7 @@ export function RegisterForm({
   nonce = "",
   issuedAt = 0,
   preview = false,
+  showPage = "",
 }: {
   form: Form;
   /** Proof the page was served, not fabricated. Checked by the route. */
@@ -91,6 +92,17 @@ export function RegisterForm({
    * place to check a rule would be the live site.
    */
   preview?: boolean;
+  /**
+   * A page to jump to, by id — the admin's outline naming whichever page is
+   * open in it, so the preview shows the page being edited.
+   *
+   * It NUDGES rather than controls: it moves the form when it changes, and the
+   * preview's own Next and Back keep working afterwards. A page that is not
+   * currently being asked — its rule does not pass against the answers typed
+   * into the preview, which are usually none — moves nothing, because there is
+   * nothing truthful to show. Empty everywhere but the admin.
+   */
+  showPage?: string;
 }) {
   const [values, setValues] = useState<Submission>(() => blank(form.fields));
   const [honeypot, setHoneypot] = useState("");
@@ -170,6 +182,25 @@ export function RegisterForm({
     : shape.asked;
 
   const last = steps.length === 0 || at >= steps.length - 1;
+
+  /*
+   * Follow the admin's outline to the page it has open.
+   *
+   * Keyed on `showPage` alone. `steps` is rebuilt on every keystroke, so having
+   * it in the dependencies would drag the preview back to that page every time
+   * a character was typed into it — and the preview's own Next would never
+   * survive a render. The ref is how this reads the current pages without
+   * depending on them.
+   */
+  const liveSteps = useRef(steps);
+  liveSteps.current = steps;
+
+  useEffect(() => {
+    if (!showPage) return;
+
+    const index = liveSteps.current.findIndex((section) => section.id === showPage);
+    if (index >= 0) setStep(index);
+  }, [showPage]);
 
   /** Errors for questions this page is not drawing — see the banner below. */
   const homeless = useMemo(() => {

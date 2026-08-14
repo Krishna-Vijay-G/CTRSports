@@ -174,7 +174,16 @@ export function isMultiChoice(type: FormFieldType): boolean {
  * can never collide with a real one — see `normaliseFormFields`.
  */
 
-export const CONDITION_OPS = ["is", "not", "any", "answered", "blank", "atLeast", "atMost"] as const;
+export const CONDITION_OPS = [
+  "is",
+  "not",
+  "any",
+  "answered",
+  "blank",
+  "atLeast",
+  "atMost",
+  "between",
+] as const;
 export type ConditionOp = (typeof CONDITION_OPS)[number];
 
 export const CONDITION_OP_LABELS: Record<ConditionOp, string> = {
@@ -185,6 +194,7 @@ export const CONDITION_OP_LABELS: Record<ConditionOp, string> = {
   blank: "was left blank",
   atLeast: "is at least",
   atMost: "is at most",
+  between: "is between",
 };
 
 /** Whether this comparison needs something to compare against. */
@@ -194,19 +204,60 @@ export function opTakesValue(op: ConditionOp): boolean {
 
 /** Whether it compares numbers — an age, a number field — rather than words. */
 export function opIsNumeric(op: ConditionOp): boolean {
-  return op === "atLeast" || op === "atMost";
+  return op === "atLeast" || op === "atMost" || op === "between";
+}
+
+/** Whether it takes two numbers rather than one: the range. */
+export function opIsRange(op: ConditionOp): boolean {
+  return op === "between";
 }
 
 export type Condition = {
   /** The answer key this looks at. Blank means no condition at all. */
   key: string;
   op: ConditionOp;
-  /** `any` uses the whole list; every other comparison uses the first. */
+  /**
+   * `any` uses the whole list, `between` uses the first two as an inclusive
+   * range, and every other comparison uses the first.
+   */
   values: string[];
 };
 
 /** No condition — ask it of everybody. */
 export const ALWAYS: Condition = { key: "", op: "is", values: [] };
+
+/**
+ * A stretch of numbers, and the options it puts on offer.
+ *
+ * The numeric half of an option filter: "18 and above may enter these classes,
+ * 12 to 16 these". Its own kind rather than a group whose key happens to look
+ * like a number, because a group is matched by the exact WORDS of an answer and
+ * a number cannot be enumerated — there is no list of ages to tick against.
+ *
+ * ── Both bounds are inclusive, and a blank one is no bound ────────────────
+ *
+ * `min` alone is "this and above", `max` alone is "up to this", both is a
+ * range — the same three shapes, and the same inclusive reading, that
+ * `atLeast` / `atMost` and a number question's own range rule already use. One
+ * rule about what a bound means, everywhere in this file. So "under 18" is
+ * written as a maximum of 17 on a whole-number answer, and consecutive bands
+ * are 8–17 and 18–99 rather than sharing an edge.
+ *
+ * Held as strings because every other bound in this file is one — `FieldRule`
+ * for the same reason — and because a half-typed "-" or "1." is a thing a text
+ * box holds and a number cannot.
+ */
+export type OptionBand = {
+  /** The lowest number this covers, inclusive. "" is no lower bound. */
+  min: string;
+  /** The highest number this covers, inclusive. "" is no upper bound. */
+  max: string;
+  /** The options it offers. Same list as `groups` holds, same meaning. */
+  options: string[];
+};
+
+/** As many bands as there are sensible age brackets, and then some. */
+export const MAX_OPTION_BANDS = 10;
 
 export type OptionFilter = {
   /** The answer key that decides. Blank means every option is offered. */
@@ -219,9 +270,74 @@ export type OptionFilter = {
    * option in one or more groups is offered only for those.
    */
   groups: Record<string, string[]>;
+  /**
+   * The same thing for a parent that answers with a NUMBER — a number question,
+   * or the age worked out from a date.
+   *
+   * One filter with two halves rather than two filters, because they answer the
+   * same question ("which of these options is this person offered?") and only
+   * one of them can ever apply: the deciding answer is either a fixed set of
+   * words or a number, never both. `keepRulesHonest` clears the half that does
+   * not match the parent, so a question changed from a dropdown to a number
+   * leaves no invisible leftover behind it.
+   *
+   * An option in no group AND no band is still offered to everybody.
+   */
+  bands: OptionBand[];
 };
 
-export const ALL_OPTIONS: OptionFilter = { key: "", groups: {} };
+export const ALL_OPTIONS: OptionFilter = { key: "", groups: {}, bands: [] };
+
+/**
+ * Whether a band says anything at all.
+ *
+ * A band with neither bound written is one somebody has begun and not
+ * finished. It covers nothing — and, just as importantly, it does not COUNT its
+ * options as spoken for, so a half-written band leaves the form exactly as it
+ * found it rather than hiding options nobody can bring back.
+ */
+export function bandIsSet(band: OptionBand): boolean {
+  return numberOf(band.min) !== null || numberOf(band.max) !== null;
+}
+
+/** Whether a number falls inside a band. Both bounds inclusive; blank is open. */
+export function bandCovers(band: OptionBand, value: number): boolean {
+  if (!bandIsSet(band) || !Number.isFinite(value)) return false;
+
+  const min = numberOf(band.min);
+  const max = numberOf(band.max);
+
+  if (min !== null && value < min) return false;
+  if (max !== null && value > max) return false;
+
+  return true;
+}
+
+/** A band as a phrase, so the builder and any summary of it read the same. */
+export function bandLabel(band: OptionBand): string {
+  if (!bandIsSet(band)) return "no numbers yet";
+  if (band.min === "") return `up to ${band.max}`;
+  if (band.max === "") return `${band.min} and above`;
+  return `${band.min} to ${band.max}`;
+}
+
+/**
+ * Whether an answer key holds a number worth comparing against.
+ *
+ * Only two things do: a number question, and the age derived from a date. A
+ * text box can be typed full of digits and a choice question can offer "1" and
+ * "2", but neither PROMISES a number, and a band against an answer that is
+ * usually a word is a filter that hides options for no visible reason.
+ */
+export function keyIsNumeric(fields: FormField[], key: string): boolean {
+  if (key.endsWith(AGE_SUFFIX)) {
+    const source = fields.find((field) => field.id === key.slice(0, -AGE_SUFFIX.length));
+    return Boolean(source && source.type === "date" && source.age);
+  }
+
+  const field = fields.find((entry) => entry.id === key);
+  return field?.type === "number";
+}
 
 /**
  * The second answer a date field can produce.
@@ -313,6 +429,21 @@ function asList(value: string | string[] | undefined): string[] {
 }
 
 /**
+ * Text as a number, or nothing.
+ *
+ * `Number("")` is 0, and every numeric comparison in this file used to read a
+ * blank bound as a bound of zero: "at least" with nothing typed in it was true
+ * of every positive answer, and a range with no lower end started at zero. A
+ * blank is not a number, and this is the one place that says so.
+ */
+function numberOf(value: string | undefined): number | null {
+  if (value === undefined || value.trim() === "") return null;
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+/**
  * Whether a condition holds, against the answers decided SO FAR.
  *
  * "So far" is the whole design: a question hidden by an earlier condition
@@ -343,12 +474,23 @@ export function conditionPasses(condition: Condition, answers: Submission): bool
 
     case "atLeast":
     case "atMost": {
-      const got = Number(given[0]);
-      const bar = Number(wanted[0]);
+      const got = numberOf(given[0]);
+      const bar = numberOf(wanted[0]);
       // Neither side being a number is not "false is fine" — it is a comparison
       // that cannot be made, and the safe reading of that is not to ask.
-      if (!Number.isFinite(got) || !Number.isFinite(bar)) return false;
+      if (got === null || bar === null) return false;
       return condition.op === "atLeast" ? got >= bar : got <= bar;
+    }
+
+    case "between": {
+      // Both ends inclusive, like every other bound in this file — and like an
+      // option band, which is the same idea applied to what is OFFERED. A range
+      // missing an end is not half a range: it is one nothing falls into.
+      const got = numberOf(given[0]);
+      const low = numberOf(wanted[0]);
+      const high = numberOf(wanted[1]);
+      if (got === null || low === null || high === null) return false;
+      return got >= low && got <= high;
     }
 
     default:
@@ -380,13 +522,38 @@ export function isOtherAnswer(field: FormField, value: string): boolean {
  * answer naming an option that does not exist.
  */
 export function offeredOptions(field: FormField, answers: Submission): string[] {
-  if (!isChoice(field.type) || !field.optionsWhen.key) return field.options;
+  const filter = field.optionsWhen;
+  if (!isChoice(field.type) || !filter.key) return field.options;
 
-  const chosen = asList(answers[field.optionsWhen.key]);
-  const grouped = new Set(Object.values(field.optionsWhen.groups).flat());
-  const allowed = new Set(chosen.flatMap((answer) => field.optionsWhen.groups[answer] ?? []));
+  const chosen = asList(answers[filter.key]);
 
-  return field.options.filter((option) => !grouped.has(option) || allowed.has(option));
+  /*
+   * The numeric half.
+   *
+   * An answer that is not a number matches no band — the same reading
+   * `conditionPasses` gives a comparison it cannot make. Blank is the ordinary
+   * way to be here: nobody has said how old they are yet, so nothing a band
+   * unlocks is on offer, and the form says "answer that one first".
+   */
+  const given = Number(chosen[0]);
+  const isNumber = chosen.length > 0 && chosen[0] !== "" && Number.isFinite(given);
+  const bands = filter.bands.filter(bandIsSet);
+
+  // Spoken for by a group or a band. Everything else is offered to everybody,
+  // which is what carries the "Other" that belongs to every branch.
+  const claimed = new Set([
+    ...Object.values(filter.groups).flat(),
+    ...bands.flatMap((band) => band.options),
+  ]);
+
+  const allowed = new Set([
+    ...chosen.flatMap((answer) => filter.groups[answer] ?? []),
+    ...(isNumber
+      ? bands.filter((band) => bandCovers(band, given)).flatMap((band) => band.options)
+      : []),
+  ]);
+
+  return field.options.filter((option) => !claimed.has(option) || allowed.has(option));
 }
 
 /* ────────────────────────── Rules about an answer ────────────────────── */
@@ -1099,7 +1266,7 @@ export function blankField(id: string): FormField {
     id,
     options: [],
     when: { ...ALWAYS, values: [] },
-    optionsWhen: { key: "", groups: {} },
+    optionsWhen: { key: "", groups: {}, bands: [] },
     rule: { ...NO_RULE },
   };
 }
@@ -1407,6 +1574,21 @@ function keepRulesHonest(fields: FormField[], notes?: string[]): void {
       if (!parent) {
         field.when = { ...ALWAYS };
         say(`“${name}” is asked of everybody now — it depended on an answer that is not above it.`);
+      } else if (!derived && isChoice(parent.type) && opIsNumeric(field.when.op)) {
+        /*
+         * A numeric comparison against a set of words.
+         *
+         * Changing the parent from a number question to a dropdown is how this
+         * happens, and it cannot be corrected by trimming the values: they are
+         * numbers, and every one of them would be dropped as "an option that is
+         * not offered" — which is what used to happen, under a note that read as
+         * though somebody had renamed an option. Said plainly instead.
+         */
+        field.when = { ...ALWAYS };
+        say(
+          `“${name}” is asked of everybody now — it compared numbers against ` +
+            `“${parent.label || "the question above"}”, which answers with words.`
+        );
       } else if (!derived && isChoice(parent.type) && opTakesValue(field.when.op)) {
         // The comparison is against option text, so the option has to be there.
         const kept = field.when.values.filter((option) => parent.options.includes(option));
@@ -1428,13 +1610,32 @@ function keepRulesHonest(fields: FormField[], notes?: string[]): void {
 
     if (field.optionsWhen.key) {
       const parent = known.get(field.optionsWhen.key);
+      /*
+       * Two kinds of parent, and the filter has a half for each: a choice
+       * question decides by its exact words, a number question or a derived age
+       * decides by bands. `keyIsNumeric` is asked of the whole list rather than
+       * of `parent` because the answer key and the question are not the same
+       * thing — `dob.age` is a number produced by a date question.
+       */
+      const numeric = keyIsNumeric(fields, field.optionsWhen.key);
 
-      if (!parent || !isChoice(parent.type)) {
+      if (!parent || (!isChoice(parent.type) && !numeric)) {
         field.optionsWhen = { ...ALL_OPTIONS };
         say(
           `“${name}” offers all of its options again — the question deciding which to show is ` +
             `${parent ? "no longer a choice question" : "not above it"}.`
         );
+      } else if (numeric) {
+        // The bands survive; groups against a number are ticks against answers
+        // that cannot be given, so their options would be hidden for ever.
+        if (Object.keys(field.optionsWhen.groups).length > 0) {
+          say(
+            `“${name}” lost its option groups — “${parent.label || "the question above"}” answers ` +
+              `with a number now, so the options are decided by the number ranges instead.`
+          );
+        }
+
+        field.optionsWhen = { ...field.optionsWhen, groups: {} };
       } else {
         // Group KEYS are the parent's answers. One left behind by a rename kept
         // its options flagged as "belongs to a group", so they were excluded
@@ -1458,7 +1659,16 @@ function keepRulesHonest(fields: FormField[], notes?: string[]): void {
           );
         }
 
-        field.optionsWhen = { ...field.optionsWhen, groups };
+        // And the mirror of the numeric case: a band against a set of words is
+        // a comparison that can never be made.
+        if (field.optionsWhen.bands.length > 0) {
+          say(
+            `“${name}” lost its number ranges — “${parent.label || "the question above"}” is a ` +
+              `choice question, so the options are decided by which answer was picked instead.`
+          );
+        }
+
+        field.optionsWhen = { ...field.optionsWhen, groups, bands: [] };
       }
     }
 
@@ -1495,9 +1705,22 @@ function condition(value: unknown): Condition {
   const key = answerKey(value.key);
   if (!key) return { ...ALWAYS };
 
+  const op = oneOf(value.op, CONDITION_OPS, "is");
+
+  /*
+   * A range is a PAIR, held by position, so it cannot go through `optionList`:
+   * that trims blanks and drops repeats, which would turn "between 12 and 12"
+   * into a range with no top and "between nothing and 16" into "at least 16" —
+   * a rule that reads as one thing and behaves as another.
+   */
+  if (opIsRange(op)) {
+    const pair = Array.isArray(value.values) ? value.values : [];
+    return { key, op, values: [numberText(pair[0]), numberText(pair[1])] };
+  }
+
   return {
     key,
-    op: oneOf(value.op, CONDITION_OPS, "is"),
+    op,
     // Through the same gate as the options they are compared against — which is
     // the whole point of `optionText` existing.
     values: optionList(value.values),
@@ -1539,20 +1762,55 @@ function fieldRule(value: unknown, type: FormFieldType): FieldRule {
   };
 }
 
+/** A bound as it may be written down: a number, or nothing at all. */
+function numberText(value: unknown): string {
+  const written = optionalText(value, 24);
+  return written && Number.isFinite(Number(written)) ? written : "";
+}
+
 function optionFilter(value: unknown, options: string[]): OptionFilter {
   if (!isRecord(value)) return { ...ALL_OPTIONS };
 
   const key = answerKey(value.key);
-  if (!key || !isRecord(value.groups)) return { ...ALL_OPTIONS };
+  if (!key) return { ...ALL_OPTIONS };
 
   const groups: Record<string, string[]> = {};
 
-  for (const [answer, listed] of Object.entries(value.groups).slice(0, MAX_FIELD_OPTIONS)) {
-    const kept = optionList(listed).filter((option) => options.includes(option));
-    if (kept.length > 0) groups[optionText(answer)] = kept;
+  if (isRecord(value.groups)) {
+    for (const [answer, listed] of Object.entries(value.groups).slice(0, MAX_FIELD_OPTIONS)) {
+      const kept = optionList(listed).filter((option) => options.includes(option));
+      if (kept.length > 0) groups[optionText(answer)] = kept;
+    }
   }
 
-  return { key, groups };
+  /*
+   * Bands, through the same gate as the groups: an option the question does not
+   * offer any more cannot be in one, and a band with no options in it, or with
+   * neither bound written, is one nobody can see and nobody can clear.
+   */
+  const bands: OptionBand[] = [];
+
+  if (Array.isArray(value.bands)) {
+    for (const entry of value.bands.slice(0, MAX_OPTION_BANDS)) {
+      if (!isRecord(entry)) continue;
+
+      const band = {
+        min: numberText(entry.min),
+        max: numberText(entry.max),
+        options: optionList(entry.options).filter((option) => options.includes(option)),
+      };
+
+      if (band.options.length > 0 && bandIsSet(band)) bands.push(band);
+    }
+  }
+
+  /*
+   * A filter with a key and nothing under it is KEPT, not cleared. It is what a
+   * half-built one looks like — the parent picked, the ticks not made yet — and
+   * throwing the key away on save would undo the one decision that had been
+   * made. It offers every option in the meantime, exactly as no filter does.
+   */
+  return { key, groups, bands };
 }
 
 export function normaliseFormInput(input: unknown, notes?: string[]): Omit<Form, "id"> {
@@ -1994,4 +2252,270 @@ export function keysBefore(fields: FormField[], index: number): AnswerColumn[] {
 export function optionsForKey(fields: FormField[], key: string): string[] {
   const field = fields.find((entry) => entry.id === key);
   return field && isChoice(field.type) ? field.options : [];
+}
+
+/* ───────────────────────────── The outline ───────────────────────────── */
+
+/**
+ * The two lists that make up the shape of a form, held together.
+ *
+ * They are edited as one because they cannot be edited apart: moving a question
+ * to another page writes `sectionId` on the QUESTION, and deleting a page
+ * rewrites every question that was on it. Every function below takes this and
+ * returns it, so the builder never holds half of a change.
+ *
+ * These live here rather than in the admin because they are the inverse of
+ * `normaliseFormFields` and have to agree with it exactly — the invariant they
+ * exist to hold is stated at the top of `FormSection` and enforced at
+ * `normaliseFormFields`. Keeping the two halves in one file is what lets
+ * `npm run check:forms` read both.
+ */
+export type Outline = { sections: FormSection[]; fields: FormField[] };
+
+/**
+ * The outline put straight: page order applied, and every `sectionId` made to
+ * say what the screen says.
+ *
+ * Run at the end of every mutation, which is what makes the array the builder
+ * holds identical to the array the server would sort it into. Before this, the
+ * builder showed the raw array order and the server sorted it on save, so
+ * moving a question to page 1 made it jump up the list some time later, in a
+ * different screen, after a round trip.
+ *
+ * Writing `sectionId` out changes no behaviour — `sectionOf` already resolves a
+ * blank or unknown one to the first page — it stops the stored document
+ * disagreeing with the outline that drew it.
+ *
+ * Returns the SAME arrays when nothing moved. That matters: the editor's dirty
+ * check compares whole documents as JSON, and a drag fires this on every
+ * pointer move, so a no-op has to be genuinely free.
+ */
+function settle(sections: FormSection[], fields: FormField[]): Outline {
+  const ordered = orderedFields(sections, fields);
+
+  let moved = ordered.length !== fields.length;
+  const next = ordered.map((field, index) => {
+    if (!moved && fields[index] !== field) moved = true;
+
+    const home = sectionOf(sections, field)?.id ?? "";
+    if (field.sectionId === home) return field;
+
+    moved = true;
+    return { ...field, sectionId: home };
+  });
+
+  return moved ? { sections, fields: next } : { sections, fields };
+}
+
+/** Which page a question is on. "" when the form has no pages at all. */
+export function homeOf(sections: FormSection[], field: FormField): string {
+  return sectionOf(sections, field)?.id ?? "";
+}
+
+/** The questions on one page, in order. "" asks for a form with no pages. */
+export function fieldsOn(outline: Outline, sectionId: string): FormField[] {
+  return orderedFields(outline.sections, outline.fields).filter(
+    (field) => homeOf(outline.sections, field) === sectionId
+  );
+}
+
+/**
+ * The answers a PAGE may point its rule at — everything asked on an earlier one.
+ *
+ * The sibling of `keysBefore`, and the same rule `normaliseSections` enforces on
+ * the way in: a page cannot turn on something nobody has been asked yet.
+ */
+export function keysBeforeSection(
+  sections: FormSection[],
+  fields: FormField[],
+  index: number
+): AnswerColumn[] {
+  const above = new Set(sections.slice(0, Math.max(0, index)).map((section) => section.id));
+
+  return answerColumns(
+    orderedFields(sections, fields).filter((field) => above.has(homeOf(sections, field)))
+  );
+}
+
+/**
+ * A new page at the end.
+ *
+ * The FIRST one adopts every question that already exists, which is what makes
+ * it a no-op on the public form: one page renders exactly as no pages do — the
+ * stepper only appears at two — so adding a page never changes what a visitor
+ * sees until there is a second one to split against.
+ *
+ * The same outline back when there are already twelve, so the cap holds whether
+ * or not the button that respects it was the caller.
+ */
+export function addSection(outline: Outline, id: string): Outline {
+  if (outline.sections.length >= MAX_SECTIONS) return outline;
+
+  const sections = [...outline.sections, blankSection(id)];
+  return settle(sections, outline.fields);
+}
+
+/** A new question at the end of one page. The same outline back at forty. */
+export function addField(outline: Outline, sectionId: string, id: string): Outline {
+  if (outline.fields.length >= MAX_FORM_FIELDS) return outline;
+
+  const field = { ...blankField(id), sectionId: outline.sections.length > 0 ? sectionId : "" };
+  return settle(outline.sections, [...outline.fields, field]);
+}
+
+/**
+ * Removes a page and KEEPS its questions: they join the page above, or the page
+ * that becomes first when the first one goes. Removing the last page puts the
+ * form back on one screen.
+ *
+ * In every case the flat order is exactly what it was — which is the strongest
+ * guarantee available here: deleting a page cannot reorder anything, so it
+ * cannot break a single question's rule.
+ */
+export function removeSection(outline: Outline, sectionId: string): Outline {
+  const at = outline.sections.findIndex((section) => section.id === sectionId);
+  if (at < 0) return outline;
+
+  const sections = outline.sections.filter((section) => section.id !== sectionId);
+  // The page above, or the one that has just become the first. Empty when that
+  // was the last page, which blanks every sectionId below.
+  const heir = sections[Math.max(0, at - 1)]?.id ?? "";
+
+  const fields = outline.fields.map((field) =>
+    homeOf(outline.sections, field) === sectionId ? { ...field, sectionId: heir } : field
+  );
+
+  return settle(sections, fields);
+}
+
+export function removeField(outline: Outline, fieldId: string): Outline {
+  const fields = outline.fields.filter((field) => field.id !== fieldId);
+  if (fields.length === outline.fields.length) return outline;
+
+  return settle(outline.sections, fields);
+}
+
+/** Moves a page, carrying its questions with it. */
+export function moveSection(outline: Outline, sectionId: string, to: number): Outline {
+  const from = outline.sections.findIndex((section) => section.id === sectionId);
+  const at = Math.max(0, Math.min(outline.sections.length - 1, to));
+  if (from < 0 || from === at) return outline;
+
+  const sections = [...outline.sections];
+  const [moved] = sections.splice(from, 1);
+  sections.splice(at, 0, moved);
+
+  return settle(sections, outline.fields);
+}
+
+/**
+ * Drops a question at slot `at` on `sectionId`.
+ *
+ * `at` counts that page's own questions, so `fieldsOn(...).length` appends. This
+ * is the ONE place a move writes `sectionId`, which is what the deleted "on
+ * which page" dropdown used to do by hand — every drag, every arrow key and
+ * every move control comes through here.
+ */
+export function placeField(
+  outline: Outline,
+  fieldId: string,
+  sectionId: string,
+  at: number
+): Outline {
+  const flat = orderedFields(outline.sections, outline.fields);
+  const field = flat.find((entry) => entry.id === fieldId);
+  if (!field) return outline;
+
+  const home = outline.sections.some((section) => section.id === sectionId)
+    ? sectionId
+    : (outline.sections[0]?.id ?? "");
+
+  // Already exactly there: nothing to write, and nothing to make dirty.
+  const mates = flat.filter((entry) => homeOf(outline.sections, entry) === home);
+  const now = mates.findIndex((entry) => entry.id === fieldId);
+  const wanted = Math.max(0, Math.min(mates.length - (now >= 0 ? 1 : 0), at));
+  if (now === wanted && homeOf(outline.sections, field) === home) return outline;
+
+  const rest = flat.filter((entry) => entry.id !== fieldId);
+  const moved = { ...field, sectionId: home };
+
+  /*
+   * Where to splice it into the FLAT list.
+   *
+   * After the question that will sit above it on this page; failing that, at
+   * the head of the page's own block; failing that — an empty page — anywhere,
+   * because `settle`'s stable sort pulls it into its section's block regardless.
+   * The flat index only has to be right relative to its page-mates.
+   */
+  const siblings = rest.filter((entry) => homeOf(outline.sections, entry) === home);
+  const above = siblings[wanted - 1];
+  const below = siblings[wanted];
+
+  const cut = above
+    ? rest.indexOf(above) + 1
+    : below
+      ? rest.indexOf(below)
+      : rest.length;
+
+  return settle(outline.sections, [...rest.slice(0, cut), moved, ...rest.slice(cut)]);
+}
+
+/**
+ * Moves a question one place, reading the whole form as the single list the
+ * outline draws: past the last question on a page is the TOP of the next one.
+ *
+ * Each page offers one more slot than it has questions, so an empty page is a
+ * stop on the way rather than something to jump over — otherwise a page you had
+ * just made could not be reached by the keyboard at all.
+ */
+export function nudgeField(outline: Outline, fieldId: string, delta: 1 | -1): Outline {
+  const { sections } = outline;
+  const pages = sections.length > 0 ? sections.map((section) => section.id) : [""];
+
+  const field = outline.fields.find((entry) => entry.id === fieldId);
+  if (!field) return outline;
+
+  const home = homeOf(sections, field);
+  const on = fieldsOn(outline, home);
+  const at = on.findIndex((entry) => entry.id === fieldId);
+  const page = pages.indexOf(home);
+
+  if (delta < 0) {
+    if (at > 0) return placeField(outline, fieldId, home, at - 1);
+    if (page <= 0) return outline;
+
+    const above = pages[page - 1];
+    return placeField(outline, fieldId, above, fieldsOn(outline, above).length);
+  }
+
+  if (at < on.length - 1) return placeField(outline, fieldId, home, at + 1);
+  if (page >= pages.length - 1) return outline;
+
+  return placeField(outline, fieldId, pages[page + 1], 0);
+}
+
+export function patchSection(
+  outline: Outline,
+  sectionId: string,
+  patch: Partial<FormSection>
+): Outline {
+  return {
+    sections: outline.sections.map((section) =>
+      section.id === sectionId ? { ...section, ...patch } : section
+    ),
+    fields: outline.fields,
+  };
+}
+
+export function patchField(
+  outline: Outline,
+  fieldId: string,
+  patch: Partial<FormField>
+): Outline {
+  return {
+    sections: outline.sections,
+    fields: outline.fields.map((field) =>
+      field.id === fieldId ? { ...field, ...patch } : field
+    ),
+  };
 }

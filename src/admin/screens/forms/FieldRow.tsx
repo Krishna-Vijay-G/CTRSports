@@ -12,12 +12,11 @@ import {
   MAX_UPLOAD_MB,
   isChoice,
   isMultiChoice,
+  keyIsNumeric,
   keysBefore,
   optionList,
   optionsForKey,
-  sectionOf,
   type FormField,
-  type FormSection,
 } from "@/lib/forms";
 import { Input, Label, Select } from "@/admin/ui/Input";
 import { Button } from "@/admin/ui/Button";
@@ -30,10 +29,14 @@ import { ConditionEditor, OptionGroups } from "./FieldRules";
  * One question, as it is edited.
  *
  * The options are a textarea, one per line, rather than a list with its own add
- * and remove buttons. This whole row already lives inside a Repeater's dialog,
- * and a repeater inside a repeater is a window inside a window — five options
+ * and remove buttons. This whole row already lives inside the outline's dialog,
+ * and a list inside a window inside a list is one level too many — five options
  * typed on five lines is faster than five rows of chrome, and pasting a
  * category list from somewhere else works in one go.
+ *
+ * Which page the question is on is not asked here any more. It is where the
+ * question sits in the outline: the list is the answer, and it is the only
+ * answer, so there is nothing here that can disagree with it.
  *
  * The type is a plain select rather than a row of icons: nine types with names
  * like "Pick several" are read, not recognised, so a picker of glyphs would be
@@ -47,15 +50,16 @@ export function FieldRow({
   field,
   index,
   fields,
-  sections,
   patch,
 }: {
   field: FormField;
   index: number;
-  /** Every question on the form, in order. Read for the rule pickers only. */
+  /**
+   * Every question on the form, in the order they are put — which the outline
+   * guarantees is page order. Read for the rule pickers only: `keysBefore`
+   * offers what is above this one and nothing else.
+   */
   fields: FormField[];
-  /** The pages, if this form has any. */
-  sections: FormSection[];
   patch: (patch: Partial<FormField>) => void;
 }) {
   const earlier = keysBefore(fields, index);
@@ -67,11 +71,23 @@ export function FieldRow({
     0
   );
 
-  // Only the choice questions can sort another question's options into groups.
+  /*
+   * The earlier answers that can decide another question's options: a choice
+   * question, which sorts them into groups by its exact words, or one that
+   * answers with a NUMBER — a number question, or the age worked out from a
+   * date — which sorts them into ranges.
+   *
+   * The derived age used to be filtered out of this list altogether. It is the
+   * most useful one there is: a class list that depends on how old somebody is
+   * had to be built as a question asking them to pick their own age bracket.
+   */
   const branchable = earlier
-    .filter((key) => !key.derived)
-    .map((key) => ({ ...key, options: optionsForKey(fields, key.key) }))
-    .filter((key) => key.options.length > 0);
+    .map((key) => ({
+      ...key,
+      options: optionsForKey(fields, key.key),
+      numeric: keyIsNumeric(fields, key.key),
+    }))
+    .filter((key) => key.options.length > 0 || key.numeric);
 
   return (
     <>
@@ -92,27 +108,6 @@ export function FieldRow({
           <Hint className="mt-1">{FIELD_TYPE_HINTS[field.type]}</Hint>
         ) : null}
       </div>
-
-      {sections.length > 0 ? (
-        <div className="block">
-          <Label>On which page</Label>
-          <Select
-            value={sectionOf(sections, field)?.id ?? ""}
-            onChange={(event) => patch({ sectionId: event.target.value })}
-            className="mt-1.5 w-full"
-          >
-            {sections.map((section, order) => (
-              <option key={section.id} value={section.id}>
-                {order + 1}. {section.title || `Page ${order + 1}`}
-              </option>
-            ))}
-          </Select>
-          <Hint className="mt-1">
-            Questions are put in page order, so moving this to an earlier page moves it up the
-            list — and a rule that then points at an answer below it is dropped on save.
-          </Hint>
-        </div>
-      ) : null}
 
       <Field
         label="Question"
@@ -310,8 +305,8 @@ export function FieldRow({
           <Hint className="mt-1">
             Adds a second column beside the date, filled in when the form is sent. It is stored, not
             recalculated later — somebody who was 17 the day they entered stays 17 in the export
-            after their birthday. Later questions can be asked only of an age over or under a
-            number.
+            after their birthday. Later questions can then be asked only of an age over, under or
+            between numbers — and a later dropdown can offer different options to each age range.
           </Hint>
         </div>
       ) : null}

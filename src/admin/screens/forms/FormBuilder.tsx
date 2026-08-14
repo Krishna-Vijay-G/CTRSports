@@ -4,42 +4,18 @@ import {
   FIELD_TYPE_LABELS,
   FORM_LIMITS,
   FORM_STATUSES,
-  MAX_FORM_FIELDS,
-  MAX_SECTIONS,
   STATUS_LABELS,
-  blankField,
-  blankSection,
   formState,
-  keysBefore,
-  sectionOf,
   isUsableSlug,
   slugify,
   type Form,
-  type FormField,
-  type FormSection,
 } from "@/lib/forms";
 import { FORM_PAGE_KEYS, PAGE_LABELS } from "@/lib/roles";
 import { Button } from "@/admin/ui/Button";
 import { Input, Label, Select } from "@/admin/ui/Input";
 import { TrashIcon } from "@/admin/ui/icons";
 import { Field, Hint, Note, Panel, Row, TextArea } from "@/admin/components/Fields";
-import { Repeater } from "@/admin/components/Repeater";
-import { ConditionEditor } from "./FieldRules";
-import { FieldRow } from "./FieldRow";
-
-/**
- * An id for a new question.
- *
- * `crypto.randomUUID` exists only in a secure context, and this project's own
- * dev setup serves the admin over plain HTTP on a LAN address — so "Add
- * question" threw an uncaught TypeError for anyone reviewing the site from
- * another machine. It only has to be unique within one form, and the normaliser
- * de-duplicates whatever arrives anyway.
- */
-function fieldId(): string {
-  const random = globalThis.crypto?.randomUUID?.() ?? `${Math.random()}${Date.now()}`;
-  return random.replace(/[^a-z0-9]/gi, "").slice(0, 8) || `f${Date.now() % 100000}`;
-}
+import { FormOutline } from "./FormOutline";
 
 /**
  * An instant, as `<input type="datetime-local">` wants it.
@@ -93,12 +69,15 @@ export function FormBuilder({
   form,
   onChange,
   onDelete,
+  onFocusPage,
   readOnly,
   busy,
 }: {
   form: Form;
   onChange: (next: Form) => void;
   onDelete: () => void;
+  /** Handed to the outline: which page the preview beside this should show. */
+  onFocusPage?: (sectionId: string) => void;
   /** A page editor may look, so they can point a button at it. Nothing more. */
   readOnly: boolean;
   busy: boolean;
@@ -322,97 +301,21 @@ export function FormBuilder({
         </div>
       </Panel>
 
-      <Repeater<FormSection>
-        title="Pages"
-        addLabel="Add page"
-        items={form.sections}
-        max={MAX_SECTIONS}
-        onChange={(sections) => set({ sections })}
-        keyOf={(section) => section.id}
-        blank={() => blankSection(fieldId())}
-        summary={(section, index) => ({
-          title: section.title || `Page ${index + 1}`,
-          hint: [
-            `${form.fields.filter((field) => sectionOf(form.sections, field)?.id === section.id).length} question(s)`,
-            section.when.key ? "only sometimes" : null,
-          ]
-            .filter(Boolean)
-            .join(" · "),
-        })}
-        empty="No pages — every question is on one screen, which is right for a short form."
-        note="Break a long form up and it gets finished; a three-question form does not need it. Questions are put in page order, and a page can be skipped entirely by an earlier answer."
-      >
-        {(section, index, patch) => (
-          <>
-            <Field
-              label="Title"
-              value={section.title}
-              onChange={(title) => patch({ title })}
-              maxLength={FORM_LIMITS.field_label}
-              placeholder={`Page ${index + 1}`}
-              hint="Shown above the questions, with the progress bar."
-            />
-            <Field
-              label="Blurb"
-              value={section.blurb}
-              onChange={(blurb) => patch({ blurb })}
-              maxLength={FORM_LIMITS.field_help}
-              hint="A line under the title. Blank prints nothing."
-            />
-
-            <ConditionEditor
-              value={section.when}
-              onChange={(when) => patch({ when })}
-              keys={keysBefore(
-                form.fields.filter((field) => {
-                  const home = sectionOf(form.sections, field);
-                  const order = form.sections.findIndex((s) => s.id === home?.id);
-                  return order >= 0 && order < index;
-                }),
-                Number.MAX_SAFE_INTEGER
-              )}
-              fields={form.fields}
-            />
-          </>
-        )}
-      </Repeater>
-
-      <Repeater<FormField>
-        title="Questions"
-        addLabel="Add question"
-        items={form.fields}
-        max={MAX_FORM_FIELDS}
-        onChange={(fields) => set({ fields })}
-        keyOf={(field) => field.id}
-        blank={() => blankField(fieldId())}
-        summary={(field, index) => ({
-          title: field.label || `Question ${index + 1}`,
-          // "Only sometimes" earns its place in the collapsed row: a question
-          // that is not always asked is the one thing about this list you cannot
-          // work out by reading it.
-          hint: [
-            FIELD_TYPE_LABELS[field.type],
-            field.required ? "required" : null,
-            field.when.key ? "only sometimes" : null,
-            field.optionsWhen.key ? "options depend" : null,
-            field.age ? "+ age" : null,
-          ]
-            .filter(Boolean)
-            .join(" · "),
-        })}
-        empty="No questions — the page shows the introduction and nothing to fill in."
-        note="Drag to reorder. A question can only depend on one ABOVE it, so moving one above what it depends on clears its rule rather than leaving it broken. Deleting one does not delete the answers already given to it: they stay on the entries and come out in the export under “No longer asked”."
-      >
-        {(field, index, patch) => (
-          <FieldRow
-            field={field}
-            index={index}
-            fields={form.fields}
-            sections={form.sections}
-            patch={patch}
-          />
-        )}
-      </Repeater>
+      {/*
+        The pages, with their questions nested under them. One component, because
+        the two lists cannot be edited apart: moving a question to another page
+        writes on the QUESTION, and deleting a page rewrites every question that
+        was on it. See FormOutline for why it is not two `Repeater`s.
+      */}
+      {/* Keyed by the form: opening a page or a question is a statement about
+          THIS form, and switching to another one must not carry it over. */}
+      <FormOutline
+        key={form.id}
+        sections={form.sections}
+        fields={form.fields}
+        onChange={set}
+        onFocusPage={onFocusPage}
+      />
 
       <Panel title="Notifications">
         <div className="space-y-3">

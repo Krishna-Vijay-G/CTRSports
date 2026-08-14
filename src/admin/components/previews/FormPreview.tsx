@@ -24,7 +24,20 @@ import { RegisterForm } from "@/app/(site)/register/_components/RegisterForm";
 /** The viewport width the preview pretends to be, as in the other previews. */
 const PREVIEW_WIDTH = 1440;
 
-export function FormPreview({ form, className }: { form: Form; className?: string }) {
+export function FormPreview({
+  form,
+  showPage = "",
+  className,
+}: {
+  form: Form;
+  /**
+   * The page open in the builder's outline, so the preview shows the page being
+   * edited rather than always the first one. Passed straight through — see the
+   * note on `RegisterForm`'s own prop for why it nudges rather than controls.
+   */
+  showPage?: string;
+  className?: string;
+}) {
   const paneRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.5);
 
@@ -79,7 +92,7 @@ export function FormPreview({ form, className }: { form: Form; className?: strin
                       </p>
                     </div>
                   ) : (
-                    <RegisterForm form={form} preview />
+                    <RegisterForm form={form} preview showPage={showPage} />
                   )}
                 </div>
               </div>

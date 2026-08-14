@@ -6,13 +6,19 @@ import {
   CONDITION_OPS,
   CONDITION_OP_LABELS,
   MAX_FIELD_OPTIONS,
+  MAX_OPTION_BANDS,
+  bandIsSet,
+  bandLabel,
   isChoice,
+  keyIsNumeric,
   opIsNumeric,
+  opIsRange,
   opTakesValue,
   optionsForKey,
   type AnswerColumn,
   type Condition,
   type FormField,
+  type OptionBand,
   type OptionFilter,
 } from "@/lib/forms";
 import { cn } from "@/lib/utils";
@@ -75,9 +81,23 @@ export function ConditionEditor({
 
   const target = keys.find((key) => key.key === value.key);
   const options = value.key ? optionsForKey(fields, value.key) : [];
+  const numeric = opIsNumeric(value.op);
+  const range = opIsRange(value.op);
 
-  // Values the rule still names that the parent has stopped offering.
-  const missing = value.values.filter((option) => !options.includes(option));
+  // Values the rule still names that the parent has stopped offering. A numeric
+  // comparison holds numbers, which are not meant to be on that list at all.
+  const missing = numeric ? [] : value.values.filter((option) => !options.includes(option));
+
+  /** Half of a range, written by position: [low, high]. */
+  const setEnd = (at: 0 | 1, entry: string) => {
+    const pair = [value.values[0] ?? "", value.values[1] ?? ""];
+    pair[at] = entry;
+    onChange({ ...value, values: pair });
+  };
+
+  const unset = range
+    ? !value.values[0] || !value.values[1]
+    : value.values.filter((entry) => entry !== "").length === 0;
 
   return (
     <div className="block space-y-2 rounded-md border border-border bg-background/60 p-3">
@@ -121,7 +141,30 @@ export function ConditionEditor({
           </Select>
 
           {opTakesValue(value.op) ? (
-            options.length > 0 ? (
+            range ? (
+              /* Two boxes, held by position, because a range is a pair and not
+                 a list — see `condition` in forms.ts. Both ends count. */
+              <div className="flex flex-wrap items-center gap-2">
+                <Input
+                  type="number"
+                  value={value.values[0] ?? ""}
+                  onChange={(event) => setEnd(0, event.target.value)}
+                  placeholder="12"
+                  aria-label="The lowest number"
+                  className="h-8 w-24 text-xs"
+                />
+                <span className="text-xs text-muted-fg">and</span>
+                <Input
+                  type="number"
+                  value={value.values[1] ?? ""}
+                  onChange={(event) => setEnd(1, event.target.value)}
+                  placeholder="16"
+                  aria-label="The highest number"
+                  className="h-8 w-24 text-xs"
+                />
+                <span className="text-xs text-muted-fg">— both ends count</span>
+              </div>
+            ) : options.length > 0 && !numeric ? (
               value.op === "any" ? (
                 <Chips
                   all={options}
@@ -151,10 +194,10 @@ export function ConditionEditor({
               )
             ) : (
               <Input
-                type={opIsNumeric(value.op) ? "number" : "text"}
+                type={numeric ? "number" : "text"}
                 value={value.values[0] ?? ""}
                 onChange={(event) => onChange({ ...value, values: [event.target.value] })}
-                placeholder={opIsNumeric(value.op) ? "18" : "The answer to match"}
+                placeholder={numeric ? "18" : "The answer to match"}
                 aria-label="The value to compare against"
               />
             )
@@ -166,9 +209,31 @@ export function ConditionEditor({
               : "Hidden questions are not asked and not stored — and anything depending on THEM disappears too, so a branch is never half-asked."}
           </Hint>
 
-          {opTakesValue(value.op) && value.values.length === 0 ? (
+          {opTakesValue(value.op) && unset ? (
             <Note className="text-destructive">
-              Nothing to compare against yet, so this question will never be asked.
+              {range
+                ? "A range needs both ends, so this question will never be asked until it has them."
+                : "Nothing to compare against yet, so this question will never be asked."}
+            </Note>
+          ) : null}
+
+          {/*
+            A number compared against something that does not answer with one.
+            The comparison simply fails, every time, and the question quietly
+            never appears — so it is said here rather than found later.
+          */}
+          {numeric && !keyIsNumeric(fields, value.key) ? (
+            <Note className="text-destructive">
+              “{target?.label || "The question above"}” does not answer with a number, so this
+              comparison can never be true. Compare against a number question, or the age worked out
+              from a date.
+            </Note>
+          ) : null}
+
+          {range && value.values[0] && value.values[1] &&
+          Number(value.values[0]) > Number(value.values[1]) ? (
+            <Note className="text-destructive">
+              The lowest number is above the highest, so nothing can fall between them.
             </Note>
           ) : null}
 
@@ -180,7 +245,7 @@ export function ConditionEditor({
             still compares against the old text, and the question silently never
             appears.
           */}
-          {opTakesValue(value.op) && options.length > 0 && missing.length > 0 ? (
+          {opTakesValue(value.op) && !numeric && options.length > 0 && missing.length > 0 ? (
             <Note className="text-destructive">
               This compares against {missing.map((option) => `“${option}”`).join(", ")}, which
               “{target?.label || "the question above"}” no longer offers — so the question never
@@ -195,14 +260,32 @@ export function ConditionEditor({
 
 /* ────────────────────── Which options to offer ───────────────────────── */
 
+/** An earlier answer these options can be decided by. */
+export type BranchKey = {
+  key: string;
+  label: string;
+  /** The parent's own options. Empty for a numeric one. */
+  options: string[];
+  /** True for a number question or a derived age: decided by ranges, not words. */
+  numeric: boolean;
+};
+
 /**
  * The cascading pair: a question asked of everyone, whose options depend on an
  * earlier answer.
  *
- * Grouped the way somebody thinks about it — "for Karting, offer these" —
- * rather than one rule per option, because that is how the list is written in
- * the first place. An option in no group at all is offered whatever they said,
- * which is what carries the "Other" that belongs to every branch.
+ * Two shapes, because there are two kinds of earlier answer and they are not
+ * written down the same way:
+ *
+ *   a CHOICE parent   grouped the way somebody thinks about it — "for Karting,
+ *                     offer these" — rather than one rule per option, because
+ *                     that is how the list is written in the first place.
+ *   a NUMBER parent   ranges — "18 and above, offer these" — because there is no
+ *                     list of ages to tick against. An age worked out from a
+ *                     date is the usual one, and a number question the other.
+ *
+ * In both, an option that is in no group and no range at all is offered whatever
+ * they said, which is what carries the "Other" that belongs to every branch.
  */
 export function OptionGroups({
   field,
@@ -211,12 +294,20 @@ export function OptionGroups({
 }: {
   field: FormField;
   onChange: (next: OptionFilter) => void;
-  /** Only the earlier answers worth branching on: the choice questions. */
-  keys: { key: string; label: string; options: string[] }[];
+  /** Only the earlier answers worth branching on. See `BranchKey`. */
+  keys: BranchKey[];
 }) {
   const filter = field.optionsWhen;
   const parent = keys.find((key) => key.key === filter.key);
-  const grouped = new Set(Object.values(filter.groups).flat());
+
+  // Spoken for by a group or by a range — the rest are always offered. Ranges
+  // with no numbers in them are ignored here exactly as `offeredOptions`
+  // ignores them, so this line and the live form cannot disagree.
+  const claimed = new Set([
+    ...Object.values(filter.groups).flat(),
+    ...filter.bands.filter(bandIsSet).flatMap((band) => band.options),
+  ]);
+  const always = field.options.filter((option) => !claimed.has(option));
 
   /*
    * A filter whose parent has disappeared from the picker.
@@ -230,8 +321,8 @@ export function OptionGroups({
   if (!isChoice(field.type) || keys.length === 0) {
     return filter.key ? (
       <Note className="text-destructive">
-        This question’s options were being filtered by an earlier answer, and that question is no
-        longer a choice question. Saving will put every option back on offer.
+        This question’s options were being filtered by an earlier answer, and that answer can no
+        longer decide them. Saving will put every option back on offer.
       </Note>
     ) : null;
   }
@@ -241,8 +332,8 @@ export function OptionGroups({
       <div className="block space-y-2 rounded-md border border-border bg-background/60 p-3">
         <Label>Which options to offer</Label>
         <Note className="text-destructive">
-          The question this depended on is no longer a choice question, so nothing can unlock these
-          options. Saving will put every option back on offer.
+          The question this depended on can no longer decide these options — it is neither a choice
+          question nor a number any more. Saving will put every option back on offer.
         </Note>
         <Button variant="outline" size="sm" onClick={() => onChange({ ...ALL_OPTIONS })}>
           Offer all of them now
@@ -264,16 +355,29 @@ export function OptionGroups({
     onChange({ ...filter, groups });
   }
 
+  /** One range edited in place. Everything about bands goes through here. */
+  function setBand(at: number, patch: Partial<OptionBand>) {
+    onChange({
+      ...filter,
+      bands: filter.bands.map((band, index) => (index === at ? { ...band, ...patch } : band)),
+    });
+  }
+
   return (
     <div className="block space-y-2 rounded-md border border-border bg-background/60 p-3">
       <div>
         <Label>Which options to offer</Label>
         <Select
           value={filter.key}
-          // The groups go with the question they were grouped under. Keeping
-          // them would leave ticks against answers that no longer exist.
+          // The groups and ranges go with the question they were written
+          // against. Keeping them would leave ticks against answers that no
+          // longer exist, or ranges against something that is not a number.
           onChange={(event) =>
-            onChange(event.target.value ? { key: event.target.value, groups: {} } : { ...ALL_OPTIONS })
+            onChange(
+              event.target.value
+                ? { key: event.target.value, groups: {}, bands: [] }
+                : { ...ALL_OPTIONS }
+            )
           }
           className="mt-1.5 w-full"
         >
@@ -281,6 +385,7 @@ export function OptionGroups({
           {keys.map((key) => (
             <option key={key.key} value={key.key}>
               Depends on: {key.label}
+              {key.numeric ? " (a number)" : ""}
             </option>
           ))}
         </Select>
@@ -289,6 +394,115 @@ export function OptionGroups({
       {parent ? (
         field.options.length === 0 ? (
           <Note>Add some options above first — there is nothing to sort into groups yet.</Note>
+        ) : parent.numeric ? (
+          <>
+            {filter.bands.map((band, at) => (
+              <div key={at} className="mt-2 rounded-md border border-border p-2.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[11px] font-medium uppercase tracking-wide text-muted-fg">
+                    From
+                  </span>
+                  <Input
+                    type="number"
+                    value={band.min}
+                    onChange={(event) => setBand(at, { min: event.target.value })}
+                    placeholder="any"
+                    aria-label={`Range ${at + 1}: the lowest number`}
+                    className="h-8 w-20 text-xs"
+                  />
+                  <span className="text-[11px] font-medium uppercase tracking-wide text-muted-fg">
+                    to
+                  </span>
+                  <Input
+                    type="number"
+                    value={band.max}
+                    onChange={(event) => setBand(at, { max: event.target.value })}
+                    placeholder="any"
+                    aria-label={`Range ${at + 1}: the highest number`}
+                    className="h-8 w-20 text-xs"
+                  />
+
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    className="ml-auto"
+                    onClick={() =>
+                      onChange({
+                        ...filter,
+                        bands: filter.bands.filter((_, index) => index !== at),
+                      })
+                    }
+                  >
+                    Remove
+                  </Button>
+                </div>
+
+                <p className="mb-1.5 mt-2 text-[11px] font-medium uppercase tracking-wide text-muted-fg">
+                  If it is {bandLabel(band)}, offer
+                </p>
+                <Chips
+                  all={field.options}
+                  picked={band.options}
+                  onToggle={(option) =>
+                    setBand(at, {
+                      options: band.options.includes(option)
+                        ? band.options.filter((entry) => entry !== option)
+                        : [...band.options, option],
+                    })
+                  }
+                />
+
+                {!bandIsSet(band) ? (
+                  <Note className="mt-2 text-destructive">
+                    No numbers in this range yet, so it offers nothing and is dropped when the form
+                    is saved. Fill in the lowest, the highest, or both — a blank end means no end.
+                  </Note>
+                ) : band.min !== "" && band.max !== "" && Number(band.min) > Number(band.max) ? (
+                  <Note className="mt-2 text-destructive">
+                    The lowest is above the highest, so no answer can fall in it.
+                  </Note>
+                ) : band.options.length === 0 ? (
+                  <Note className="mt-2">
+                    Nothing ticked, so this range is dropped when the form is saved.
+                  </Note>
+                ) : null}
+              </div>
+            ))}
+
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={filter.bands.length >= MAX_OPTION_BANDS}
+              title={
+                filter.bands.length >= MAX_OPTION_BANDS
+                  ? `${MAX_OPTION_BANDS} ranges is the limit.`
+                  : undefined
+              }
+              onClick={() =>
+                onChange({ ...filter, bands: [...filter.bands, { min: "", max: "", options: [] }] })
+              }
+            >
+              Add a range
+            </Button>
+
+            <Note>
+              {always.length > 0
+                ? `Unticked everywhere, so always offered: ${always.join(", ")}.`
+                : "Every option belongs to a range, so this question offers nothing at all until they have answered the one above."}
+            </Note>
+
+            <Note>
+              Both ends count: 12 to 16 includes 12 and 16, so “under 18” is a highest of 17 and the
+              next range starts at 18. A blank end is no end at all — leave the highest empty for
+              “18 and above”. Ranges may overlap; anything they both offer is offered once.
+            </Note>
+
+            <Note>
+              An answer that is not a number — nothing filled in yet, most often — matches no range,
+              so only the always-offered options show until it is. Enforced on the server too: an
+              option that was not on offer is not an answer.
+            </Note>
+          </>
         ) : parent.options.length === 0 ? (
           <Note className="text-destructive">
             {parent.label} has no options of its own, so there is nothing to depend on.
@@ -309,10 +523,8 @@ export function OptionGroups({
             ))}
 
             <Note>
-              {field.options.filter((option) => !grouped.has(option)).length > 0
-                ? `Unticked everywhere, so always offered: ${field.options
-                    .filter((option) => !grouped.has(option))
-                    .join(", ")}.`
+              {always.length > 0
+                ? `Unticked everywhere, so always offered: ${always.join(", ")}.`
                 : "Every option belongs to a group, so this question offers nothing at all until they have answered the one above."}
             </Note>
 

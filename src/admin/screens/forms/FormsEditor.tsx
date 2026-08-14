@@ -51,6 +51,16 @@ export function FormsEditor({
   const [notes, setNotes] = useState<string[]>([]);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
+  /**
+   * The page open in the builder's outline, so the preview shows the page being
+   * worked on rather than always the first one.
+   *
+   * Held here because it is the one thing the two panes have to agree about,
+   * and neither of them is inside the other. The same shape the landing editor
+   * uses to point its preview at the banner being edited.
+   */
+  const [focusPage, setFocusPage] = useState("");
+
   const active = forms.find((form) => form.id === activeId) ?? null;
   const activeSaved = saved.find((form) => form.id === activeId) ?? null;
 
@@ -371,7 +381,11 @@ export function FormsEditor({
 
       <div className="flex min-h-0 flex-1 flex-col gap-2 lg:flex-row">
         {active ? (
-          <FormPreview form={active} className="hidden lg:block lg:min-w-0 lg:flex-1" />
+          <FormPreview
+            form={active}
+            showPage={focusPage}
+            className="hidden lg:block lg:min-w-0 lg:flex-1"
+          />
         ) : null}
 
         <div
@@ -437,6 +451,7 @@ export function FormsEditor({
                   form={active}
                   onChange={update}
                   onDelete={() => setConfirmingDelete(true)}
+                  onFocusPage={setFocusPage}
                   readOnly={!canManage}
                   busy={busy}
                 />

@@ -6,6 +6,8 @@
 
 # next.js
 /.next/
+# A build run to check a change while `next dev` holds .next — see next.config.js
+/.next-verify/
 /out/
 
 # production

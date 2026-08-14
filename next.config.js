@@ -9,6 +9,17 @@
 const nextConfig = {
   reactStrictMode: true,
 
+  /*
+   * Where the build goes, overridable.
+   *
+   * `next dev` and `next build` share `.next`, so running a build to check a
+   * change while a dev server is up leaves that server serving half a build —
+   * it fails with "Cannot find module ./1331.js" and looks like a bug in the
+   * code that was just written. `NEXT_DIST_DIR=.next-verify npm run build`
+   * builds somewhere else and leaves the running one alone.
+   */
+  distDir: process.env.NEXT_DIST_DIR || ".next",
+
   async headers() {
     return [
       {
