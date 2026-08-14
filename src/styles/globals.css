@@ -159,6 +159,41 @@
     }
   }
 
+  /*
+   * The diagonal bars a hazard board wears.
+   *
+   * Yellow with black stripes: the sign at the end of a pit lane, and the one
+   * piece of decoration on an otherwise flat form. A class rather than a
+   * utility because two places wear it — the band along the bottom of a button
+   * and the strip across the top of the panel that replaces the form when an
+   * entry lands — and they must be the same bars at the same angle, or they
+   * read as two unrelated patterns.
+   *
+   * The colour is written out. A gradient stop cannot take a colour utility,
+   * and this one is `accent-ink` — the near-black that is the only thing
+   * allowed to sit on the yellow.
+   */
+  .hazard-bars {
+    /*
+     * 6px on, 6px off, at 45°.
+     *
+     * Finer than the bars looked at first, and the reason is the width they run
+     * across: seven-pixel bars on a 140px button gave about nine of them, which
+     * reads as a chevron pattern somebody chose. At six they read as paint on a
+     * sign, which is the point — the eye should take the band as one texture and
+     * move on to the word above it.
+     *
+     * The colour is written out. A gradient stop cannot take a colour utility,
+     * and this one is `accent-ink` — the near-black that is the only thing
+     * allowed to sit on the yellow.
+     */
+    background-image: repeating-linear-gradient(
+      45deg,
+      #0a0a0a 0 6px,
+      transparent 6px 12px
+    );
+  }
+
   /* Chip laid over a photo. */
   .photo-chip {
     @apply inline-flex items-center rounded-full bg-black/70 px-3 py-1.5 text-[11px]

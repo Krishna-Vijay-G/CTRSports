@@ -113,8 +113,18 @@ export default async function RegisterPage({ params }: Params) {
             className="relative z-20 border-b border-line bg-surface"
           />
 
+          {/*
+            One centred column, not a page-wide spread.
+            A form is read and filled in top to bottom, and at 1560px a 672px
+            column pinned to the left leaves two thirds of the card empty beside
+            it — which reads as a page that failed to load the rest. Everything
+            in this section shares the same centred column, so the heading, the
+            places-left line and the form itself all line up on one axis. The
+            TEXT inside stays left-aligned: a centred paragraph is harder to read
+            because every line starts in a different place.
+          */}
           <section className="shell py-14 sm:py-20">
-            <Reveal className="max-w-2xl">
+            <Reveal className="mx-auto max-w-2xl">
               <span className="pill-label">
                 {state === "open"
                   ? "Registration"
@@ -138,7 +148,7 @@ export default async function RegisterPage({ params }: Params) {
                 looking at the last few places should know that before they
                 start filling it in, not when they press send. */}
             {state === "open" && left !== null ? (
-              <Reveal delay={0.05} className="mt-6 max-w-2xl">
+              <Reveal delay={0.05} className="mx-auto mt-6 max-w-2xl">
                 <p className="text-[13px] text-fg-muted">
                   {left === 0
                     ? "No places left."
@@ -149,7 +159,7 @@ export default async function RegisterPage({ params }: Params) {
               </Reveal>
             ) : null}
 
-            <Reveal delay={0.08} className="mt-10 max-w-2xl">
+            <Reveal delay={0.08} className="mx-auto mt-10 max-w-2xl">
               {state === "open" ? (
                 <RegisterForm form={form} nonce={nonce} issuedAt={issuedAt} />
               ) : (

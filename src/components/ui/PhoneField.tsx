@@ -69,8 +69,8 @@ export function PhoneField({
     <div>
       <div
         className={cn(
-          "flex w-full items-stretch overflow-hidden rounded-lg border border-line bg-panel transition",
-          "focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/25",
+          "flex w-full items-stretch overflow-hidden rounded-md border border-line bg-transparent transition",
+          "hover:border-fg-faint/45 focus-within:border-accent focus-within:ring-[3px] focus-within:ring-accent/25",
           invalid && "border-red-500/60",
           disabled && "cursor-not-allowed opacity-60",
           className

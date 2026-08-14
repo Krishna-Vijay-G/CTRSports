@@ -67,24 +67,40 @@ export function FormPreview({
         <PreviewMode>
           <div className="bg-page p-3">
             <div className="overflow-hidden rounded-card bg-surface">
+              {/*
+                The COLUMN is a copy; the form inside it is not.
+                `RegisterForm` is the real component, so a question always draws
+                here exactly as it draws on the site. Everything around it —
+                this centred 672px column and the heading above it — is written
+                out a second time, because the route's own page also holds the
+                entry state, the places-left line and the closed note, none of
+                which exist here.
+
+                Which means it can drift, and it did: the register route was
+                centred and this was left pinned to the left, so the preview
+                showed a layout the site no longer had. Keep this block in step
+                with the section in src/app/(site)/register/[slug]/page.tsx.
+              */}
               <div className="shell py-16">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-accent">
-                  {form.status === "draft"
-                    ? "Draft · not reachable yet"
-                    : form.status === "closed"
-                      ? "Closed · entries have shut"
-                      : `Open · /register/${form.slug || "…"}`}
-                </p>
+                <div className="mx-auto max-w-2xl">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-accent">
+                    {form.status === "draft"
+                      ? "Draft · not reachable yet"
+                      : form.status === "closed"
+                        ? "Closed · entries have shut"
+                        : `Open · /register/${form.slug || "…"}`}
+                  </p>
 
-                <h1 className="headline mt-4 text-[clamp(1.8rem,4vw,3rem)]">
-                  {form.intro_title || form.name || "Untitled form"}
-                </h1>
+                  <h1 className="headline mt-4 text-[clamp(1.8rem,4vw,3rem)]">
+                    {form.intro_title || form.name || "Untitled form"}
+                  </h1>
 
-                {form.intro_body ? (
-                  <p className="body-copy mt-4 max-w-2xl whitespace-pre-line">{form.intro_body}</p>
-                ) : null}
+                  {form.intro_body ? (
+                    <p className="body-copy mt-4 whitespace-pre-line">{form.intro_body}</p>
+                  ) : null}
+                </div>
 
-                <div className="mt-10 max-w-2xl">
+                <div className="mx-auto mt-10 max-w-2xl">
                   {form.status === "closed" ? (
                     <div className="panel-card p-8 text-center">
                       <p className="body-copy">

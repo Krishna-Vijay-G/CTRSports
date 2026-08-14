@@ -19,6 +19,7 @@ import {
 } from "@/lib/forms";
 import { cn } from "@/lib/utils";
 import { PhoneField } from "@/components/ui/PhoneField";
+import { HazardButton } from "@/components/ui/HazardButton";
 
 /**
  * The form itself: the controls, and what happens when they are sent.
@@ -66,11 +67,28 @@ import { PhoneField } from "@/components/ui/PhoneField";
  */
 const OTHER = `other-${"-".repeat(FORM_LIMITS.field_option)}`;
 
+/*
+ * One control, one border, one radius — the admin's own arrangement.
+ *
+ * The fill is TRANSPARENT rather than a colour, which is the single decision
+ * the rest of this design follows from: a field then reads as an outline drawn
+ * on the card it sits on, so a row mixing an input, a select and a button is
+ * flush and nothing has an inner surface of its own to line up. It is why
+ * src/admin/ui/Input.tsx looks the way it does, and it is the thing that was
+ * missing here — a filled box on a filled card is two surfaces where one will
+ * do, and it made every question look like a separate object.
+ *
+ * The metrics are NOT the admin's. Its controls are 36px tall, which is right
+ * under a mouse and wrong under a thumb; these are 44px and a size larger,
+ * because this one is filled in on a phone by somebody who has never seen it
+ * before. The vocabulary is borrowed, not the density.
+ */
 const CONTROL =
-  "w-full rounded-lg border border-line bg-panel px-3.5 py-2.5 text-[15px] text-fg outline-none transition " +
-  "placeholder:text-fg-faint/60 " +
-  "focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/25 " +
-  "disabled:cursor-not-allowed disabled:opacity-60";
+  "w-full min-w-0 rounded-md border border-line bg-transparent px-3.5 py-2.5 text-[15px] text-fg outline-none transition " +
+  "placeholder:text-fg-faint/50 " +
+  "hover:border-fg-faint/45 " +
+  "focus-visible:border-accent focus-visible:ring-[3px] focus-visible:ring-accent/25 " +
+  "disabled:cursor-not-allowed disabled:opacity-50";
 
 export function RegisterForm({
   form,
@@ -376,53 +394,79 @@ export function RegisterForm({
         aria-live="polite"
         tabIndex={-1}
         ref={(node) => node?.focus()}
-        className="panel-card p-8 text-center outline-none sm:p-10"
+        className="overflow-hidden rounded-panel border border-line bg-panel text-center outline-none"
       >
-        {/* The form it replaces has just been removed from the page, so focus
-            was left on <body> and nothing was announced — somebody using a
-            screen reader had no way to know the entry had gone. */}
-        <h2 className="headline text-[clamp(1.4rem,3vw,2rem)]">
-          {form.success_title || "Thank you"}
-        </h2>
-        {form.success_body ? <p className="body-copy mx-auto mt-3 max-w-lg">{form.success_body}</p> : null}
+        {/* The same bars as the button that got them here, along the top of
+            what replaces it. It is the one place on the page worth being loud,
+            and it stops the panel reading as another form. */}
+        <div aria-hidden className="hazard-bars h-2.5 w-full bg-accent" />
+
+        <div className="px-6 py-10 sm:px-10 sm:py-12">
+          {/* The form it replaces has just been removed from the page, so focus
+              was left on <body> and nothing was announced — somebody using a
+              screen reader had no way to know the entry had gone. */}
+          <h2 className="headline text-[clamp(1.4rem,3vw,2rem)]">
+            {form.success_title || "Thank you"}
+          </h2>
+          {form.success_body ? (
+            <p className="body-copy mx-auto mt-3 max-w-lg">{form.success_body}</p>
+          ) : null}
+        </div>
       </div>
     );
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="panel-card p-6 sm:p-8">
-      {/* Nothing at all for a form with no sections — which is every form built
-          before they existed, and every short one built since. */}
-      {steps.length > 1 && current ? (
-        <div className="mb-8">
-          <div className="flex items-baseline justify-between gap-3">
-            <p className="text-[13px] font-semibold text-fg">
-              {current.title || `Page ${at + 1}`}
-            </p>
-            <p className="shrink-0 text-[12px] text-fg-faint">
-              Page {at + 1} of {steps.length}
-            </p>
-          </div>
+    /*
+     * The card, with a head, a body and a foot.
+     *
+     * Borrowed wholesale from the admin's Card: a titled strip, a hairline, the
+     * content, another hairline, the controls that act on it. What it replaces
+     * was one padded box with everything floating in it and eight pixels of air
+     * between questions — which is a list of controls, not a form. The strips
+     * give it a top and a bottom, and the hairlines between questions say where
+     * one ends and the next begins without a box round each.
+     */
+    <form
+      onSubmit={handleSubmit}
+      noValidate
+      className="overflow-hidden rounded-panel border border-line bg-panel"
+    >
+      <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-3 sm:px-6">
+        <p className="truncate text-[13px] font-semibold tracking-tight text-fg">
+          {current?.title || "Entry form"}
+        </p>
 
-          {/* The bar is decoration; the sentence above it is the information,
-              which is why that is not aria-hidden and this is. */}
-          <div aria-hidden className="mt-2 h-1 w-full overflow-hidden rounded-full bg-line">
-            <div
-              className="h-full rounded-full bg-accent transition-all duration-500"
-              style={{ width: `${((at + 1) / steps.length) * 100}%` }}
-            />
-          </div>
+        {steps.length > 1 ? (
+          <p className="shrink-0 text-[11px] font-medium uppercase tracking-[0.08em] text-fg-faint">
+            Step {at + 1} of {steps.length}
+          </p>
+        ) : null}
+      </div>
 
-          {current.blurb ? (
-            <p className="mt-3 text-[13px] leading-relaxed text-fg-muted">{current.blurb}</p>
-          ) : null}
+      {/* The bar is decoration; the line above it is the information, which is
+          why that is not aria-hidden and this is. Full width and two pixels
+          tall, sitting on the seam — a rule that fills rather than a pill
+          floating in its own margin. */}
+      {steps.length > 1 ? (
+        <div aria-hidden className="h-[3px] w-full bg-line/60">
+          <div
+            className="h-full bg-accent transition-all duration-500"
+            style={{ width: `${((at + 1) / steps.length) * 100}%` }}
+          />
         </div>
       ) : null}
 
-      <div className="space-y-6">
+      {current?.blurb ? (
+        <p className="border-b border-line bg-surface/40 px-5 py-3 text-[13px] leading-relaxed text-fg-muted sm:px-6">
+          {current.blurb}
+        </p>
+      ) : null}
+
+      <div className="divide-y divide-line/60">
         {onThisPage.map((field) => (
+          <div key={field.id} className="px-5 py-4 sm:px-6">
           <Control
-            key={field.id}
             field={field}
             value={values[field.id]}
             options={shape.options[field.id] ?? field.options}
@@ -449,6 +493,7 @@ export function RegisterForm({
               })
             }
           />
+          </div>
         ))}
       </div>
 
@@ -470,7 +515,7 @@ export function RegisterForm({
       {problem || homeless.length > 0 ? (
         <div
           role="alert"
-          className="mt-6 rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200"
+          className="border-t border-red-500/30 bg-red-500/10 px-5 py-3.5 text-[13px] leading-relaxed text-red-200 sm:px-6"
         >
           {problem ? <p>{problem}</p> : null}
 
@@ -500,62 +545,60 @@ export function RegisterForm({
         </div>
       ) : null}
 
-      <div className="mt-8 flex flex-wrap items-center gap-4">
+      {/* The foot: the same strip as the head, holding what acts on the form.
+          `justify-between` rather than a row of buttons pushed left, so Back and
+          the one that sends are at opposite ends and cannot be confused for
+          each other at a glance. */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-t border-line bg-surface/40 px-5 py-4 sm:px-6">
         {steps.length > 1 && at > 0 ? (
-          <button
-            type="button"
-            onClick={back}
-            disabled={busy}
-            className="inline-flex items-center gap-2 rounded-full border border-line px-5 py-3 text-sm font-semibold text-fg-muted transition hover:border-accent/40 hover:text-fg disabled:opacity-60"
-          >
+          <HazardButton type="button" tone="quiet" onClick={back} disabled={busy}>
             Back
-          </button>
+          </HazardButton>
         ) : null}
 
-        {/*
-          Next is a button, not a submit, and Send only exists on the last page.
-          A stepper whose middle pages can be sent by pressing return is one
-          that takes half-finished entries.
-        */}
-        {!last ? (
-          <button
-            type="button"
-            onClick={next}
-            disabled={busy}
-            className={cn(
-              "inline-flex items-center gap-2.5 rounded-full bg-accent px-7 py-3 text-sm font-semibold text-accent-ink",
-              "transition-all duration-300 hover:bg-accent-dark hover:-translate-y-0.5 active:translate-y-0",
-              "disabled:cursor-not-allowed disabled:opacity-60"
-            )}
+        <div className="flex flex-1 flex-wrap items-center justify-end gap-x-4 gap-y-2">
+          {onThisPage.some((field) => field.required) ? (
+            <span className="text-[12px] text-fg-faint">
+              <span className="text-accent">*</span> is required
+            </span>
+          ) : null}
+
+          {preview ? (
+            <span className="text-[12px] text-fg-faint">
+              Preview — answer the questions to try the rules. Nothing is sent.
+            </span>
+          ) : null}
+
+          {/*
+            Next is a button, not a submit, and Send only exists on the last
+            page. A stepper whose middle pages can be sent by pressing return is
+            one that takes half-finished entries.
+          */}
+          {!last ? (
+            <HazardButton type="button" onClick={next} disabled={busy}>
+              Next
+            </HazardButton>
+          ) : null}
+
+          {/*
+            Kept in the DOM on every page, disabled and hidden.
+            Present, because implicit submission looks for the first submit
+            button that is not disabled — with one here and disabled, pressing
+            return on a middle page does nothing at all, which is the point.
+            Hidden by a CLASS as well as the attribute: `display` is set by a
+            utility on this button, and an author class beats the browser's own
+            rule for [hidden], so the attribute alone left a greyed-out SUBMIT
+            sitting beside Next.
+          */}
+          <HazardButton
+            type="submit"
+            hidden={!last}
+            disabled={preview || busy || !last}
+            className={cn(!last && "hidden")}
           >
-            Next
-          </button>
-        ) : null}
-
-        <button
-          type="submit"
-          hidden={!last}
-          disabled={preview || busy || !last}
-          className={cn(
-            "inline-flex items-center gap-2.5 rounded-full bg-accent px-7 py-3 text-sm font-semibold text-accent-ink",
-            "transition-all duration-300 hover:bg-accent-dark hover:-translate-y-0.5 active:translate-y-0",
-            "disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
-          )}
-        >
-          {busy ? "Sending…" : form.submit_label || "Send"}
-        </button>
-
-        {onThisPage.some((field) => field.required) ? (
-          <span className="text-[13px] text-fg-faint">
-            <span className="text-accent">*</span> is required
-          </span>
-        ) : null}
-
-        {preview ? (
-          <span className="text-[13px] text-fg-faint">
-            Preview — answer the questions to try the rules. Nothing is sent.
-          </span>
-        ) : null}
+            {busy ? "Sending…" : form.submit_label || "Send"}
+          </HazardButton>
+        </div>
       </div>
     </form>
   );
@@ -700,20 +743,20 @@ function Control({
     field.info && showInfo ? (
       <p
         id={`${id}-info`}
-        className="mt-2 whitespace-pre-line rounded-lg border border-line bg-surface px-3.5 py-2.5 text-[13px] leading-relaxed text-fg-muted"
+        className="mt-2 whitespace-pre-line rounded-md border border-line bg-surface/60 px-3 py-2.5 text-[12px] leading-relaxed text-fg-muted"
       >
         {field.info}
       </p>
     ) : null;
 
   const help = field.help ? (
-    <p id={`${id}-help`} className="mt-1 text-[13px] leading-relaxed text-fg-faint">
+    <p id={`${id}-help`} className="mt-1 text-[12px] leading-relaxed text-fg-faint">
       {field.help}
     </p>
   ) : null;
 
   const problem = error ? (
-    <p id={`${id}-error`} className="mt-1.5 text-[13px] font-medium text-red-300">
+    <p id={`${id}-error`} className="mt-1.5 text-[12px] font-medium text-red-300">
       {error}
     </p>
   ) : null;
@@ -721,7 +764,7 @@ function Control({
   /** The label and its button, for everything that is not a group of choices. */
   const head = (
     <div className="flex items-start gap-2">
-      <label htmlFor={id} className="text-[15px] font-semibold text-fg">
+      <label htmlFor={id} className="text-[13px] font-semibold tracking-tight text-fg">
         {labelText}
       </label>
       {infoButton}
@@ -746,8 +789,8 @@ function Control({
             type="checkbox"
             {...shared}
             className={cn(
-              "mt-0.5 size-5 shrink-0 cursor-pointer rounded border-line bg-panel text-accent",
-              "focus-visible:ring-2 focus-visible:ring-accent/30",
+              "mt-px size-[18px] shrink-0 cursor-pointer rounded border-line bg-transparent text-accent",
+              "focus-visible:ring-[3px] focus-visible:ring-accent/30",
               error && "border-red-500/60"
             )}
             checked={value === "Yes"}
@@ -755,7 +798,7 @@ function Control({
           />
           <div className="min-w-0">
             <div className="flex items-start gap-2">
-              <label htmlFor={id} className="cursor-pointer text-[15px] font-semibold text-fg">
+              <label htmlFor={id} className="cursor-pointer text-[13px] font-semibold tracking-tight text-fg">
                 {labelText}
               </label>
               {infoButton}
@@ -799,7 +842,7 @@ function Control({
         {/* The whole group is the control here, so the description hangs off
             the fieldset — spread onto the individual inputs it would be read
             out once per option. */}
-        <legend className="flex items-start gap-2 text-[15px] font-semibold text-fg">
+        <legend className="flex items-start gap-2 text-[13px] font-semibold tracking-tight text-fg">
           {labelText}
           {infoButton}
         </legend>
@@ -816,8 +859,10 @@ function Control({
               <label
                 key={option}
                 className={cn(
-                  "flex cursor-pointer items-center gap-2.5 rounded-lg border bg-panel px-3.5 py-2.5 text-[15px] text-fg transition",
-                  on ? "border-accent/60" : "border-line hover:border-accent/40"
+                  "flex cursor-pointer items-center gap-2.5 rounded-md border px-3.5 py-2.5 text-[14px] text-fg transition",
+                  on
+                    ? "border-accent bg-accent/10"
+                    : "border-line bg-transparent hover:border-fg-faint/45"
                 )}
               >
                 <input
@@ -842,7 +887,7 @@ function Control({
                     );
                   }}
                   className={cn(
-                    "size-4 shrink-0 cursor-pointer border-line bg-surface text-accent focus-visible:ring-2 focus-visible:ring-accent/30",
+                    "size-4 shrink-0 cursor-pointer border-line bg-transparent text-accent focus-visible:ring-[3px] focus-visible:ring-accent/30",
                     many ? "rounded" : "rounded-full"
                   )}
                 />
@@ -857,8 +902,10 @@ function Control({
           {field.allowOther ? (
             <label
               className={cn(
-                "flex cursor-pointer items-center gap-2.5 rounded-lg border bg-panel px-3.5 py-2.5 text-[15px] text-fg transition sm:col-span-2",
-                otherOn ? "border-accent/60" : "border-line hover:border-accent/40"
+                "flex cursor-pointer items-center gap-2.5 rounded-md border px-3.5 py-2.5 text-[14px] text-fg transition sm:col-span-2",
+                otherOn
+                  ? "border-accent bg-accent/10"
+                  : "border-line bg-transparent hover:border-fg-faint/45"
               )}
             >
               <input
@@ -874,7 +921,7 @@ function Control({
                   onChange(many ? picked.filter((entry) => options.includes(entry)) : "");
                 }}
                 className={cn(
-                  "size-4 shrink-0 cursor-pointer border-line bg-surface text-accent focus-visible:ring-2 focus-visible:ring-accent/30",
+                  "size-4 shrink-0 cursor-pointer border-line bg-transparent text-accent focus-visible:ring-[3px] focus-visible:ring-accent/30",
                   many ? "rounded" : "rounded-full"
                 )}
               />
@@ -1071,7 +1118,7 @@ function Control({
           what gets asked next, and a date typed a year out is the easiest
           mistake to make on a form — so it is put where it can be caught. */}
       {age ? (
-        <span className="mt-1.5 block text-[13px] text-fg-muted">
+        <span className="mt-1.5 block text-[12px] text-fg-muted">
           That makes them <span className="font-semibold text-fg">{age}</span>.
         </span>
       ) : null}
@@ -1096,7 +1143,7 @@ function Control({
  */
 function Waiting({ for: question, answered }: { for: string; answered: boolean }) {
   return (
-    <p className="mt-2 rounded-lg border border-dashed border-line px-3.5 py-2.5 text-[13px] text-fg-faint">
+    <p className="mt-2 rounded-md border border-dashed border-line px-3.5 py-2.5 text-[12px] leading-relaxed text-fg-faint">
       {answered ? (
         <>
           There are no choices here for that answer
