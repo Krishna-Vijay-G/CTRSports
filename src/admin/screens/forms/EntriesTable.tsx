@@ -399,7 +399,7 @@ export function EntriesTable({
                   key={entry.id}
                   onClick={() => setOpen(entry)}
                   className={cn(
-                    "cursor-pointer border-b border-border/60 transition-colors last:border-b-0 hover:bg-muted/50",
+                    "cursor-pointer border-b border-border transition-colors last:border-b-0 hover:bg-muted/50",
                     picked.has(entry.id) && "bg-muted/40"
                   )}
                 >
