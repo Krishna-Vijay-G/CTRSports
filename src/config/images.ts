@@ -13,26 +13,38 @@
  * Unsplash stadium stock on the front page, and one missing field in an
  * otherwise good document used to put a stock sprinter between two real ones.
  *
- * Three hosts appear below, and the difference matters when one of them moves:
+ * FOUR hosts appear below, and the difference matters when one of them moves:
  *
  *   /images/…    in this repo, under /public. Covered by the immutable cache
  *                header in next.config.js. Nothing to go wrong.
- *   …s3…amazonaws.com  uploaded through the admin's own media library. As
- *                permanent as the bucket.
+ *   media.ctrsports.in  uploaded through the admin's own media library, served
+ *                through CloudFront. Not written down here: the host comes from
+ *                MEDIA_BASE_URL (src/config/media.ts), which is the only place
+ *                that decides it. As permanent as the bucket behind it.
  *   raw.githubusercontent.com/…/asset-temp  a separate repository holding
  *                artwork that has not been through the media library. Live uses
  *                these today, so they are what a fallback has to match.
+ *   www.evoindia.com  exactly one photograph — ABOUT_PHOTOS[0], the touring-car
+ *                shot. Somebody else's server, and the one URL here that nothing
+ *                we run can keep alive. Re-hosting it through the media library
+ *                would put it on the line above and end the exception; until
+ *                then it is named so nobody assumes the media-domain work
+ *                touched it. It did not, and could not: not S3, not our prefix.
  *
  * The site draws all of these with plain <img>, so nothing here needs a
  * next.config entry — only the preconnect in src/app/layout.tsx, which points at
- * whichever host the first paint needs.
+ * whichever host the first paint needs. That is the media host and the artwork
+ * repository; the evoindia photograph is below the fold, where a preconnect
+ * would spend a connection to save nothing.
  */
+
+import { MEDIA_BASE_URL, MEDIA_KEY_PREFIX } from "@/config/media";
 
 /** Artwork kept beside the code rather than in the bucket. */
 const ASSETS = "https://raw.githubusercontent.com/Krishna-Vijay-G/asset-temp/refs/heads/main";
 
 /** Uploaded through the admin. The prefix the media library writes under. */
-const MEDIA = "https://ctr-unified-media-storage.s3.ap-south-1.amazonaws.com/ctr-unified/media";
+const MEDIA = `${MEDIA_BASE_URL}/${MEDIA_KEY_PREFIX}`;
 
 /**
  * The landing page's banner photographs, in the order its banners use them.

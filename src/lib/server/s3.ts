@@ -61,11 +61,26 @@ export function isS3Configured(): boolean {
 }
 
 /**
- * Public URL for a stored object. Set S3_PUBLIC_BASE_URL when the bucket sits
- * behind CloudFront or a custom domain; otherwise the virtual-hosted S3 URL.
+ * Public URL for a stored object — CloudFront's, unless nothing is configured.
+ *
+ * Two variables, one answer. NEXT_PUBLIC_MEDIA_BASE_URL is the one that matters
+ * now: it is the same value the client-side constant in src/config/media.ts
+ * reads, so one setting covers both the URLs written into the database on upload
+ * and the ones the default images are built from. Setting only one of the two
+ * was how the site ended up serving the same object from two hostnames.
+ *
+ * S3_PUBLIC_BASE_URL is kept, and kept FIRST, because it predates the media
+ * domain and someone may already have it set; an env var that quietly stops
+ * being read is worse than one that is merely redundant.
+ *
+ * Neither set falls back to the virtual-hosted S3 address, which is today's
+ * behaviour and works as long as the bucket stays publicly readable.
  */
 export function publicUrl(key: string): string {
-  const base = process.env.S3_PUBLIC_BASE_URL?.replace(/\/+$/, "");
+  const base = (
+    process.env.S3_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_MEDIA_BASE_URL
+  )?.replace(/\/+$/, "");
+
   return base ? `${base}/${key}` : `https://${BUCKET}.s3.${REGION}.amazonaws.com/${key}`;
 }
 

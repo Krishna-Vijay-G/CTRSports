@@ -10,6 +10,7 @@
     "lint": "next lint",
     "webp": "node scripts/convert-webp.mjs",
     "migrate": "node --env-file=.env --env-file-if-exists=.env.local scripts/migrate.mjs",
+    "migrate:media": "node --env-file=.env --env-file-if-exists=.env.local scripts/migrate-media-domain.mjs",
     "create-admin": "node --env-file=.env --env-file-if-exists=.env.local scripts/create-admin.mjs",
     "check:forms": "tsx scripts/check-forms.ts",
     "check:decks": "tsx scripts/check-decks.ts",

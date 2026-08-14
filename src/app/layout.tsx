@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Sans, Inter, Plus_Jakarta_Sans } from "next/font/google";
+import { MEDIA_BASE_URL } from "@/config/media";
 import { SEO, SITE } from "@/config/site";
 import "@/styles/globals.css";
 
@@ -66,19 +67,29 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${inter.variable} ${jakarta.variable} ${plex.variable}`}>
       <body className="antialiased">
         {/*
-          The first banner photo is the LCP element and lives on a third-party
-          host. Opening those connections during HTML parse saves the DNS + TLS
+          The first banner photo is the LCP element and lives on another host.
+          Opening those connections during HTML parse saves the DNS + TLS
           round-trips they would otherwise cost.
 
           Two hosts, because the photography moved off stock and onto two of our
-          own places at once: the media library's bucket, which every uploaded
-          picture is served from, and the artwork repository the banners still
-          use. Unsplash was here and is not any more — nothing on either page
-          points at it now. Drop whichever of these stops being the host of the
-          first banner.
+          own places at once: the media domain, which every uploaded picture is
+          served from, and the artwork repository the banners still use. Unsplash
+          was here and is not any more — nothing on either page points at it now.
+          Drop whichever of these stops being the host of the first banner.
+
+          NEITHER takes crossOrigin. A preconnect is only reused by a request
+          whose CORS mode matches, and every image on this site is drawn with a
+          plain <img> and no `crossorigin` attribute — so `crossOrigin=""` opened
+          an anonymous-CORS connection the images could not use, and then paid
+          for a second one. That is a preconnect doing nothing but cost. It goes
+          back only if something here is ever drawn onto a canvas.
+
+          The media host is not written down: it comes from MEDIA_BASE_URL, the
+          same constant the default image URLs are built from, so this line
+          cannot end up pointing at last month's host.
         */}
-        <link rel="preconnect" href="https://ctr-unified-media-storage.s3.ap-south-1.amazonaws.com" crossOrigin="" />
-        <link rel="preconnect" href="https://raw.githubusercontent.com" crossOrigin="" />
+        <link rel="preconnect" href={MEDIA_BASE_URL} />
+        <link rel="preconnect" href="https://raw.githubusercontent.com" />
         {children}
       </body>
     </html>
