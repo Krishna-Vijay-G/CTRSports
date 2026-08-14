@@ -6,15 +6,17 @@ import {
   FORM_STATUSES,
   STATUS_LABELS,
   formState,
-  isUsableSlug,
   slugify,
   type Form,
 } from "@/lib/forms";
 import { FORM_PAGE_KEYS, PAGE_LABELS } from "@/lib/roles";
+import type { SlugHolder } from "@/lib/slug";
 import { Button } from "@/admin/ui/Button";
 import { Input, Label, Select } from "@/admin/ui/Input";
 import { TrashIcon } from "@/admin/ui/icons";
 import { Field, Hint, Note, Panel, Row, TextArea } from "@/admin/components/Fields";
+import { FormerSlugs } from "@/admin/components/FormerSlugs";
+import { SlugField } from "@/admin/components/SlugField";
 import { FormOutline } from "./FormOutline";
 
 /**
@@ -70,6 +72,7 @@ export function FormBuilder({
   onChange,
   onDelete,
   onFocusPage,
+  onReleasedSlug,
   readOnly,
   busy,
 }: {
@@ -78,6 +81,8 @@ export function FormBuilder({
   onDelete: () => void;
   /** Handed to the outline: which page the preview beside this should show. */
   onFocusPage?: (sectionId: string) => void;
+  /** An address taken from another form's history — see FormsEditor. */
+  onReleasedSlug?: (holder: SlugHolder, slug: string) => void;
   /** A page editor may look, so they can point a button at it. Nothing more. */
   readOnly: boolean;
   busy: boolean;
@@ -93,53 +98,45 @@ export function FormBuilder({
           <Field
             label="Name"
             value={form.name}
-            onChange={(name) =>
-              /*
-               * The address follows the name until somebody takes charge of it.
-               *
-               * The test used to be "is the slug empty", which was never true:
-               * the row is created on the server and comes back with a slug
-               * already worked out from "New form". So the rule never once
-               * fired, and every form built here was published at
-               * `/register/new-form` unless the admin noticed and typed the
-               * address by hand.
-               *
-               * Asking whether the slug still MATCHES the name is the honest
-               * version of the same question, and it needs no extra state: once
-               * the address has been edited it stops matching, and from then on
-               * renaming the form leaves it alone — which is the part that
-               * matters, because a form that has been shared cannot have its URL
-               * move because somebody fixed a typo in the title.
-               */
-              set(
-                !form.slug || form.slug === slugify(form.name)
-                  ? { name, slug: slugify(name) }
-                  : { name }
-              )
-            }
+            /*
+             * The address does NOT follow the name.
+             *
+             * It used to, while the two still matched, which was a reasonable
+             * rule back when the address was invented by the screen — the form
+             * arrived called "New form" at `/register/new-form` and the rule
+             * was the only thing that ever moved it off. It is asked for at
+             * creation now, so the address is always something a person chose,
+             * and a rule that quietly moved it because somebody fixed a typo in
+             * the title would be moving a decision they had already made. The
+             * "Use the name" button beside the box is the same offer, out loud.
+             */
+            onChange={(name) => set({ name })}
             maxLength={FORM_LIMITS.name}
             placeholder="2026 season entry"
             hint="What the admin and the cards on the page call it."
           />
 
-          <div className="block">
-            <Label>Address</Label>
-            <div className="mt-1.5 flex items-center gap-0 rounded-md border border-input focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/40">
-              <span className="shrink-0 ps-2.5 text-sm text-muted-fg">/register/</span>
-              <Input
-                value={form.slug}
-                onChange={(event) => set({ slug: event.target.value.toLowerCase() })}
-                maxLength={FORM_LIMITS.slug}
-                placeholder="2026-entry"
-                className="border-0 ps-1 focus-visible:border-0 focus-visible:ring-0"
-              />
-            </div>
-            <Hint className="mt-1">
-              {form.slug && !isUsableSlug(form.slug)
-                ? "Lower case letters, numbers and hyphens only — this one will be tidied up on save."
-                : "The page people go to. Changing it keeps the old address working, so a printed link or a QR code does not break."}
-            </Hint>
-          </div>
+          <SlugField
+            kind="form"
+            value={form.slug}
+            onChange={(slug) => set({ slug })}
+            exceptId={form.id}
+            suggestion={slugify(form.name)}
+            onReleased={onReleasedSlug}
+            disabled={busy}
+          />
+
+          <FormerSlugs
+            kind="form"
+            slugs={form.former_slugs}
+            onChange={(former_slugs) => set({ former_slugs })}
+            disabled={busy}
+          />
+
+          <Hint>
+            Changing the address keeps the old one working — it moves into the list above and
+            starts redirecting, so a printed link or a QR code does not break.
+          </Hint>
 
           <Row>
             <div className="block">

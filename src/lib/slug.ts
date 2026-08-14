@@ -60,3 +60,36 @@ export function usableSlug(value: string): string {
 export function fallbackSlug(prefix: string): string {
   return `${prefix}-${Math.random().toString(36).slice(2, 8)}`;
 }
+
+/* ─────────────────────────── Who holds one ─────────────────────────── */
+
+/** The two things that publish at an address. Decides which table is asked. */
+export type SlugKind = "form" | "deck";
+
+/**
+ * Whatever already answers to an address.
+ *
+ * The distinction is the whole point of this type. A CURRENT address is where
+ * something lives right now — taking it would leave that thing with nowhere to
+ * be, so the editor refuses and says which one to go and rename. A FORMER
+ * address is only a line in a redirect history, which is a thing one record can
+ * hand to another: the old link stops correcting itself to the old owner and
+ * starts opening the new one, which is exactly what somebody reusing an address
+ * means to happen.
+ */
+export type SlugHolder = {
+  id: string;
+  name: string;
+  held: "current" | "former";
+};
+
+/**
+ * What the address box is told while it is being typed in.
+ *
+ * `invalid` is separate from `taken` because they need different sentences: one
+ * is "that is not an address", the other is "that address is somebody else's".
+ */
+export type SlugCheck =
+  | { status: "free" }
+  | { status: "invalid" }
+  | { status: "taken"; holder: SlugHolder };

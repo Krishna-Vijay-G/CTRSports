@@ -3,11 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import { BLANK_FORM, STATUS_LABELS, type Form } from "@/lib/forms";
 import { PAGE_LABELS } from "@/lib/roles";
+import type { SlugHolder } from "@/lib/slug";
 import { cn } from "@/lib/utils";
 import { Button, ButtonLink } from "@/admin/ui/Button";
 import { ListIcon, PlusIcon, TicketIcon } from "@/admin/ui/icons";
 import { AdminRailSlot } from "@/admin/components/AdminShell";
 import { EditorToolbar } from "@/admin/components/EditorToolbar";
+import { NewRecord } from "@/admin/components/NewRecord";
 import { SectionRail, type RailItem } from "@/admin/components/SectionRail";
 import { FormPreview } from "@/admin/components/previews/FormPreview";
 import { FormBuilder } from "./FormBuilder";
@@ -50,6 +52,13 @@ export function FormsEditor({
   const [error, setError] = useState<string | null>(null);
   const [notes, setNotes] = useState<string[]>([]);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  /**
+   * Whether the "new form" panel is open.
+   *
+   * Adding is a step now rather than a click, because the address has to be
+   * asked for before the row exists — see the note on `NewRecord`.
+   */
+  const [adding, setAdding] = useState(false);
 
   /**
    * The page open in the builder's outline, so the preview shows the page being
@@ -80,6 +89,10 @@ export function FormsEditor({
 
     setActiveId(id);
     setConfirmingDelete(false);
+    // Picking a form out of the rail is a way of saying "not that, this" —
+    // leaving a half-filled new-form panel over the top of it would hide the
+    // form that was just asked for.
+    setAdding(false);
     setError(null);
     setNotes([]);
     setJustSaved(false);
@@ -235,7 +248,14 @@ export function FormsEditor({
     }
   }
 
-  async function handleAdd() {
+  /**
+   * Creates the form at the name and address the panel collected.
+   *
+   * The address is sent, so the server honours it or refuses it — the suffix
+   * loop that used to turn a collision into `new-form-2` behind the admin's back
+   * only runs for a request that names no address at all.
+   */
+  async function handleCreate(name: string, slug: string) {
     setBusy(true);
     setError(null);
 
@@ -245,7 +265,8 @@ export function FormsEditor({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...BLANK_FORM,
-          name: "New form",
+          name,
+          slug,
           // From the largest position in use, not the count: deleting a form
           // never renumbers the rest, so after one deletion the count collides
           // with a row that already exists and `name ASC` breaks the tie —
@@ -257,6 +278,8 @@ export function FormsEditor({
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
+        // Left open, holding what was typed. The address is the likely reason,
+        // and closing the panel would throw away the name along with it.
         setError(data.error ?? "Could not add a form.");
         return;
       }
@@ -266,6 +289,7 @@ export function FormsEditor({
       setSaved((current) => [...current, form]);
       savedOrder.current = [...forms.map((f) => f.id), form.id].join(",");
       setActiveId(form.id);
+      setAdding(false);
       setConfirmingDelete(false);
       setNotes(Array.isArray(data.notes) ? (data.notes as string[]) : []);
       setJustSaved(false);
@@ -274,6 +298,25 @@ export function FormsEditor({
     } finally {
       setBusy(false);
     }
+  }
+
+  /**
+   * An address handed over from another form's history, dropped from the copy
+   * of that form held on this screen.
+   *
+   * The row itself has already changed in the database. Without this the rail's
+   * copy still lists the address it no longer answers to, and a later save of
+   * that form would post it back — harmless, because the server only ever
+   * narrows the stored history, but it reads as the take-over having failed.
+   */
+  function forgetSlug(holder: SlugHolder, slug: string) {
+    const drop = (form: Form) =>
+      form.id === holder.id
+        ? { ...form, former_slugs: form.former_slugs.filter((entry) => entry !== slug) }
+        : form;
+
+    setForms((current) => current.map(drop));
+    setSaved((current) => current.map(drop));
   }
 
   async function handleDelete() {
@@ -345,19 +388,23 @@ export function FormsEditor({
           // holding five forms does not say which, and the other four are not
           // on screen to check — so the badge alone was a warning nobody could
           // act on.
-          elsewhere.length > 0
-            ? `Unsaved elsewhere: ${elsewhere.map((form) => form.name || "Untitled form").join(", ")}`
-            : active
-              ? canManage
-                ? `Entries land in this admin. ${active.slug ? `/register/${active.slug}` : "Give it an address to publish it."}`
-                : "Registrations owns these. You can point a button at one."
-              : "No forms yet — add the first one."
+          adding
+            ? "Give the new form a name and an address."
+            : elsewhere.length > 0
+              ? `Unsaved elsewhere: ${elsewhere.map((form) => form.name || "Untitled form").join(", ")}`
+              : active
+                ? canManage
+                  ? `Entries land in this admin. ${active.slug ? `/register/${active.slug}` : "Give it an address to publish it."}`
+                  : "Registrations owns these. You can point a button at one."
+                : "No forms yet — add the first one."
         }
 
         dirty={canManage && (dirty || unsaved.length > 0)}
         justSaved={justSaved}
         busy={busy}
-        error={error}
+        // Said once. While the new-form panel is open it owns the failure,
+        // because the field that caused it is in that panel.
+        error={adding ? null : error}
         onSave={canManage ? handleSave : () => undefined}
         actions={
           canManage ? (
@@ -368,7 +415,17 @@ export function FormsEditor({
                   Entries
                 </ButtonLink>
               ) : null}
-              <Button variant="outline" size="sm" onClick={handleAdd} disabled={busy}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setAdding(true);
+                  setConfirmingDelete(false);
+                  setError(null);
+                  setNotes([]);
+                }}
+                disabled={busy || adding}
+              >
                 <PlusIcon />
                 Add form
               </Button>
@@ -380,7 +437,7 @@ export function FormsEditor({
       />
 
       <div className="flex min-h-0 flex-1 flex-col gap-2 lg:flex-row">
-        {active ? (
+        {active && !adding ? (
           <FormPreview
             form={active}
             showPage={focusPage}
@@ -422,7 +479,21 @@ export function FormsEditor({
               </div>
             ) : null}
 
-            {active ? (
+            {adding ? (
+              <NewRecord
+                kind="form"
+                title="New form"
+                namePlaceholder="2026 season entry"
+                busy={busy}
+                error={error}
+                onCreate={handleCreate}
+                onCancel={() => {
+                  setAdding(false);
+                  setError(null);
+                }}
+                onReleased={forgetSlug}
+              />
+            ) : active ? (
               confirmingDelete ? (
                 <div className="space-y-2.5 rounded-md border border-destructive/40 bg-destructive/10 p-3">
                   <p className="text-xs leading-relaxed text-foreground">
@@ -452,6 +523,7 @@ export function FormsEditor({
                   onChange={update}
                   onDelete={() => setConfirmingDelete(true)}
                   onFocusPage={setFocusPage}
+                  onReleasedSlug={forgetSlug}
                   readOnly={!canManage}
                   busy={busy}
                 />

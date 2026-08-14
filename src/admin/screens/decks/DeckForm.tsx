@@ -11,13 +11,15 @@ import {
   type DeckPage,
 } from "@/lib/decks";
 import { DOCUMENT_EDGE, toWebp } from "@/lib/client/toWebp";
-import { slugify } from "@/lib/slug";
+import { slugify, type SlugHolder } from "@/lib/slug";
 import { Button } from "@/admin/ui/Button";
 import { Label, Select } from "@/admin/ui/Input";
 import { CheckIcon, ExternalIcon, TrashIcon, UploadIcon } from "@/admin/ui/icons";
 import { ErrorNote, Field, Hint, Note, Panel, TextArea } from "@/admin/components/Fields";
+import { FormerSlugs } from "@/admin/components/FormerSlugs";
 import { ImageField } from "@/admin/components/ImageField";
 import { Repeater } from "@/admin/components/Repeater";
+import { SlugField } from "@/admin/components/SlugField";
 
 /**
  * One deck's record: what it is called, where it lives, and its pages in order.
@@ -31,6 +33,7 @@ export function DeckForm({
   siteUrl,
   onChange,
   onDelete,
+  onReleasedSlug,
   busy,
 }: {
   deck: Deck;
@@ -38,12 +41,11 @@ export function DeckForm({
   siteUrl: string;
   onChange: (next: Deck) => void;
   onDelete: () => void;
+  /** An address taken from another deck's history — see DecksEditor. */
+  onReleasedSlug?: (holder: SlugHolder, slug: string) => void;
   busy?: boolean;
 }) {
   const set = (patch: Partial<Deck>) => onChange({ ...deck, ...patch });
-
-  const suggestion = slugify(deck.name);
-  const canSuggest = suggestion !== "" && suggestion !== deck.slug;
 
   return (
     <>
@@ -57,46 +59,30 @@ export function DeckForm({
             placeholder="2026 entry pack"
           />
 
-          <div>
-            <Label>Address</Label>
-            <div className="mt-1.5 flex items-center gap-2">
-              <span className="shrink-0 text-[13px] text-muted-fg">/deck/</span>
-              <input
-                value={deck.slug}
-                onChange={(event) => set({ slug: event.target.value })}
-                maxLength={DECK_LIMITS.slug}
-                placeholder={suggestion || "entry-pack"}
-                className="h-9 min-w-0 flex-1 rounded-md border border-input bg-background px-3 text-[13px] text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/40"
-              />
+          {/* The suggestion is offered as a button and never applied on its own.
+              The address outlives the name — it goes on a poster — so renaming a
+              deck must not move it. */}
+          <SlugField
+            kind="deck"
+            value={deck.slug}
+            onChange={(slug) => set({ slug })}
+            exceptId={deck.id}
+            suggestion={slugify(deck.name)}
+            onReleased={onReleasedSlug}
+            disabled={busy}
+          />
 
-              {/* Not automatic. The address outlives the name — it goes on a
-                  poster — so renaming a deck must never move it silently. This
-                  is the same offer made out loud, one click away. */}
-              {canSuggest ? (
-                <Button variant="outline" size="sm" onClick={() => set({ slug: suggestion })}>
-                  Use the name
-                </Button>
-              ) : null}
-            </div>
+          <FormerSlugs
+            kind="deck"
+            slugs={deck.former_slugs}
+            onChange={(former_slugs) => set({ former_slugs })}
+            disabled={busy}
+          />
 
-            <Hint className="mt-1">
-              {deck.slug ? (
-                <>
-                  Lives at <span className="text-foreground">/deck/{deck.slug}</span>. Changing it
-                  keeps the old address working — it starts redirecting here.
-                </>
-              ) : (
-                "Left blank, this is made from the name when you save."
-              )}
-            </Hint>
-
-            {deck.former_slugs.length > 0 ? (
-              <Hint className="mt-1">
-                Also answers to{" "}
-                {deck.former_slugs.map((slug) => `/deck/${slug}`).join(", ")}.
-              </Hint>
-            ) : null}
-          </div>
+          <Hint>
+            Changing the address keeps the old one working — it moves into the list above and
+            starts redirecting here.
+          </Hint>
 
           <label className="block">
             <Label>Status</Label>

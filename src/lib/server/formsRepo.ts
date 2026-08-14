@@ -11,6 +11,7 @@ import {
 } from "@/lib/forms";
 import { oneOf } from "@/lib/normalise";
 import { FORM_PAGE_KEYS, type FormPageKey } from "@/lib/roles";
+import { isUsableSlug, type SlugHolder } from "@/lib/slug";
 import { getSql } from "@/lib/server/db";
 import { deleteObjects } from "@/lib/server/s3";
 
@@ -174,20 +175,54 @@ export async function getFormBySlug(slug: string): Promise<Form | null> {
 /** Postgres' unique violation, which on this table can only be the slug. */
 const DUPLICATE = "23505";
 
+/** Stands in for "no form to exclude" — `id <> ''` is a type error, not a match. */
+const NO_FORM = "00000000-0000-0000-0000-000000000000";
+
+/** A refusal the routes already know how to turn into a 409. */
+function taken(message: string): Error & { code?: string } {
+  const conflict = new Error(message) as Error & { code?: string };
+  conflict.code = DUPLICATE;
+  return conflict;
+}
+
 /**
- * Adds a form, giving it an address nobody else has.
+ * Adds a form at the address it was asked for.
  *
- * Every new form starts life called "New form", which slugifies to `new-form`,
- * which is `UNIQUE` — so pressing "Add form" a second time was a guaranteed 409
- * reading "That link is already in use", about a link the admin had never typed
- * for a form they had not yet seen. Adding a suffix is what the admin would
- * have had to do by hand, so it is done for them and said out loud.
+ * Two paths, and which one runs depends on whether the caller typed an address:
+ *
+ * An address that was TYPED is honoured exactly or refused. It used to be
+ * quietly suffixed, which was the right answer back when the address was
+ * invented by the screen rather than chosen by a person — but somebody who
+ * typed `2026-entry` and got `2026-entry-2` has been handed a link they did not
+ * ask for and will not think to check. The editor asks before it posts now, so
+ * a collision here is worth a sentence.
+ *
+ * An address that was NOT typed still gets the suffix loop, because something
+ * has to be invented and the alternative is refusing to create the row at all.
+ * That path is for the check scripts and anything else posting a bare name.
  */
 export async function createForm(input: unknown, notes?: string[]): Promise<Form> {
   const first = normaliseFormInput(input, notes);
+  const asked = typeof (input as { slug?: unknown })?.slug === "string"
+    && (input as { slug: string }).slug.trim() !== "";
+
+  if (asked) {
+    // The unique index cannot see this one: a former address lives in a JSONB
+    // array. Without the check a new form can take an address another form's
+    // poster still resolves through, and that poster silently changes meaning.
+    const holder = await findSlugOwner(first.slug);
+    if (holder) throw taken(heldBy(first.slug, holder));
+
+    return insertForm(first);
+  }
 
   for (let attempt = 1; attempt <= 20; attempt += 1) {
     const slug = attempt === 1 ? first.slug : `${first.slug}-${attempt}`;
+
+    // Skipped rather than attempted: the insert would succeed, because a former
+    // address is not the unique column, and the collision would only show up as
+    // somebody else's old link opening this form.
+    if (await findSlugOwner(slug)) continue;
 
     try {
       const form = await insertForm({ ...first, slug });
@@ -202,22 +237,63 @@ export async function createForm(input: unknown, notes?: string[]): Promise<Form
   throw new Error("Could not find a free address for the form.");
 }
 
+/** The sentence a held address gets refused with, in both directions. */
+function heldBy(slug: string, holder: SlugHolder): string {
+  const name = holder.name || "another form";
+  return holder.held === "current"
+    ? `/register/${slug} is where “${name}” lives. Give that form a different address first.`
+    : `/register/${slug} is an old address of “${name}” and still redirects there.`;
+}
+
 /**
- * Whether another form still answers to this address.
+ * Which form, if any, answers to this address — as its own or from its history.
  *
  * `former_slugs` is what makes a printed link or a QR code survive a rename, and
- * nothing checked it before handing the same address to a different form — so
- * form B could take an address form A's poster still resolves through, and the
- * old link would quietly start opening somebody else's entry form. There is no
- * unique index to lean on here: the column is a JSONB array.
+ * nothing checked it before handing the same address to a different form, so
+ * form B could take an address form A's poster still resolves through. There is
+ * no unique index to lean on for that half: the column is a JSONB array.
+ *
+ * The current address wins the tie, because that is the answer that decides
+ * whether the address can be handed over at all — see `SlugHolder`.
  */
-export async function slugHeldElsewhere(slug: string, exceptId: string): Promise<boolean> {
+export async function findSlugOwner(slug: string, exceptId = ""): Promise<SlugHolder | null> {
+  if (!isUsableSlug(slug)) return null;
+
   const sql = getSql();
   const rows = (await sql`
-    SELECT id FROM ctr_forms
-     WHERE id <> ${exceptId}
-       AND former_slugs @> ${JSON.stringify([slug])}::jsonb
+    SELECT id, name, (slug = ${slug}) AS is_current
+      FROM ctr_forms
+     WHERE (slug = ${slug} OR former_slugs @> ${JSON.stringify([slug])}::jsonb)
+       AND id <> ${exceptId || NO_FORM}
+     ORDER BY (slug = ${slug}) DESC
      LIMIT 1
+  `) as { id: string; name: string; is_current: boolean }[];
+
+  const row = rows[0];
+  return row ? { id: row.id, name: row.name, held: row.is_current ? "current" : "former" } : null;
+}
+
+/**
+ * Drops one address out of a form's history, so another form may take it.
+ *
+ * Only ever a FORMER address. A form's current slug is not removable here at
+ * all — the `WHERE` sees only the JSONB column — because a form with no address
+ * is not a form, and "reassign" would mean deleting somebody's live page as a
+ * side effect of typing in a box on a different screen.
+ *
+ * `jsonb - text` removes every matching element from the array. The cast is not
+ * decoration: without it Postgres cannot tell that operator from `jsonb - int`,
+ * which would take the element at an index.
+ */
+export async function releaseFormerSlug(slug: string, fromId: string): Promise<boolean> {
+  const sql = getSql();
+  const rows = (await sql`
+    UPDATE ctr_forms
+       SET former_slugs = former_slugs - ${slug}::text,
+           updated_at   = now()
+     WHERE id = ${fromId}
+       AND former_slugs @> ${JSON.stringify([slug])}::jsonb
+    RETURNING id
   `) as { id: string }[];
 
   return rows.length > 0;
@@ -259,6 +335,12 @@ async function insertForm(f: Omit<Form, "id">): Promise<Form> {
  * to claim an address the form never had, which would be a way to take a slug
  * out from under another form.
  *
+ * It can only ever SHRINK from the request, which is the other half of that
+ * rule and is safe for the same reason it is unsafe in reverse. Retiring an old
+ * address is a real thing to want — a link that was wrong, or one being freed
+ * for a different form — and there was no way to do it: the history only grew,
+ * so a slug typed once was answered for by that form forever.
+ *
  * Deliberately does NOT write sort_order, for the same reason updateTrack does
  * not: position belongs to `reorderForms`, so a form opened before someone
  * dragged the list cannot save a stale position back over it.
@@ -276,18 +358,38 @@ export async function updateForm(
 
   // Taking an address another form still answers to would silently redirect
   // that form's printed links here. The route turns this into a 409.
-  if (f.slug !== existing.slug && (await slugHeldElsewhere(f.slug, id))) {
-    const conflict = new Error("That address still belongs to another form.") as Error & {
-      code?: string;
-    };
-    conflict.code = DUPLICATE;
-    throw conflict;
+  if (f.slug !== existing.slug) {
+    const holder = await findSlugOwner(f.slug, id);
+    if (holder) throw taken(heldBy(f.slug, holder));
+  }
+
+  /*
+   * The history is the STORED list narrowed by what the editor kept — never the
+   * list the request sent.
+   *
+   * Read from the raw body rather than the normalised form, because those are
+   * different questions: the normaliser turns a missing field into `[]`, and
+   * treating that as "the editor cleared it" would wipe the redirects of every
+   * caller that posts a form without one.
+   */
+  const requested = (input as { former_slugs?: unknown })?.former_slugs;
+  const kept = Array.isArray(requested)
+    ? existing.former_slugs.filter((slug) => requested.includes(slug))
+    : existing.former_slugs;
+
+  const retired = existing.former_slugs.length - kept.length;
+  if (retired > 0) {
+    notes?.push(
+      retired === 1
+        ? "One old address was retired — it no longer finds this form."
+        : `${retired} old addresses were retired — they no longer find this form.`
+    );
   }
 
   const formerSlugs =
     existing.slug && existing.slug !== f.slug
-      ? [...new Set([...existing.former_slugs, existing.slug])].filter((slug) => slug !== f.slug)
-      : existing.former_slugs.filter((slug) => slug !== f.slug);
+      ? [...new Set([...kept, existing.slug])].filter((slug) => slug !== f.slug)
+      : kept.filter((slug) => slug !== f.slug);
 
   const rows = (await sql`
     UPDATE ctr_forms

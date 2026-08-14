@@ -3,12 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import { BLANK_DECK, DECK_STATUS_LABELS, type Deck } from "@/lib/decks";
 import type { LandingContent } from "@/lib/landingContent";
+import type { SlugHolder } from "@/lib/slug";
 import { cn } from "@/lib/utils";
 import { Button } from "@/admin/ui/Button";
 import { ImagesIcon, PlusIcon } from "@/admin/ui/icons";
 import { AdminRailSlot } from "@/admin/components/AdminShell";
 import { EditorToolbar } from "@/admin/components/EditorToolbar";
 import { Note, Panel } from "@/admin/components/Fields";
+import { NewRecord } from "@/admin/components/NewRecord";
 import { SectionRail, type RailItem } from "@/admin/components/SectionRail";
 import { DeckPreview } from "@/admin/components/previews/DeckPreview";
 import { DeckForm } from "./DeckForm";
@@ -65,6 +67,13 @@ export function DecksEditor({
    */
   const [notes, setNotes] = useState<{ id: string; list: string[] } | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  /**
+   * Whether the "new deck" panel is open.
+   *
+   * Adding is a step now rather than a click, because the address has to be
+   * asked for before the row exists — see the note on `NewRecord`.
+   */
+  const [adding, setAdding] = useState(false);
 
   const active = decks.find((deck) => deck.id === activeId) ?? null;
   const activeSaved = saved.find((deck) => deck.id === activeId) ?? null;
@@ -80,6 +89,11 @@ export function DecksEditor({
     setConfirmingDelete(false);
     setJustSaved(false);
     setError(null);
+    // Picking a deck out of the rail is a way of saying "not that, this" — a
+    // half-filled new-deck panel left over the top of it hides what was asked
+    // for. Not in the same breath as `setActiveId(deck.id)` after a create,
+    // which sets it false itself: this runs on every change of the open deck.
+    setAdding(false);
   }, [activeId]);
 
   // Position is not compared: the list owns it and saves it on its own.
@@ -212,7 +226,14 @@ export function DecksEditor({
     }
   }
 
-  async function handleAdd() {
+  /**
+   * Creates the deck at the name and address the panel collected.
+   *
+   * The address is sent, so the server honours it or refuses it — the suffix
+   * loop that used to turn a collision into `new-deck-2` behind the admin's back
+   * only runs for a request that names no address at all.
+   */
+  async function handleCreate(name: string, slug: string) {
     setBusy(true);
     setError(null);
     setNotes(null);
@@ -223,14 +244,17 @@ export function DecksEditor({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...BLANK_DECK,
-          name: "New deck",
-          sort_order: (decks.length + 1) * 10,
+          name,
+          slug,
+          sort_order: decks.reduce((top, deck) => Math.max(top, deck.sort_order), 0) + 10,
         }),
       });
 
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
+        // Left open, holding what was typed. The address is the likely reason,
+        // and closing the panel would throw away the name along with it.
         setError(data.error ?? "Could not add a deck.");
         return;
       }
@@ -240,12 +264,31 @@ export function DecksEditor({
       setSaved((current) => [...current, deck]);
       savedOrder.current = [...decks.map((d) => d.id), deck.id].join(",");
       setActiveId(deck.id);
+      setAdding(false);
       setNotes({ id: deck.id, list: Array.isArray(data.notes) ? data.notes : [] });
     } catch {
       setError("Network error. Please try again.");
     } finally {
       setBusy(false);
     }
+  }
+
+  /**
+   * An address handed over from another deck's history, dropped from the copy of
+   * that deck held on this screen.
+   *
+   * The row itself has already changed in the database; without this the rail's
+   * copy still lists an address it no longer answers to, which reads as the
+   * take-over having failed.
+   */
+  function forgetSlug(holder: SlugHolder, slug: string) {
+    const drop = (deck: Deck) =>
+      deck.id === holder.id
+        ? { ...deck, former_slugs: deck.former_slugs.filter((entry) => entry !== slug) }
+        : deck;
+
+    setDecks((current) => current.map(drop));
+    setSaved((current) => current.map(drop));
   }
 
   async function handleDelete() {
@@ -320,17 +363,31 @@ export function DecksEditor({
         Icon={ImagesIcon}
         title={active ? active.name || "Untitled deck" : "Decks"}
         hint={
-          active
-            ? "Drag the sidebar to set the order decks are offered in."
-            : "No decks yet — add the first one."
+          adding
+            ? "Give the new deck a name and an address."
+            : active
+              ? "Drag the sidebar to set the order decks are offered in."
+              : "No decks yet — add the first one."
         }
         dirty={dirty}
         justSaved={justSaved}
         busy={busy}
-        error={error}
+        // Said once. While the new-deck panel is open it owns the failure,
+        // because the field that caused it is in that panel.
+        error={adding ? null : error}
         onSave={handleSave}
         actions={
-          <Button variant="outline" size="sm" onClick={handleAdd} disabled={busy}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setAdding(true);
+              setConfirmingDelete(false);
+              setError(null);
+              setNotes(null);
+            }}
+            disabled={busy || adding}
+          >
             <PlusIcon />
             Add deck
           </Button>
@@ -343,7 +400,7 @@ export function DecksEditor({
         {/* Hidden below lg: at that width the fields already fill the screen,
             and a preview shrunk into what is left would be unreadable. */}
         <DeckPreview
-          deck={active}
+          deck={adding ? null : active}
           chrome={chrome}
           year={year}
           className="hidden lg:block lg:min-w-0 lg:flex-1"
@@ -373,7 +430,21 @@ export function DecksEditor({
               </Panel>
             ) : null}
 
-            {active ? (
+            {adding ? (
+              <NewRecord
+                kind="deck"
+                title="New deck"
+                namePlaceholder="2026 entry pack"
+                busy={busy}
+                error={error}
+                onCreate={handleCreate}
+                onCancel={() => {
+                  setAdding(false);
+                  setError(null);
+                }}
+                onReleased={forgetSlug}
+              />
+            ) : active ? (
               confirmingDelete ? (
                 <div className="space-y-2.5 rounded-md border border-destructive/40 bg-destructive/10 p-3">
                   <p className="text-xs leading-relaxed text-foreground">
@@ -401,6 +472,7 @@ export function DecksEditor({
                   siteUrl={siteUrl}
                   onChange={update}
                   onDelete={() => setConfirmingDelete(true)}
+                  onReleasedSlug={forgetSlug}
                   busy={busy}
                 />
               )

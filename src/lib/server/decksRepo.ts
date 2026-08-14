@@ -9,6 +9,7 @@ import {
   type DeckSummary,
 } from "@/lib/decks";
 import { oneOf } from "@/lib/normalise";
+import { isUsableSlug, type SlugHolder } from "@/lib/slug";
 import { getSql } from "@/lib/server/db";
 
 /**
@@ -111,19 +112,44 @@ export async function getDeckBySlug(slug: string): Promise<Deck | null> {
   return rows[0] ? hydrate(rows[0]) : null;
 }
 
+/** Stands in for "no deck to exclude" — `id <> ''` is a type error, not a match. */
+const NO_DECK = "00000000-0000-0000-0000-000000000000";
+
+/** A refusal the routes already know how to turn into a 409. */
+function taken(message: string): Error & { code?: string } {
+  const conflict = new Error(message) as Error & { code?: string };
+  conflict.code = DUPLICATE;
+  return conflict;
+}
+
 /**
- * Adds a deck, giving it an address nobody else has.
+ * Adds a deck at the address it was asked for.
  *
- * Every new deck starts life called "New deck", which slugifies to `new-deck`,
- * which is `UNIQUE` — so pressing "Add deck" a second time would be a
- * guaranteed 409 about a link the admin never typed. Adding a suffix is what
- * they would have had to do by hand, so it is done for them and said out loud.
+ * The same two paths the forms repo takes, for the same reason — see the note
+ * on `createForm`. An address somebody typed is honoured exactly or refused,
+ * because a silent `-2` on the end is a link they will not think to check; an
+ * address nobody typed still gets the suffix loop, because something has to be
+ * invented.
  */
 export async function createDeck(input: unknown, notes?: string[]): Promise<Deck> {
   const first = normaliseDeckInput(input, notes);
+  const asked = typeof (input as { slug?: unknown })?.slug === "string"
+    && (input as { slug: string }).slug.trim() !== "";
+
+  if (asked) {
+    const holder = await findSlugOwner(first.slug);
+    if (holder) throw taken(heldBy(first.slug, holder));
+
+    return insertDeck(first);
+  }
 
   for (let attempt = 1; attempt <= 20; attempt += 1) {
     const slug = attempt === 1 ? first.slug : `${first.slug}-${attempt}`;
+
+    // Skipped rather than attempted: a former address is not the unique column,
+    // so the insert would succeed and the collision would only ever show up as
+    // somebody else's old link opening this deck.
+    if (await findSlugOwner(slug)) continue;
 
     try {
       const deck = await insertDeck({ ...first, slug });
@@ -140,21 +166,55 @@ export async function createDeck(input: unknown, notes?: string[]): Promise<Deck
   throw new Error("Could not find a free address for the deck.");
 }
 
+/** The sentence a held address gets refused with, in both directions. */
+function heldBy(slug: string, holder: SlugHolder): string {
+  const name = holder.name || "another deck";
+  return holder.held === "current"
+    ? `/deck/${slug} is where “${name}” lives. Give that deck a different address first.`
+    : `/deck/${slug} is an old address of “${name}” and still redirects there.`;
+}
+
 /**
- * Whether another deck still answers to this address.
+ * Which deck, if any, answers to this address — as its own or from its history.
  *
  * Same reasoning as the forms table: `former_slugs` is what makes a printed
  * link survive a rename, and handing the same address to a different deck would
  * quietly start opening somebody else's document. There is no unique index to
- * lean on here — the column is a JSONB array.
+ * lean on for that half — the column is a JSONB array.
  */
-export async function slugHeldElsewhere(slug: string, exceptId: string): Promise<boolean> {
+export async function findSlugOwner(slug: string, exceptId = ""): Promise<SlugHolder | null> {
+  if (!isUsableSlug(slug)) return null;
+
   const sql = getSql();
   const rows = (await sql`
-    SELECT id FROM ctr_decks
-     WHERE id <> ${exceptId}
-       AND former_slugs @> ${JSON.stringify([slug])}::jsonb
+    SELECT id, name, (slug = ${slug}) AS is_current
+      FROM ctr_decks
+     WHERE (slug = ${slug} OR former_slugs @> ${JSON.stringify([slug])}::jsonb)
+       AND id <> ${exceptId || NO_DECK}
+     ORDER BY (slug = ${slug}) DESC
      LIMIT 1
+  `) as { id: string; name: string; is_current: boolean }[];
+
+  const row = rows[0];
+  return row ? { id: row.id, name: row.name, held: row.is_current ? "current" : "former" } : null;
+}
+
+/**
+ * Drops one address out of a deck's history, so another deck may take it.
+ *
+ * Only ever a FORMER address — the `WHERE` sees only the JSONB column, so a
+ * deck's live slug cannot be taken out from under it by typing in a box on a
+ * different screen. See the twin in the forms repo.
+ */
+export async function releaseFormerSlug(slug: string, fromId: string): Promise<boolean> {
+  const sql = getSql();
+  const rows = (await sql`
+    UPDATE ctr_decks
+       SET former_slugs = former_slugs - ${slug}::text,
+           updated_at   = now()
+     WHERE id = ${fromId}
+       AND former_slugs @> ${JSON.stringify([slug])}::jsonb
+    RETURNING id
   `) as { id: string }[];
 
   return rows.length > 0;
@@ -184,6 +244,9 @@ async function insertDeck(d: Omit<Deck, "id">): Promise<Deck> {
  * claim an address the deck never had, which would be a way to take a slug out
  * from under another one.
  *
+ * It can only ever SHRINK from the request — the other half of that rule, and
+ * safe for the same reason it is unsafe in reverse. See the note on updateForm.
+ *
  * Deliberately does NOT write sort_order, for the reason updateTrack gives:
  * position belongs to `reorderDecks`, so a deck opened before someone dragged
  * the list cannot save a stale position back over it.
@@ -199,18 +262,35 @@ export async function updateDeck(
   const existing = await getDeck(id);
   if (!existing) return null;
 
-  if (d.slug !== existing.slug && (await slugHeldElsewhere(d.slug, id))) {
-    const conflict = new Error("That address still belongs to another deck.") as Error & {
-      code?: string;
-    };
-    conflict.code = DUPLICATE;
-    throw conflict;
+  if (d.slug !== existing.slug) {
+    const holder = await findSlugOwner(d.slug, id);
+    if (holder) throw taken(heldBy(d.slug, holder));
+  }
+
+  /*
+   * The history is the STORED list narrowed by what the editor kept — never the
+   * list the request sent. Read from the raw body rather than the normalised
+   * deck, because the normaliser turns a missing field into `[]` and treating
+   * that as "cleared" would wipe the redirects of any caller posting without one.
+   */
+  const requested = (input as { former_slugs?: unknown })?.former_slugs;
+  const kept = Array.isArray(requested)
+    ? existing.former_slugs.filter((slug) => requested.includes(slug))
+    : existing.former_slugs;
+
+  const retired = existing.former_slugs.length - kept.length;
+  if (retired > 0) {
+    notes?.push(
+      retired === 1
+        ? "One old address was retired — it no longer finds this deck."
+        : `${retired} old addresses were retired — they no longer find this deck.`
+    );
   }
 
   const formerSlugs =
     existing.slug && existing.slug !== d.slug
-      ? [...new Set([...existing.former_slugs, existing.slug])].filter((slug) => slug !== d.slug)
-      : existing.former_slugs.filter((slug) => slug !== d.slug);
+      ? [...new Set([...kept, existing.slug])].filter((slug) => slug !== d.slug)
+      : kept.filter((slug) => slug !== d.slug);
 
   if (d.slug !== existing.slug) {
     notes?.push(
