@@ -19,23 +19,23 @@
  *
  * ── What it touches ───────────────────────────────────────────────────────
  *
- * Every column that can hold an image URL, per scripts/schema.mjs. The JSONB
- * ones are replaced through their text form, which is safe because a URL
+ * Every column that can hold an image URL, per migrations/0001_baseline.sql.
+ * The JSONB ones are replaced through their text form, which is safe because a URL
  * contains no character JSON escapes — and jsonb is already normalised on
  * storage, so the round-trip changes nothing but the string.
  *
- * `ctr_forms.fields` / `sections` and `ctr_tracks.links` are in the list even
+ * `forms.fields` / `sections` and `tracks.links` are in the list even
  * though nothing writes an upload into them, because their text is
  * author-written and an editor can paste one. A pasted URL that is missed here
  * is a picture that vanishes the day the bucket goes private.
  *
  * NOT touched, deliberately:
- *   ctr_form_entries.answers  registration attachments live under ENTRY_PREFIX,
+ *   form_entries.answers  registration attachments live under ENTRY_PREFIX,
  *                             are never given a public URL, and leave only
  *                             through an authenticated route that streams them.
  *                             They have no host in them to rewrite.
- *   ctr_enquiries             nothing renders a URL out of a stranger's message.
- *   ctr_tracks.svg_path       an inline SVG `d` attribute, not an address.
+ *   enquiries                 nothing renders a URL out of a stranger's message.
+ *   tracks.svg_path           an inline SVG `d` attribute, not an address.
  *
  * `updated_at` is left alone. The admin screens read it as "somebody edited
  * this", and re-addressing the same photograph is not an edit — the pictures
@@ -43,32 +43,37 @@
  *
  * ── Life expectancy ───────────────────────────────────────────────────────
  *
- * One-shot. It names the `ctr_*` tables, which the schema baseline in the next
- * phase renames into the `ctr` schema — at which point this file is both spent
- * and broken. Delete it then rather than leaving it runnable.
+ * One-shot, and it outlived the schema it was written against: 0001 moved these
+ * tables into the `ctr` schema and dropped the prefix while this had not yet
+ * been run. So each table is looked up at run time and answers to either name —
+ * `ctr.content` if the baseline has been applied, `public.ctr_content` if not.
+ *
+ * That is the whole of the accommodation. Once this has run against production
+ * it is spent: delete it rather than leaving a one-shot lying around looking
+ * like a tool.
  */
 import { neon } from "@neondatabase/serverless";
 
 /** Every column that can hold one, and whether it has to go through ::text. */
 const TARGETS = [
   {
-    table: "ctr_content",
+    table: "content",
     what: "the landing and INCRC documents",
     columns: [{ name: "content", json: true }],
   },
-  { table: "ctr_decks", what: "deck page images", columns: [{ name: "pages", json: true }] },
+  { table: "decks", what: "deck page images", columns: [{ name: "pages", json: true }] },
   {
-    table: "ctr_sports",
+    table: "sports",
     what: "sport logos and photos",
     columns: [{ name: "logo_url" }, { name: "photo_url" }],
   },
   {
-    table: "ctr_tracks",
+    table: "tracks",
     what: "circuit photos, layout maps and related links",
     columns: [{ name: "photo_url" }, { name: "map_url" }, { name: "links", json: true }],
   },
   {
-    table: "ctr_forms",
+    table: "forms",
     what: "anything pasted into a form's questions or sections",
     columns: [{ name: "fields", json: true }, { name: "sections", json: true }],
   },
@@ -137,6 +142,22 @@ if (TO.includes(FROM)) {
 
 const sql = neon(process.env.DATABASE_URL);
 
+/**
+ * Whichever of the two names this database answers to, fully qualified.
+ *
+ * `to_regclass` returns null rather than raising for a name that is not there,
+ * which is what makes asking about both cheap. Null from both means the table
+ * does not exist at all — a database this script has no business writing to.
+ */
+async function resolveTable(name) {
+  const [row] = await sql.query(
+    `SELECT coalesce(to_regclass('ctr.' || $1), to_regclass('public.ctr_' || $1))::text AS name`,
+    [name]
+  );
+
+  return row.name;
+}
+
 /** `strpos`, not LIKE: the needle is a literal, and % and _ are not wildcards in it. */
 const matches = (column) => `strpos(${column.json ? `${column.name}::text` : column.name}, $1) > 0`;
 
@@ -148,7 +169,7 @@ const rewrite = (column) =>
 /**
  * Rows still carrying the old host, per column — and how many URLs are in them.
  *
- * The row count alone is not something anyone can eyeball: `ctr_content` is two
+ * The row count alone is not something anyone can eyeball: `content` is two
  * rows whatever happens, and the question is whether they hold the eleven
  * addresses you expect or one. Occurrences are counted the only way SQL offers,
  * by how much shorter the text gets with the needle taken out of it.
@@ -184,7 +205,13 @@ try {
   let written = 0;
 
   for (const { table, what, columns } of TARGETS) {
-    const counts = await countMatches(table, columns);
+    const resolved = await resolveTable(table);
+
+    if (!resolved) {
+      fail(`No ${table} table under either name. Is DATABASE_URL pointing at the right database?`);
+    }
+
+    const counts = await countMatches(resolved, columns);
     const total = counts.reduce((sum, count) => sum + count.rows, 0);
     const hits = counts.reduce((sum, count) => sum + count.hits, 0);
     pending += total;
@@ -196,12 +223,12 @@ try {
       .join(", ");
 
     if (total === 0) {
-      console.log(`  ${table.padEnd(16)} —  nothing to do (${what})`);
+      console.log(`  ${resolved.padEnd(20)} —  nothing to do (${what})`);
       continue;
     }
 
     console.log(
-      `  ${table.padEnd(16)} ${String(total).padStart(3)} row(s), ` +
+      `  ${resolved.padEnd(20)} ${String(total).padStart(3)} row(s), ` +
         `${String(hits).padStart(3)} URL(s)  [${detail}]`
     );
 
@@ -210,7 +237,7 @@ try {
     // One statement per table: a row matching on two columns is updated once,
     // and a column that does not match is rewritten to the value it already has.
     const changed = await sql.query(
-      `UPDATE ${table}
+      `UPDATE ${resolved}
           SET ${columns.map(rewrite).join(", ")}
         WHERE ${columns.map(matches).join(" OR ")}
         RETURNING 1`,
@@ -241,7 +268,7 @@ try {
   // the difference between "the statements ran" and "the rows changed".
   let left = 0;
   for (const { table, columns } of TARGETS) {
-    const counts = await countMatches(table, columns);
+    const counts = await countMatches(await resolveTable(table), columns);
     left += counts.reduce((sum, count) => sum + count.rows, 0);
   }
 

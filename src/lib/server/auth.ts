@@ -48,7 +48,7 @@ export async function createSession(adminId: string): Promise<void> {
   const expiresAt = new Date(Date.now() + SESSION_TTL_DAYS * 24 * 60 * 60 * 1000);
 
   await sql`
-    INSERT INTO ctr_sessions (token_hash, admin_id, expires_at)
+    INSERT INTO sessions (token_hash, admin_id, expires_at)
     VALUES (${hashToken(token)}, ${adminId}, ${expiresAt.toISOString()})
   `;
 
@@ -90,8 +90,8 @@ export const getSession = cache(async (): Promise<AdminSession | null> => {
     const sql = getSql();
     const rows = (await sql`
       SELECT a.id AS admin_id, a.username, a.role, a.pages
-        FROM ctr_sessions s
-        JOIN ctr_admins a ON a.id = s.admin_id
+        FROM sessions s
+        JOIN admins a ON a.id = s.admin_id
        WHERE s.token_hash = ${hashToken(token)}
          AND s.expires_at > now()
     `) as { admin_id: string; username: string; role: unknown; pages: unknown }[];
@@ -121,7 +121,7 @@ export async function destroySession(): Promise<void> {
 
   if (token) {
     try {
-      await getSql()`DELETE FROM ctr_sessions WHERE token_hash = ${hashToken(token)}`;
+      await getSql()`DELETE FROM sessions WHERE token_hash = ${hashToken(token)}`;
     } catch {
       // The cookie is cleared below regardless; the row expires on its own.
     }
@@ -133,7 +133,7 @@ export async function destroySession(): Promise<void> {
 /** Best-effort cleanup so the sessions table does not grow without bound. */
 export async function pruneExpiredSessions(): Promise<void> {
   try {
-    await getSql()`DELETE FROM ctr_sessions WHERE expires_at < now()`;
+    await getSql()`DELETE FROM sessions WHERE expires_at < now()`;
   } catch {
     // Non-critical.
   }

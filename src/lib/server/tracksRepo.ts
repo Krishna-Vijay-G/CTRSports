@@ -4,7 +4,7 @@ import { getSql } from "@/lib/server/db";
 import { normaliseTrackInput, type Track } from "@/lib/tracks";
 
 /**
- * Every read and write of ctr_tracks.
+ * Every read and write of ctr.tracks.
  *
  * The column list is spelled out in each query rather than shared through a
  * helper, the same way sportsRepo does it: a handful of queries repeating the
@@ -18,7 +18,7 @@ export async function listTracks(): Promise<Track[]> {
            length, turns, direction, opened, broke_ground, former_names, owner,
            fia_grade, coordinates, capacity, links, major_events, races_held,
            lap_record_time, lap_record_year, note, sort_order
-      FROM ctr_tracks
+      FROM tracks
      ORDER BY sort_order ASC, name ASC
   `) as Track[];
 
@@ -46,7 +46,7 @@ export async function createTrack(input: unknown): Promise<Track> {
   const t = normaliseTrackInput(input);
 
   const rows = (await sql`
-    INSERT INTO ctr_tracks (
+    INSERT INTO tracks (
       name, location, photo_url, map_url, svg_path, svg_view_box,
       length, turns, direction, opened, broke_ground, former_names, owner,
       fia_grade, coordinates, capacity, links, major_events, races_held,
@@ -80,7 +80,7 @@ export async function updateTrack(id: string, input: unknown): Promise<Track | n
   const t = normaliseTrackInput(input);
 
   const rows = (await sql`
-    UPDATE ctr_tracks
+    UPDATE tracks
        SET name            = ${t.name},
            location        = ${t.location},
            photo_url       = ${t.photo_url},
@@ -123,7 +123,7 @@ export async function reorderTracks(ids: string[]): Promise<void> {
   await sql.transaction(
     ids.map(
       (id, index) => sql`
-        UPDATE ctr_tracks
+        UPDATE tracks
            SET sort_order = ${(index + 1) * 10}, updated_at = now()
          WHERE id = ${id}
       `
@@ -139,7 +139,7 @@ export async function reorderTracks(ids: string[]): Promise<void> {
 export async function deleteTrack(id: string): Promise<boolean> {
   const sql = getSql();
   const rows = (await sql`
-    DELETE FROM ctr_tracks WHERE id = ${id} RETURNING id
+    DELETE FROM tracks WHERE id = ${id} RETURNING id
   `) as { id: string }[];
 
   return rows.length > 0;

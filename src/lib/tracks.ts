@@ -1,5 +1,5 @@
 /**
- * A circuit: one row of `ctr_tracks`.
+ * A circuit: one row of `ctr.tracks`.
  *
  * A table rather than a field on the round, because a circuit outlives the
  * season that visits it. The same track is raced on twice in a year and again
@@ -147,7 +147,7 @@ export const BLANK_TRACK: Omit<Track, "id"> = {
 };
 
 /**
- * Seeded into an empty table by `npm run migrate`, so the calendar has circuits
+ * Seeded into an empty table by `npm run db:seed`, so the calendar has circuits
  * to point at on a fresh database. Taken from the venues already on the page.
  */
 export const SEED_TRACKS: Omit<Track, "id">[] = [

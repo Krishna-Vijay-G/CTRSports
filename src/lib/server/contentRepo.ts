@@ -71,7 +71,7 @@ export async function saveIncrcContent(input: unknown): Promise<IncrcContent> {
 
 async function read(key: string): Promise<unknown> {
   const sql = getSql();
-  const rows = (await sql`SELECT content FROM ctr_content WHERE key = ${key}`) as {
+  const rows = (await sql`SELECT content FROM content WHERE key = ${key}`) as {
     content: unknown;
   }[];
 
@@ -82,7 +82,7 @@ async function write<T>(key: string, normalised: T): Promise<T> {
   const sql = getSql();
 
   await sql`
-    INSERT INTO ctr_content (key, content, updated_at)
+    INSERT INTO content (key, content, updated_at)
     VALUES (${key}, ${JSON.stringify(normalised)}::jsonb, now())
     ON CONFLICT (key) DO UPDATE
       SET content    = EXCLUDED.content,

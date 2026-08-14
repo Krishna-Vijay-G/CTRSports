@@ -19,7 +19,7 @@ import { IncrcTop } from "./_components/IncrcTop";
  * results, the karting league, the academy, the club — is not on this page,
  * because none of it is INCRC.
  *
- * Two documents, both from `ctr_content`:
+ * Two documents, both from `ctr.content`:
  *
  *   'incrc'   — everything in the body, including which sections are on the page
  *               and in what order. Edited at /admin/incrc.
@@ -112,7 +112,7 @@ export default async function IncrcPage() {
       name: landing.brand.name,
       url: SITE.url,
     },
-    // The circuits themselves, from ctr_tracks — the same rows the venues
+    // The circuits themselves, from ctr.tracks — the same rows the venues
     // section and /circuits render, so the markup cannot drift from the page.
     location: tracks.map((track) => ({
       "@type": "Place",

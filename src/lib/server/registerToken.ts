@@ -111,7 +111,7 @@ export async function consumeToken(nonce: unknown, issuedAt: unknown): Promise<b
   const sql = getSql();
 
   const rows = (await sql`
-    INSERT INTO ctr_form_nonces (nonce, expires_at)
+    INSERT INTO form_nonces (nonce, expires_at)
     VALUES (${nonce.slice(0, 200)}, ${expiresAt})
     ON CONFLICT (nonce) DO NOTHING
     RETURNING nonce
@@ -120,7 +120,7 @@ export async function consumeToken(nonce: unknown, issuedAt: unknown): Promise<b
   // Nothing schedules a clean-up, so it rides along with the writes. One in
   // fifty keeps the table small without putting a DELETE on every submission.
   if (Math.random() < 0.02) {
-    await sql`DELETE FROM ctr_form_nonces WHERE expires_at < now()`.catch((error: unknown) => {
+    await sql`DELETE FROM form_nonces WHERE expires_at < now()`.catch((error: unknown) => {
       console.error("[register] could not sweep spent nonces", error);
     });
   }

@@ -1,7 +1,7 @@
 /**
  * Every word and picture on /incrc.
  *
- * The LIVE content is one JSONB document in `ctr_content` under the key 'incrc',
+ * The LIVE content is one JSONB document in `ctr.content` under the key 'incrc',
  * edited at /admin/incrc. What lives here is the TYPE plus the DEFAULTS, which:
  *
  *   1. render the page when the database is unreachable or has no row yet
@@ -152,7 +152,7 @@ export type VisionItem = { icon: VisionIcon; label: string; description: string 
  * A round with no `start` simply has no countdown. That is the honest rendering
  * of a date nobody has fixed yet, and it is why the dates are not required.
  *
- * `trackId` points at a row of ctr_tracks, which is where the map, the length
+ * `trackId` points at a row of ctr.tracks, which is where the map, the length
  * and the corner count live. `venue`/`city` are the fallback for a round whose
  * circuit has no row yet — and the reason the old content still reads correctly.
  */
@@ -164,7 +164,7 @@ export type Round = {
   end: string;
   /** Overrides the printed date range. Blank writes it from start/end. */
   dates: string;
-  /** ctr_tracks.id, or "" to fall back to the venue and city below. */
+  /** ctr.tracks.id, or "" to fall back to the venue and city below. */
   trackId: string;
   venue: string;
   city: string;
@@ -235,7 +235,7 @@ export type IncrcContent = {
     insetAlt: string;
   };
   /**
-   * The heading only. The circuits themselves are rows of ctr_tracks — the
+   * The heading only. The circuits themselves are rows of ctr.tracks — the
    * section shows the first three and sends the reader to /circuits for the
    * rest — so there is nothing about a venue to type in here.
    */
@@ -457,7 +457,7 @@ export const DEFAULT_INCRC_CONTENT: IncrcContent = {
   /*
    * The rounds carry no `trackId`, and the live document does.
    *
-   * A trackId is the uuid of a row in ctr_tracks, and this list is what renders
+   * A trackId is the uuid of a row in ctr.tracks, and this list is what renders
    * when there is NO document — a fresh install, or the database being
    * unreachable. Neither of those can resolve a uuid: the first has no circuits
    * yet and the second cannot read the ones it has. A round with no trackId
@@ -642,7 +642,7 @@ export const DEFAULT_INCRC_CONTENT: IncrcContent = {
      * The section listing the forms, not a form.
      *
      * Live points straight at /register/race-with-ctr, and that address is a row
-     * in ctr_forms — the same reason the rounds carry no trackId. A default
+     * in ctr.forms — the same reason the rounds carry no trackId. A default
      * cannot name a form, because the case it exists for is the case where no
      * form is readable. The picker in the admin is how this gets aimed at one.
      *
@@ -767,7 +767,7 @@ function withIds<T extends { id: string }>(items: T[], prefix: string): T[] {
 }
 
 /**
- * Turns whatever came out of the `ctr_content` row into a valid IncrcContent.
+ * Turns whatever came out of the `ctr.content` row into a valid IncrcContent.
  *
  * Every field is merged over the defaults independently, so a document that is
  * partial, stale or outright malformed degrades one field at a time rather than
@@ -873,7 +873,7 @@ export function normaliseIncrcContent(input: unknown): IncrcContent {
       insetAlt: text(grid.insetAlt, d.grid.insetAlt),
     },
 
-    // Heading only. A document saved before the circuits moved to ctr_tracks
+    // Heading only. A document saved before the circuits moved to ctr.tracks
     // still carries its `items`; they are dropped here, which is what retires
     // the field — the section reads the tracks table instead.
     venues: {

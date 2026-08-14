@@ -38,17 +38,17 @@ export function IncrcSections({
 }: {
   content: IncrcContent;
   /**
-   * The circuits, from ctr_tracks: what the venues section lists and what the
+   * The circuits, from ctr.tracks: what the venues section lists and what the
    * calendar's rounds point at. Empty drops the venue cards and the maps.
    */
   tracks: Track[];
   /**
-   * The entry forms assigned to this page, from ctr_forms. Empty leaves the
+   * The entry forms assigned to this page, from ctr.forms. Empty leaves the
    * registrations section off the page entirely.
    */
   forms: FormSummary[];
   /**
-   * Every published deck, from ctr_decks. The decks section picks from these by
+   * Every published deck, from ctr.decks. The decks section picks from these by
    * address; a card naming one that is not here is dropped.
    */
   decks: DeckSummary[];

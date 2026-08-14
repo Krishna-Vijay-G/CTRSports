@@ -13,7 +13,7 @@ import { SportsSection } from "./_components/sections/SportsSection";
  * The landing page: who CTR is, and which sports it runs.
  *
  * Every word and picture comes from the database — the copy as one document
- * (`ctr_content`), the sports as rows (`ctr_sports`). Both loaders fall back
+ * (`ctr.content`), the sports as rows (`ctr.sports`). Both loaders fall back
  * rather than throw, so an unreachable database still renders a complete page.
  *
  * Everything sits inside one rounded card with the page colour showing around

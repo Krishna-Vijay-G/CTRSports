@@ -32,7 +32,7 @@ export function DecksSection({
 }: {
   /** The heading and the picked cards, from the page's own document. */
   decks: IncrcContent["decks"];
-  /** Every published deck, from ctr_decks. Passed in — this may be a preview. */
+  /** Every published deck, from ctr.decks. Passed in — this may be a preview. */
   available: DeckSummary[];
 }) {
   const cards = copy.items

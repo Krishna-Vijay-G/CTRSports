@@ -4,7 +4,7 @@ import { CREATED_COLUMN, type EntryCursor, type FormEntry, type Submission } fro
 import { getSql } from "@/lib/server/db";
 
 /**
- * Every read and write of ctr_form_entries.
+ * Every read and write of ctr.form_entries.
  *
  * This is the one table in the project written by a stranger, so the values
  * reaching it have already been through `validateSubmission` — which is what
@@ -73,7 +73,7 @@ export async function createEntry(
   const sql = getSql();
 
   const rows = (await sql`
-    INSERT INTO ctr_form_entries (form_id, answers, ip, user_agent)
+    INSERT INTO form_entries (form_id, answers, ip, user_agent)
     VALUES (
       ${formId},
       ${JSON.stringify(answers)}::jsonb,
@@ -116,10 +116,10 @@ export async function createEntryWithinCap(
   const sql = getSql();
 
   const rows = (await sql`
-    INSERT INTO ctr_form_entries (form_id, answers, ip, user_agent)
+    INSERT INTO form_entries (form_id, answers, ip, user_agent)
     SELECT ${formId}, ${JSON.stringify(answers)}::jsonb,
            ${ip.slice(0, IP_MAX)}, ${userAgent.slice(0, AGENT_MAX)}
-     WHERE (SELECT count(*) FROM ctr_form_entries WHERE form_id = ${formId}) < ${cap}
+     WHERE (SELECT count(*) FROM form_entries WHERE form_id = ${formId}) < ${cap}
     RETURNING id, form_id, answers, ip, user_agent, created_at
   `) as FormEntry[];
 
@@ -169,14 +169,14 @@ export async function listEntries(
       sort.dir === "asc"
         ? ((await sql`
             SELECT id, form_id, answers, ip, user_agent, created_at
-              FROM ctr_form_entries
+              FROM form_entries
              WHERE form_id = ${formId}
              ORDER BY created_at ASC, id ASC
              LIMIT ${take} OFFSET ${skip}
           `) as FormEntry[])
         : ((await sql`
             SELECT id, form_id, answers, ip, user_agent, created_at
-              FROM ctr_form_entries
+              FROM form_entries
              WHERE form_id = ${formId}
              ORDER BY created_at DESC, id DESC
              LIMIT ${take} OFFSET ${skip}
@@ -195,7 +195,7 @@ export async function listEntries(
       sort.dir === "asc"
         ? ((await sql`
             SELECT id, form_id, answers, ip, user_agent, created_at
-              FROM ctr_form_entries
+              FROM form_entries
              WHERE form_id = ${formId}
              ORDER BY (CASE WHEN NULLIF(answers->>${key}, '') ~ '^-?[0-9]+([.][0-9]+)?$'
                             THEN (answers->>${key})::numeric END) ASC NULLS LAST,
@@ -205,7 +205,7 @@ export async function listEntries(
           `) as FormEntry[])
         : ((await sql`
             SELECT id, form_id, answers, ip, user_agent, created_at
-              FROM ctr_form_entries
+              FROM form_entries
              WHERE form_id = ${formId}
              ORDER BY (CASE WHEN NULLIF(answers->>${key}, '') ~ '^-?[0-9]+([.][0-9]+)?$'
                             THEN (answers->>${key})::numeric END) DESC NULLS LAST,
@@ -220,7 +220,7 @@ export async function listEntries(
   const rows = before
     ? ((await sql`
         SELECT id, form_id, answers, ip, user_agent, created_at
-          FROM ctr_form_entries
+          FROM form_entries
          WHERE form_id = ${formId}
            -- Both halves, compared as a row: this is the tie-break the note
            -- above promises, and without it rows sharing a timestamp with the
@@ -231,7 +231,7 @@ export async function listEntries(
       `) as FormEntry[])
     : ((await sql`
         SELECT id, form_id, answers, ip, user_agent, created_at
-          FROM ctr_form_entries
+          FROM form_entries
          WHERE form_id = ${formId}
          ORDER BY created_at DESC, id DESC
          LIMIT ${take}
@@ -245,7 +245,7 @@ export async function getEntry(formId: string, entryId: string): Promise<FormEnt
   const sql = getSql();
   const rows = (await sql`
     SELECT id, form_id, answers, ip, user_agent, created_at
-      FROM ctr_form_entries
+      FROM form_entries
      WHERE id = ${entryId} AND form_id = ${formId}
   `) as FormEntry[];
 
@@ -267,7 +267,7 @@ export async function updateEntry(
   const sql = getSql();
 
   const rows = (await sql`
-    UPDATE ctr_form_entries
+    UPDATE form_entries
        SET answers = ${JSON.stringify(answers)}::jsonb
      WHERE id = ${entryId} AND form_id = ${formId}
     RETURNING id, form_id, answers, ip, user_agent, created_at
@@ -295,7 +295,7 @@ export async function countEntriesSafe(formId: string): Promise<number> {
 export async function countEntries(formId: string): Promise<number> {
   const sql = getSql();
   const rows = (await sql`
-    SELECT count(*)::int AS count FROM ctr_form_entries WHERE form_id = ${formId}
+    SELECT count(*)::int AS count FROM form_entries WHERE form_id = ${formId}
   `) as { count: number }[];
 
   return rows[0]?.count ?? 0;
@@ -321,7 +321,7 @@ export async function countRecentEntries(
 
   const rows = (await sql`
     SELECT count(*)::int AS count
-      FROM ctr_form_entries
+      FROM form_entries
      WHERE form_id = ${formId}
        AND ip = ${ip.slice(0, IP_MAX)}
        AND created_at > ${since}
@@ -334,7 +334,7 @@ export async function countRecentEntries(
 export async function deleteEntry(formId: string, entryId: string): Promise<boolean> {
   const sql = getSql();
   const rows = (await sql`
-    DELETE FROM ctr_form_entries
+    DELETE FROM form_entries
      WHERE id = ${entryId} AND form_id = ${formId}
     RETURNING id
   `) as { id: string }[];
@@ -361,7 +361,7 @@ export async function deleteEntries(formId: string, ids: string[]): Promise<numb
   const results = await sql.transaction(
     ids.slice(0, MAX_BULK_DELETE).map(
       (entryId) => sql`
-        DELETE FROM ctr_form_entries
+        DELETE FROM form_entries
          WHERE id = ${entryId} AND form_id = ${formId}
         RETURNING id
       `

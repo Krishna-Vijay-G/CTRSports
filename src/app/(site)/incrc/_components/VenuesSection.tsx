@@ -11,7 +11,7 @@ import { PinIcon } from "./icons";
 /**
  * The circuits the championship runs on, each with its layout above it.
  *
- * The circuits come from ctr_tracks — the same rows /circuits and the calendar
+ * The circuits come from ctr.tracks — the same rows /circuits and the calendar
  * read — so a circuit is described once and the three screens can never disagree
  * about its name, its city or the shape of its lap. Nothing about a venue is
  * typed into the incrc document any more; only the heading above them is.

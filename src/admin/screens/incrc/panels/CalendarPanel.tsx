@@ -17,7 +17,7 @@ type Calendar = IncrcContent["calendar"];
  * which can be done with "11–13 September". The sentence is still available as
  * an override for a weekend the dates cannot express.
  *
- * The circuit is picked from ctr_tracks rather than typed, so the map, the
+ * The circuit is picked from ctr.tracks rather than typed, so the map, the
  * length and the corner count come with it. Circuits themselves are edited on a
  * screen of their own.
  */
@@ -132,7 +132,7 @@ export function CalendarPanel({
               </Select>
               <Hint className="mt-1">
                 {tracks.length === 0
-                  ? "No circuits in the database yet — run npm run migrate to seed them."
+                  ? "No circuits in the database yet — run npm run db:seed to add them."
                   : "Brings the map, the length and the corner count with it. Circuits are edited on their own screen."}
               </Hint>
             </div>

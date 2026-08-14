@@ -18,12 +18,14 @@
  * There is an Accounts screen in the admin that does all of this; this stays
  * for the first account, and for the day somebody locks themselves out.
  *
- * Applies the schema first, so it doubles as one-time database setup.
+ * Expects the schema to be there: `npm run db:migrate` first. It used to apply
+ * the whole of scripts/schema.mjs on the way past, which was convenient and is
+ * exactly the habit versioned migrations exist to break — the bootstrap tool
+ * should not be a second, quieter way of changing the shape of the database.
  */
 import { randomBytes, scrypt as scryptCb } from "node:crypto";
 import { promisify } from "node:util";
 import { neon } from "@neondatabase/serverless";
-import { migrate, seedSports } from "./schema.mjs";
 
 const scrypt = promisify(scryptCb);
 
@@ -125,9 +127,6 @@ async function hashPassword(plain) {
 }
 
 try {
-  await migrate(sql);
-  await seedSports(sql);
-
   const hash = await hashPassword(password);
   const pagesJson = JSON.stringify(pages);
 
@@ -138,7 +137,7 @@ try {
 
   const rows = setAccess
     ? await sql`
-        INSERT INTO ctr_admins (username, password_hash, role, pages)
+        INSERT INTO ctr.admins (username, password_hash, role, pages)
         VALUES (${username}, ${hash}, ${role}, ${pagesJson}::jsonb)
         ON CONFLICT (username) DO UPDATE
           SET password_hash = EXCLUDED.password_hash,
@@ -147,7 +146,7 @@ try {
         RETURNING id, role, (xmax = 0) AS inserted
       `
     : await sql`
-        INSERT INTO ctr_admins (username, password_hash, role, pages)
+        INSERT INTO ctr.admins (username, password_hash, role, pages)
         VALUES (${username}, ${hash}, ${role}, ${pagesJson}::jsonb)
         ON CONFLICT (username) DO UPDATE
           SET password_hash = EXCLUDED.password_hash
@@ -155,7 +154,7 @@ try {
       `;
 
   // A password change invalidates whatever was signed in before it.
-  await sql`DELETE FROM ctr_sessions WHERE admin_id = ${rows[0].id}`;
+  await sql`DELETE FROM ctr.sessions WHERE admin_id = ${rows[0].id}`;
 
   const access =
     rows[0].role === "pages" ? `pages: ${pages.join(", ") || "none"}` : rows[0].role;
@@ -172,6 +171,12 @@ try {
 
   console.log("Sign in at /login on the admin host.");
 } catch (error) {
+  // The likeliest failure on a new database, and the one with an answer.
+  if (error.message.includes("does not exist")) {
+    console.error("There is no ctr.admins table yet. Run npm run db:migrate first.");
+    process.exit(1);
+  }
+
   console.error("Failed:", error.message);
   process.exit(1);
 }

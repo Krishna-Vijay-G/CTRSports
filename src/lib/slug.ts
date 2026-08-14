@@ -17,7 +17,7 @@ export const SLUG_MAX = 80;
  * A slug suggested from a name.
  *
  * Only ever a suggestion. The column is the truth, because the address outlives
- * the name — see the note at the top of the forms table in scripts/schema.mjs.
+ * the name — see the note on the forms table in migrations/0001_baseline.sql.
  */
 export function slugify(name: string, max: number = SLUG_MAX): string {
   // The same decomposition trackSlug uses: strip the accents, then anything

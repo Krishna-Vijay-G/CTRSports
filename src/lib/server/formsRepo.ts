@@ -16,7 +16,7 @@ import { getSql } from "@/lib/server/db";
 import { deleteObjects } from "@/lib/server/s3";
 
 /**
- * Every read and write of ctr_forms.
+ * Every read and write of ctr.forms.
  *
  * The column list is spelled out in each query rather than shared through a
  * helper, the same way tracksRepo does it: a handful of queries repeating the
@@ -86,7 +86,7 @@ export async function listForms(): Promise<Form[]> {
            submit_label, success_title, success_body, closed_note, notify_to,
            opens_at, closes_at, max_entries,
            fields, sections, former_slugs, sort_order
-      FROM ctr_forms
+      FROM forms
      ORDER BY sort_order ASC, name ASC
   `) as Form[];
 
@@ -109,8 +109,8 @@ export async function listFormsForPage(page: FormPageKey): Promise<FormSummary[]
   const rows = (await sql`
     SELECT f.id, f.name, f.slug, f.page_key, f.status, f.blurb, f.sort_order,
            f.opens_at, f.closes_at, f.max_entries,
-           (SELECT count(*)::int FROM ctr_form_entries e WHERE e.form_id = f.id) AS entries
-      FROM ctr_forms f
+           (SELECT count(*)::int FROM form_entries e WHERE e.form_id = f.id) AS entries
+      FROM forms f
      WHERE f.page_key = ${page}
        AND f.status <> 'draft'
      ORDER BY f.sort_order ASC, f.name ASC
@@ -147,7 +147,7 @@ export async function getForm(id: string): Promise<Form | null> {
            submit_label, success_title, success_body, closed_note, notify_to,
            opens_at, closes_at, max_entries,
            fields, sections, former_slugs, sort_order
-      FROM ctr_forms
+      FROM forms
      WHERE id = ${id}
   `) as Form[];
 
@@ -162,7 +162,7 @@ export async function getFormBySlug(slug: string): Promise<Form | null> {
            submit_label, success_title, success_body, closed_note, notify_to,
            opens_at, closes_at, max_entries,
            fields, sections, former_slugs, sort_order
-      FROM ctr_forms
+      FROM forms
      WHERE slug = ${slug}
         OR former_slugs @> ${JSON.stringify([slug])}::jsonb
      ORDER BY (slug = ${slug}) DESC
@@ -262,7 +262,7 @@ export async function findSlugOwner(slug: string, exceptId = ""): Promise<SlugHo
   const sql = getSql();
   const rows = (await sql`
     SELECT id, name, (slug = ${slug}) AS is_current
-      FROM ctr_forms
+      FROM forms
      WHERE (slug = ${slug} OR former_slugs @> ${JSON.stringify([slug])}::jsonb)
        AND id <> ${exceptId || NO_FORM}
      ORDER BY (slug = ${slug}) DESC
@@ -288,7 +288,7 @@ export async function findSlugOwner(slug: string, exceptId = ""): Promise<SlugHo
 export async function releaseFormerSlug(slug: string, fromId: string): Promise<boolean> {
   const sql = getSql();
   const rows = (await sql`
-    UPDATE ctr_forms
+    UPDATE forms
        SET former_slugs = former_slugs - ${slug}::text,
            updated_at   = now()
      WHERE id = ${fromId}
@@ -303,7 +303,7 @@ async function insertForm(f: Omit<Form, "id">): Promise<Form> {
   const sql = getSql();
 
   const rows = (await sql`
-    INSERT INTO ctr_forms (
+    INSERT INTO forms (
       name, slug, page_key, status, blurb, intro_title, intro_body,
       submit_label, success_title, success_body, closed_note, notify_to,
       opens_at, closes_at, max_entries,
@@ -392,7 +392,7 @@ export async function updateForm(
       : kept.filter((slug) => slug !== f.slug);
 
   const rows = (await sql`
-    UPDATE ctr_forms
+    UPDATE forms
        SET name          = ${f.name},
            slug          = ${f.slug},
            page_key      = ${f.page_key},
@@ -431,7 +431,7 @@ export async function reorderForms(ids: string[]): Promise<void> {
   await sql.transaction(
     ids.map(
       (id, index) => sql`
-        UPDATE ctr_forms
+        UPDATE forms
            SET sort_order = ${(index + 1) * 10}, updated_at = now()
          WHERE id = ${id}
       `
@@ -463,7 +463,7 @@ export async function deleteForm(id: string): Promise<boolean> {
    * failure here leaves the form intact and nothing lost.
    */
   const keys = (await sql`
-    SELECT answers FROM ctr_form_entries WHERE form_id = ${id}
+    SELECT answers FROM form_entries WHERE form_id = ${id}
   `) as { answers: Record<string, unknown> }[];
 
   const files = keys
@@ -472,7 +472,7 @@ export async function deleteForm(id: string): Promise<boolean> {
     .filter((key): key is string => Boolean(key));
 
   const rows = (await sql`
-    DELETE FROM ctr_forms WHERE id = ${id} RETURNING id
+    DELETE FROM forms WHERE id = ${id} RETURNING id
   `) as { id: string }[];
 
   if (rows.length === 0) return false;

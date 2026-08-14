@@ -33,7 +33,7 @@ import { PinIcon } from "./icons";
  * the moment the weekend passed. Until it does, the first round leads: correct
  * markup, no layout jump, and no clock read during render.
  *
- * Circuits come from ctr_tracks. A round with no `trackId` falls back to the
+ * Circuits come from ctr.tracks. A round with no `trackId` falls back to the
  * venue and city typed on it, and simply has no photograph.
  */
 export function CalendarSection({

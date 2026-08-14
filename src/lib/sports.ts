@@ -1,5 +1,5 @@
 /**
- * A sport card: one row of `ctr_sports`, edited at /admin/sports.
+ * A sport card: one row of `ctr.sports`, edited at /admin/sports.
  *
  * The rest of the landing page is a single JSONB document — see
  * src/lib/landingContent.ts. Sports are rows instead because they are a list
@@ -55,7 +55,7 @@ export const LIMITS = {
 } as const;
 
 /**
- * Seeded into an empty table by `npm run migrate`, so a fresh database renders a
+ * Seeded into an empty table by `npm run db:seed`, so a fresh database renders a
  * complete page and the admin opens on something to edit rather than a void.
  * After that first insert this list is never consulted again — the table is the
  * source of truth.

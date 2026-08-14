@@ -24,7 +24,7 @@ export async function POST(request: Request) {
   try {
     const sql = getSql();
     const rows = (await sql`
-      SELECT id, password_hash FROM ctr_admins WHERE username = ${username}
+      SELECT id, password_hash FROM admins WHERE username = ${username}
     `) as { id: string; password_hash: string }[];
 
     const admin = rows[0];
@@ -40,7 +40,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("[admin/login]", error);
     return NextResponse.json(
-      { error: "Could not reach the database. Check DATABASE_URL, then run `npm run migrate`." },
+      { error: "Could not reach the database. Check DATABASE_URL, then run `npm run db:migrate`." },
       { status: 500 }
     );
   }

@@ -4,7 +4,7 @@ import { getSql } from "@/lib/server/db";
 import { normaliseSportInput, type Sport } from "@/lib/sports";
 
 /**
- * Every read and write of ctr_sports. The column list is spelled out in each
+ * Every read and write of ctr.sports. The column list is spelled out in each
  * query rather than shared through a helper — five queries repeating six column
  * names is easier to follow than one clever builder.
  */
@@ -40,7 +40,7 @@ export async function listAllSports(): Promise<Sport[]> {
   const sql = getSql();
   const rows = (await sql`
     SELECT id, title, text, details, logo_url, photo_url, href, sort_order, is_visible
-      FROM ctr_sports
+      FROM sports
      ORDER BY sort_order ASC, title ASC
   `) as Row[];
 
@@ -52,7 +52,7 @@ export async function listVisibleSports(): Promise<Sport[]> {
   const sql = getSql();
   const rows = (await sql`
     SELECT id, title, text, details, logo_url, photo_url, href, sort_order, is_visible
-      FROM ctr_sports
+      FROM sports
      WHERE is_visible = true
      ORDER BY sort_order ASC, title ASC
   `) as Row[];
@@ -79,7 +79,7 @@ export async function createSport(input: unknown): Promise<Sport> {
   const sport = normaliseSportInput(input);
 
   const rows = (await sql`
-    INSERT INTO ctr_sports (title, text, details, logo_url, photo_url, href, sort_order, is_visible)
+    INSERT INTO sports (title, text, details, logo_url, photo_url, href, sort_order, is_visible)
     VALUES (${sport.title}, ${sport.text}, ${sport.details}, ${sport.logo_url},
             ${sport.photo_url}, ${sport.href}, ${sport.sort_order}, ${sport.is_visible})
     RETURNING id, title, text, details, logo_url, photo_url, href, sort_order, is_visible
@@ -100,7 +100,7 @@ export async function updateSport(id: string, input: unknown): Promise<Sport | n
   const sport = normaliseSportInput(input);
 
   const rows = (await sql`
-    UPDATE ctr_sports
+    UPDATE sports
        SET title      = ${sport.title},
            text       = ${sport.text},
            details    = ${sport.details},
@@ -133,7 +133,7 @@ export async function reorderSports(ids: string[]): Promise<void> {
   await sql.transaction(
     ids.map(
       (id, index) => sql`
-        UPDATE ctr_sports
+        UPDATE sports
            SET sort_order = ${(index + 1) * 10}, updated_at = now()
          WHERE id = ${id}
       `
@@ -144,7 +144,7 @@ export async function reorderSports(ids: string[]): Promise<void> {
 export async function deleteSport(id: string): Promise<boolean> {
   const sql = getSql();
   const rows = (await sql`
-    DELETE FROM ctr_sports WHERE id = ${id} RETURNING id
+    DELETE FROM sports WHERE id = ${id} RETURNING id
   `) as { id: string }[];
 
   return rows.length > 0;

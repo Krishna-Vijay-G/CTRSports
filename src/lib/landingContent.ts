@@ -1,8 +1,8 @@
 /**
  * Every word and picture on the landing page except the sports cards, which are
- * rows in `ctr_sports` and have their own model in src/lib/sports.ts.
+ * rows in `ctr.sports` and have their own model in src/lib/sports.ts.
  *
- * The LIVE content is one JSONB document in `ctr_content` under the key
+ * The LIVE content is one JSONB document in `ctr.content` under the key
  * 'landing', edited at /admin/landing. What lives here is the TYPE plus the
  * DEFAULTS, which:
  *
@@ -249,7 +249,7 @@ function socials(value: unknown, fallback: SocialLink[]): SocialLink[] {
  * Once saved from the admin the document has `banners` and this never runs
  * again. Delete it when no stored document still has a hero:
  *
- *   select key from ctr_content where content ? 'hero';
+ *   select key from ctr.content where content ? 'hero';
  */
 function banners(root: Record<string, unknown>): Banner[] {
   if (root.banners !== undefined || !isRecord(root.hero)) {
@@ -289,7 +289,7 @@ function aboutPhotos(value: unknown, fallback: LabelledPhoto[]): LabelledPhoto[]
 }
 
 /**
- * Turns whatever came out of the `ctr_content` row into a valid LandingContent.
+ * Turns whatever came out of the `ctr.content` row into a valid LandingContent.
  *
  * Every field is merged over the defaults independently, so a document that is
  * partial, stale or outright malformed degrades one field at a time rather than

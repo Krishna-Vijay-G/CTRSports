@@ -1,7 +1,7 @@
 /**
  * The photography the pages fall back to.
  *
- * These are only DEFAULTS. The live values are in the `ctr_content` row for each
+ * These are only DEFAULTS. The live values are in the `ctr.content` row for each
  * page and are edited at /console/landing and /console/incrc; this file is what
  * renders when there is no row yet, when the database is unreachable
  * (`getLandingContentSafe` / `getIncrcContentSafe`), and per-field when a stored

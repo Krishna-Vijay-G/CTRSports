@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 /**
  * Every cached page a circuit appears on.
  *
- * Four routes read ctr_tracks, and all four are cached — so a circuit saved in
+ * Four routes read ctr.tracks, and all four are cached — so a circuit saved in
  * the admin would otherwise sit invisible for up to the revalidate window on
  * pages the editor never thinks about. Listing them in one place is what stops
  * the next route that reads a circuit being the one nobody remembers to clear.

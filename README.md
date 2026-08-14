@@ -11,7 +11,8 @@ Next.js 15 (App Router) · Tailwind · Neon Postgres · S3 for uploads.
 ```bash
 npm install
 cp .env.example .env          # fill in DATABASE_URL and the S3 keys
-npm run migrate               # creates the tables, seeds the six sports
+npm run db:migrate            # creates the ctr schema and its ten tables
+npm run db:seed               # the six sports and three circuits — new installs only
 npm run create-admin -- <username> <password>
 npm run dev                   # http://localhost:3000
 ```
@@ -34,9 +35,9 @@ npm run create-admin -- kavin <password> --role pages --pages incrc
 | `registrations` | none | build, edit, delete | read, export, delete |
 
 That split is enforced in every API route, not only hidden in the navigation —
-see `src/lib/server/access.ts`. Running `npm run migrate` on a database that
-predates roles gives every existing account `owner`, so nobody is locked out by
-the upgrade.
+see `src/lib/server/access.ts`. A database that predates roles gave every
+existing account `owner` when the column was added, so nobody was locked out by
+the upgrade; new accounts default to the least privileged role instead.
 
 Resetting a password with the script does **not** change an account's role or
 pages unless `--role` or `--pages` is passed.
@@ -53,8 +54,8 @@ one page. What it writes goes to two places:
 
 | Part | Edits | Stored in |
 | --- | --- | --- |
-| brand, splash, nav, banners, about, section headings, CTA band, socials — copy *and* photography | the page document | `ctr_content`, one JSONB row |
-| the sport cards: crest, photo, title, text, details, order, visibility | a row per card | `ctr_sports` |
+| brand, splash, nav, banners, about, section headings, CTA band, socials — copy *and* photography | the page document | `ctr.content`, one JSONB row |
+| the sport cards: crest, photo, title, text, details, order, visibility | a row per card | `ctr.sports` |
 
 Two things stay in code, both in `src/config/site.ts`: the canonical URL
 (`SITE`) and the search/social metadata (`SEO`). Metadata is generated per route
@@ -64,17 +65,17 @@ effect until the next deploy — clearer as a code change.
 Saving calls `revalidatePath("/")`, so an edit is live at once; the page
 otherwise revalidates every 60s.
 
-**`/incrc` works the same way**, from a second `ctr_content` document under the
+**`/incrc` works the same way**, from a second `ctr.content` document under the
 key `incrc`, edited at `/incrc` in the admin. Its header, navigation and footer
 come from the LANDING document, so the chrome around the two pages stays in
 step. Two of its sections are not copy at all and are read from tables instead:
-the venues and the calendar draw circuits from `ctr_sports`' neighbour
-`ctr_tracks`, and the entry forms come from `ctr_forms`.
+the venues and the calendar draw circuits from `ctr.sports`' neighbour
+`ctr.tracks`, and the entry forms come from `ctr.forms`.
 
 ### Registration forms
 
 Entry forms are pages on this site — `/register/<slug>` — built under
-**Registrations** in the admin, with the answers stored in `ctr_form_entries`,
+**Registrations** in the admin, with the answers stored in `ctr.form_entries`,
 readable per form and exportable as CSV. A form is assigned to a page, which is
 what decides who can link to it: the "Goes to" picker on a page's buttons lists
 only that page's forms, and the INCRC **Entry forms** section lists every
@@ -160,7 +161,7 @@ and a line in `BANNER_TEMPLATE_META` (`src/lib/banners.ts`), plus a diagram in
 > the defaults and throwing the copy away — the old hero's floating card of
 > sports had no equivalent to fold into, so that part of the copy is dropped.
 > That path can go once no document has a hero:
-> `select key from ctr_content where content ? 'hero';`
+> `select key from ctr.content where content ? 'hero';`
 
 #### The sport cards
 
@@ -400,19 +401,45 @@ the largest size the asset is drawn at × 3 for retina. Originals are kept in
 
 ## Database
 
-Four tables, all prefixed `ctr_`:
+Ten tables, all in the **`ctr` schema**:
 
-- `ctr_admins` — username + scrypt hash
-- `ctr_sessions` — hashed session tokens, 7-day expiry
-- `ctr_content` — one JSONB document per page; `landing` is the only key so far
-- `ctr_sports` — the cards
+| | |
+| --- | --- |
+| `ctr.admins` · `ctr.sessions` | username + scrypt hash; hashed session tokens, 7-day expiry |
+| `ctr.sports` · `ctr.tracks` | the cards, and the circuits |
+| `ctr.content` | one JSONB document per page — `landing` and `incrc` |
+| `ctr.forms` · `ctr.form_entries` · `ctr.form_nonces` | registration forms, their submissions, and spent nonces |
+| `ctr.decks` | image decks published at `/deck/<slug>` |
+| `ctr.enquiries` | messages from the footer |
 
-The schema is `scripts/schema.mjs`, applied by `npm run migrate`. Every statement
-is `IF NOT EXISTS`, so re-running is a no-op. The sports seed only fires when
-`ctr_sports` is empty, so it cannot resurrect a deleted card, and the photo
-back-fill only ever fills a blank.
+Queries name them **unqualified** — `FROM sports` — which works because
+`search_path = ctr, public` is set on the database by the baseline migration.
+`ctr.sports` works too, wherever being explicit reads better. The schema replaced
+a `ctr_` prefix on every table: same goal, which was letting this database be
+shared with another CTR site, but the isolation is real rather than a naming
+convention.
 
-`ctr_content` needs no seeding: with no row the page renders
+### Migrations
+
+```bash
+npm run db:status             # what has been applied here, and what has not
+npm run db:migrate            # apply everything pending
+npm run db:seed               # the starting sports and circuits, empty tables only
+```
+
+Migrations are `migrations/NNNN_name.sql`, applied in order, each inside one
+transaction, each recorded in `ctr.schema_migrations` with a checksum. Editing a
+migration that has already run is refused rather than re-applied — the answer is
+always a new file. `db:status` reads and writes nothing, so it is safe to point
+at production.
+
+This replaced `scripts/schema.mjs`, which was the whole schema re-run on every
+deploy with no version anywhere. It could not add a `CHECK` constraint at all,
+because Postgres has no `ADD CONSTRAINT IF NOT EXISTS` and the file had no way to
+know whether it had run before; `role`, `status` and `page_key` are constrained
+in the database now, not only in TypeScript.
+
+`ctr.content` needs no seeding: with no row the page renders
 `DEFAULT_LANDING_CONTENT` and the editor opens on it. Saving once writes the row.
 
 Stored content is **never trusted**. `normaliseLandingContent` runs on read as

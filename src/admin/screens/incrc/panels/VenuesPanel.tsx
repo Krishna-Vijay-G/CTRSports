@@ -8,7 +8,7 @@ type Venues = IncrcContent["venues"];
 /**
  * The venues heading, and nothing else.
  *
- * The circuits are not typed here any more: they are rows of ctr_tracks, edited
+ * The circuits are not typed here any more: they are rows of ctr.tracks, edited
  * on the Circuits screen, so a circuit is described once and the venues section,
  * the calendar and /circuits all read the same row. This section shows the first
  * three in that screen's order with a button to the rest — which means the three

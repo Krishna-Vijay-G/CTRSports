@@ -4,7 +4,7 @@ import type { Enquiry } from "@/lib/enquiry";
 import { getSql } from "@/lib/server/db";
 
 /**
- * Every read and write of ctr_enquiries — which for now is one write and one
+ * Every read and write of ctr.enquiries — which for now is one write and one
  * count.
  *
  * There is no screen that reads these yet. That is a gap and it is written down
@@ -40,7 +40,7 @@ export async function createEnquiry(
   const sql = getSql();
 
   const rows = (await sql`
-    INSERT INTO ctr_enquiries (name, email, message, ip, user_agent)
+    INSERT INTO enquiries (name, email, message, ip, user_agent)
     VALUES (
       ${values.name}, ${values.email}, ${values.message},
       ${ip.slice(0, IP_MAX)}, ${userAgent.slice(0, AGENT_MAX)}
@@ -64,7 +64,7 @@ export async function countRecentEnquiries(ip: string, hours = 1): Promise<numbe
 
   const rows = (await sql`
     SELECT count(*)::int AS total
-      FROM ctr_enquiries
+      FROM enquiries
      WHERE ip = ${ip.slice(0, IP_MAX)}
        AND created_at > now() - (${hours} * interval '1 hour')
   `) as { total: number }[];

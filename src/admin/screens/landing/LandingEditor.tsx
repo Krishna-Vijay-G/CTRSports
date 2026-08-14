@@ -52,7 +52,7 @@ import { SportsPanel } from "./panels/SportsPanel";
  * does not match its tab) is handled here rather than in the button.
  *
  * `sports` maps only to its heading on purpose: the sport cards under it are
- * rows of ctr_sports, not part of this document, and each already has its own
+ * rows of ctr.sports, not part of this document, and each already has its own
  * Save and its own delete.
  */
 const DEFAULT_PARTS: Record<SectionId, (keyof LandingContent)[]> = {

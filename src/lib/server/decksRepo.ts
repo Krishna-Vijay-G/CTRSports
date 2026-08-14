@@ -13,7 +13,7 @@ import { isUsableSlug, type SlugHolder } from "@/lib/slug";
 import { getSql } from "@/lib/server/db";
 
 /**
- * Every read and write of ctr_decks.
+ * Every read and write of ctr.decks.
  *
  * The column list is spelled out in each query rather than shared through a
  * helper, the same way tracksRepo and formsRepo do it: a handful of queries
@@ -56,7 +56,7 @@ export async function listDecks(): Promise<Deck[]> {
   const sql = getSql();
   const rows = (await sql`
     SELECT id, name, slug, status, blurb, show_heading, pages, former_slugs, sort_order
-      FROM ctr_decks
+      FROM decks
      ORDER BY sort_order ASC, name ASC
   `) as Deck[];
 
@@ -90,7 +90,7 @@ export async function getDeck(id: string): Promise<Deck | null> {
   const sql = getSql();
   const rows = (await sql`
     SELECT id, name, slug, status, blurb, show_heading, pages, former_slugs, sort_order
-      FROM ctr_decks
+      FROM decks
      WHERE id = ${id}
   `) as Deck[];
 
@@ -102,7 +102,7 @@ export async function getDeckBySlug(slug: string): Promise<Deck | null> {
   const sql = getSql();
   const rows = (await sql`
     SELECT id, name, slug, status, blurb, show_heading, pages, former_slugs, sort_order
-      FROM ctr_decks
+      FROM decks
      WHERE slug = ${slug}
         OR former_slugs @> ${JSON.stringify([slug])}::jsonb
      ORDER BY (slug = ${slug}) DESC
@@ -188,7 +188,7 @@ export async function findSlugOwner(slug: string, exceptId = ""): Promise<SlugHo
   const sql = getSql();
   const rows = (await sql`
     SELECT id, name, (slug = ${slug}) AS is_current
-      FROM ctr_decks
+      FROM decks
      WHERE (slug = ${slug} OR former_slugs @> ${JSON.stringify([slug])}::jsonb)
        AND id <> ${exceptId || NO_DECK}
      ORDER BY (slug = ${slug}) DESC
@@ -209,7 +209,7 @@ export async function findSlugOwner(slug: string, exceptId = ""): Promise<SlugHo
 export async function releaseFormerSlug(slug: string, fromId: string): Promise<boolean> {
   const sql = getSql();
   const rows = (await sql`
-    UPDATE ctr_decks
+    UPDATE decks
        SET former_slugs = former_slugs - ${slug}::text,
            updated_at   = now()
      WHERE id = ${fromId}
@@ -224,7 +224,7 @@ async function insertDeck(d: Omit<Deck, "id">): Promise<Deck> {
   const sql = getSql();
 
   const rows = (await sql`
-    INSERT INTO ctr_decks (name, slug, status, blurb, show_heading, pages, former_slugs, sort_order)
+    INSERT INTO decks (name, slug, status, blurb, show_heading, pages, former_slugs, sort_order)
     VALUES (
       ${d.name}, ${d.slug}, ${d.status}, ${d.blurb}, ${d.show_heading},
       ${JSON.stringify(d.pages)}::jsonb, '[]'::jsonb, ${d.sort_order}
@@ -299,7 +299,7 @@ export async function updateDeck(
   }
 
   const rows = (await sql`
-    UPDATE ctr_decks
+    UPDATE decks
        SET name         = ${d.name},
            slug         = ${d.slug},
            status       = ${d.status},
@@ -324,7 +324,7 @@ export async function reorderDecks(ids: string[]): Promise<void> {
   await sql.transaction(
     ids.map(
       (id, index) => sql`
-        UPDATE ctr_decks
+        UPDATE decks
            SET sort_order = ${(index + 1) * 10}, updated_at = now()
          WHERE id = ${id}
       `
@@ -349,7 +349,7 @@ export async function reorderDecks(ids: string[]): Promise<void> {
 export async function deleteDeck(id: string): Promise<boolean> {
   const sql = getSql();
   const rows = (await sql`
-    DELETE FROM ctr_decks WHERE id = ${id} RETURNING id
+    DELETE FROM decks WHERE id = ${id} RETURNING id
   `) as { id: string }[];
 
   return rows.length > 0;
