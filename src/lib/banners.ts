@@ -191,32 +191,53 @@ export const BANNER_PICTURE_DEFAULTS = {
   overlay: "normal",
 } as const;
 
+/**
+ * The landing page's banners, as the page actually carries them.
+ *
+ * Two things here are not what a banner's defaults used to be, and both are
+ * deliberate: `overlay: "none"` and, on the middle one, `fit: "fit"`.
+ *
+ * The first two banners carry NO title, subtitle or button. That reads as
+ * unfinished and is not — the artwork on them already has the words on it, and
+ * a heading printed over lettering is the same sentence twice. It is also why
+ * they want no overlay: the gradient exists to keep white type legible, and with
+ * no type on it there is nothing to keep legible, only a photograph dimmed for
+ * no reason. The third banner is the one that speaks, so it is the one with the
+ * `split` template and a button.
+ *
+ * `fit: "fit"` on the middle one is a wordmark rather than a photograph — a
+ * wordmark cropped to fill the panel loses its ends.
+ */
 export const DEFAULT_BANNERS: Banner[] = [
   {
     id: "banner-1",
     template: "spotlight",
     image: BANNER_PHOTOS[0],
     ...BANNER_PICTURE_DEFAULTS,
-    title: "One Nation. One Championship.",
-    subtitle: "Six programmes competing under one banner.",
-    ctaLabel: "Explore Sports",
-    ctaHref: "#sports",
+    overlay: "none",
+    title: "",
+    subtitle: "",
+    ctaLabel: "",
+    ctaHref: "#",
   },
   {
     id: "banner-2",
-    template: "centre",
+    template: "spotlight",
     image: BANNER_PHOTOS[1],
     ...BANNER_PICTURE_DEFAULTS,
-    title: "Built for athletes, run like one team",
-    subtitle: "One standard of preparation across every discipline CTR runs.",
-    ctaLabel: "About CTR",
-    ctaHref: "#about",
+    fit: "fit",
+    overlay: "none",
+    title: "",
+    subtitle: "",
+    ctaLabel: "",
+    ctaHref: "#sports",
   },
   {
     id: "banner-3",
     template: "split",
     image: BANNER_PHOTOS[2],
     ...BANNER_PICTURE_DEFAULTS,
+    overlay: "none",
     title: "From karting to full circuit racing",
     subtitle: "A national ladder that takes drivers all the way through.",
     ctaLabel: "See the programmes",

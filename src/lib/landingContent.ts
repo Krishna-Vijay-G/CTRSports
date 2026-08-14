@@ -100,24 +100,32 @@ export const DEFAULT_LANDING_CONTENT: LandingContent = {
     logo: "/images/brand/ctr-logo.webp",
   },
   nav: {
+    // Pages rather than in-page anchors. The nav grew a second destination when
+    // /incrc got its own page, and an anchor list cannot express "somewhere
+    // else" — the third is off this site entirely.
     links: [
-      { label: "Home", href: "#top" },
-      { label: "About", href: "#about" },
-      { label: "Sports", href: "#sports" },
+      { label: "Home", href: "/" },
+      { label: "CTR x JK Tyre  INCRC", href: "/incrc" },
+      { label: "FMSCI", href: "https://www.fmsci.co.in/" },
     ],
     cta: { label: "Get in Touch", href: "#footer" },
   },
   splash: {
-    title: "CTR Unified",
+    // The championship's line, not the organisation's name. The logo is
+    // directly above it and already says who this is.
+    title: "One Nation. One Championship.",
     logo: "/images/brand/ctr-logo.webp",
   },
   banners: DEFAULT_BANNERS.map((banner) => ({ ...banner })),
   about: {
     label: "About CTR",
     title: "One organisation behind every discipline we compete in",
-    heading: "Built for athletes, run like one team",
+    // Racers first, and "race like one team" rather than "run like one team" —
+    // the organisation reads as a motorsport one now, which the rest of the
+    // site had already moved to.
+    heading: "Built for racers, race like one team",
     /** Blank lines separate paragraphs — one <p> each. */
-    body: "CTR Unified brings athletes, teams and sporting communities together under a single platform. From cricket and volleyball to Formula 4 racing, every programme runs with its own coaching structure and competitive calendar.\n\nWhat they share is one standard of preparation, one identity, and one long-term commitment to developing Indian sporting talent.",
+    body: "CTR Unified brings racers, athletes, teams and sporting communities together under a single platform. From cricket and volleyball to Formula 4 racing, every programme runs with its own coaching structure and competitive calendar.\n\nWhat they share is one standard of preparation, one identity, and one long-term commitment to developing Indian sporting talent.",
     ctaLabel: "Explore Sports",
     ctaHref: "#sports",
     photos: ABOUT_PHOTOS.map((entry) => ({ ...entry })),
@@ -128,7 +136,10 @@ export const DEFAULT_LANDING_CONTENT: LandingContent = {
   },
   ctaBand: {
     label: "One Team",
-    title: "One Nation, One Championship.",
+    // Set in capitals on purpose. The band is the one all-caps line on the page
+    // and it is stored that way rather than done in CSS, so the admin can see
+    // what it will look like while typing it.
+    title: "ENGINEERED FOR GROWTH. DRIVEN BY CTR",
     body: "Cricket, volleyball, hockey, pickleball and motorsport — developed under a single organisation.",
     ctaLabel: "See the Programmes",
     ctaHref: "#sports",
@@ -152,7 +163,13 @@ export const DEFAULT_LANDING_CONTENT: LandingContent = {
     { label: "Instagram", href: "https://www.instagram.com/incrc_", icon: "instagram" },
     { label: "Facebook", href: "https://www.facebook.com/chennaiturboriders", icon: "facebook" },
     { label: "Twitter", href: "https://twitter.com/chennaiturbo", icon: "twitter" },
-    { label: "YouTube", href: "https://www.youtube.com/@chennaiturboriders", icon: "youtube" },
+    // The championship's channel rather than the club's — the same move the
+    // Instagram handle above made.
+    {
+      label: "YouTube",
+      href: "https://www.youtube.com/@IndianNationalCarRacingChampio",
+      icon: "youtube",
+    },
   ],
 };
 

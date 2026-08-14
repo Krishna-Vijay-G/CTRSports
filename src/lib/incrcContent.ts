@@ -292,36 +292,80 @@ export const DEFAULT_INCRC_CONTENT: IncrcContent = {
     instagram: "https://www.instagram.com/incrc_",
   },
 
+  /*
+   * Five panels, and only the second one speaks.
+   *
+   * The other four are artwork with the words already on the image — a chairman
+   * portrait, two announcement boards, the championship banner — so a title
+   * printed over them would be the same sentence twice. That is also why every
+   * one of them sets `overlay: "none"`: the gradient is there to keep white type
+   * readable, and with no type to keep readable it is only a photograph dimmed
+   * for nothing.
+   *
+   * `fit: "fit"` on four of the five for the same reason: they are boards and
+   * portraits composed to their own edges, and cropping one to fill the panel
+   * takes the top off somebody's head or the last word off a line. Only the
+   * first is a photograph that can be cropped.
+   */
   banners: [
     {
       id: "incrc-banner-1",
       template: "spotlight",
       image: INCRC_PHOTOS.banners[0],
       ...BANNER_PICTURE_DEFAULTS,
-      title: "One Nation.\nOne Championship.",
-      subtitle: "India's biggest multi-category national car racing championship.",
+      overlay: "none",
+      title: "",
+      subtitle: "",
       ctaLabel: "Register for 2026",
       ctaHref: "#register",
     },
     {
       id: "incrc-banner-2",
-      template: "centre",
+      template: "spotlight",
       image: INCRC_PHOTOS.banners[1],
       ...BANNER_PICTURE_DEFAULTS,
-      title: "Seven categories. One grid.",
-      subtitle: "Four national rounds on three of India's finest circuits.",
+      fit: "fit",
+      overlay: "none",
+      title: "The Team has been forged.",
+      subtitle: "The Track awaits the Winners.",
       ctaLabel: "See the calendar",
       ctaHref: "#calendar",
     },
     {
       id: "incrc-banner-3",
-      template: "split",
+      template: "spotlight",
       image: INCRC_PHOTOS.banners[2],
       ...BANNER_PICTURE_DEFAULTS,
-      title: "CTR is not organising the future.\nCTR is building it.",
-      subtitle: "Racing, live audiences, OTT broadcast and a fan ecosystem around every round.",
-      ctaLabel: "Our vision",
-      ctaHref: "#vision",
+      fit: "fit",
+      overlay: "none",
+      title: "",
+      subtitle: "",
+      ctaLabel: "",
+      ctaHref: "#register",
+    },
+    {
+      id: "incrc-banner-4",
+      template: "spotlight",
+      image: INCRC_PHOTOS.banners[3],
+      ...BANNER_PICTURE_DEFAULTS,
+      fit: "fit",
+      overlay: "none",
+      title: "",
+      subtitle: "",
+      ctaLabel: "",
+      ctaHref: "#register",
+    },
+    {
+      id: "incrc-banner-5",
+      template: "spotlight",
+      image: INCRC_PHOTOS.banners[4],
+      ...BANNER_PICTURE_DEFAULTS,
+      fit: "fit",
+      overlay: "none",
+      title: "",
+      subtitle: "",
+      ctaLabel: "",
+      ctaHref: "#",
     },
   ],
 
@@ -343,10 +387,12 @@ export const DEFAULT_INCRC_CONTENT: IncrcContent = {
     ctaLabel: "Register for 2026",
     ctaHref: "#register",
     partnersLabel: "Presented by",
+    // Each mark links to the partner it belongs to. These are the three
+    // organisations' own sites, so they open in a new tab — see PartnerMark.
     partners: [
-      { name: "Chennai Turbo Riders", logo: ART.ctr, href: "" },
-      { name: "JK Tyre", logo: ART.jkTyre, href: "" },
-      { name: "FMSCI", logo: ART.fmsci, href: "" },
+      { name: "Chennai Turbo Riders", logo: ART.ctr, href: "https://chennaiturboriders.in" },
+      { name: "JK Tyre", logo: ART.jkTyre, href: "https://www.jktyre.com" },
+      { name: "FMSCI", logo: ART.fmsci, href: "https://www.fmsci.co.in" },
     ],
   },
 
@@ -408,6 +454,20 @@ export const DEFAULT_INCRC_CONTENT: IncrcContent = {
     title: "Three iconic circuits. One championship.",
   },
 
+  /*
+   * The rounds carry no `trackId`, and the live document does.
+   *
+   * A trackId is the uuid of a row in ctr_tracks, and this list is what renders
+   * when there is NO document — a fresh install, or the database being
+   * unreachable. Neither of those can resolve a uuid: the first has no circuits
+   * yet and the second cannot read the ones it has. A round with no trackId
+   * falls back to the venue and city written beside it, which is the same
+   * information a card would have shown anyway, so leaving it blank costs the
+   * map and nothing else. Pointing at a row that is not there would cost the
+   * card.
+   *
+   * The venues, dates and status ARE the live ones. Only the pointer is left out.
+   */
   calendar: {
     label: "FMSCI Indian National Car Racing Championship",
     title: "The 2026 Season",
@@ -535,10 +595,13 @@ export const DEFAULT_INCRC_CONTENT: IncrcContent = {
     ctaLabel: "Follow the championship",
     ctaHref: "https://www.instagram.com/incrc_",
     items: [
+      // The category is the racing class the story is about — LGBF4, Formula
+      // 1300, Levitas — rather than a desk it came off. It is printed on the
+      // card as written, hence the capitals.
       {
         id: "post-1",
         image: INCRC_PHOTOS.posts[0],
-        category: "Championship",
+        category: "LGBF4",
         date: "August 2026",
         title: "Seven categories, one national banner",
         excerpt:
@@ -548,7 +611,7 @@ export const DEFAULT_INCRC_CONTENT: IncrcContent = {
       {
         id: "post-2",
         image: INCRC_PHOTOS.posts[1],
-        category: "Circuits",
+        category: "FORMULA 1300",
         date: "August 2026",
         title: "Three circuits that will decide the title",
         excerpt:
@@ -558,7 +621,7 @@ export const DEFAULT_INCRC_CONTENT: IncrcContent = {
       {
         id: "post-3",
         image: INCRC_PHOTOS.posts[2],
-        category: "Paddock",
+        category: "LEVITAS",
         date: "July 2026",
         title: "Inside the partnership that built INCRC",
         excerpt:
@@ -575,10 +638,19 @@ export const DEFAULT_INCRC_CONTENT: IncrcContent = {
     // figures say seven, in two separate places. Seven is the number used.
     body: "Seven categories. Four national rounds on India's best circuits. Whether it is your first race or your next championship, there is a grid here for you.",
     ctaLabel: "Register now",
-    // Entry forms are on this site now — see src/lib/forms.ts — so the default
-    // points at the section listing them rather than off to the older CTR site.
-    // A default cannot name a form's address, because it cannot know that any
-    // form exists; the picker in the admin is how this is aimed at one.
+    /*
+     * The section listing the forms, not a form.
+     *
+     * Live points straight at /register/race-with-ctr, and that address is a row
+     * in ctr_forms — the same reason the rounds carry no trackId. A default
+     * cannot name a form, because the case it exists for is the case where no
+     * form is readable. The picker in the admin is how this gets aimed at one.
+     *
+     * This is also why `sections` below leaves `registrations` visible while the
+     * live document has it hidden: the two go together. Live can hide the
+     * section because its button bypasses it; a default whose button lands on
+     * `#registrations` cannot hide the thing it lands on.
+     */
     ctaHref: "#registrations",
   },
 
@@ -596,6 +668,12 @@ export const DEFAULT_INCRC_CONTENT: IncrcContent = {
    * fresh install has no decks. Copy with no cards under it would be a heading
    * over a blank strip on a live page — this id was appended to
    * INCRC_SECTION_IDS, which switches it ON for every stored document.
+   *
+   * The live document has three cards, pointing at three published decks. They
+   * are not copied here for the reason above: an address is only a card if the
+   * deck behind it exists, and this list is what renders when nothing can be
+   * read. The section is switched on and empty, so it draws nothing until the
+   * admin picks decks for it.
    */
   decks: {
     label: "Read more",
@@ -604,6 +682,12 @@ export const DEFAULT_INCRC_CONTENT: IncrcContent = {
     items: [],
   },
 
+  /*
+   * Every section on. The live document hides `registrations`; see the note on
+   * `register.ctaHref` for why that one difference is deliberate rather than an
+   * oversight — hiding it here would leave the register button pointing at a
+   * section that is not drawn.
+   */
   sections: INCRC_SECTION_IDS.map((id) => ({ id, visible: true })),
 };
 

@@ -66,12 +66,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${inter.variable} ${jakarta.variable} ${plex.variable}`}>
       <body className="antialiased">
         {/*
-          The first banner photo is the LCP element and, until real photography is
-          uploaded, lives on a third-party host. Opening that connection during
-          HTML parse saves the DNS + TLS round-trips it would otherwise cost.
-          Drop this once the photography is served from our own domain.
+          The first banner photo is the LCP element and lives on a third-party
+          host. Opening those connections during HTML parse saves the DNS + TLS
+          round-trips they would otherwise cost.
+
+          Two hosts, because the photography moved off stock and onto two of our
+          own places at once: the media library's bucket, which every uploaded
+          picture is served from, and the artwork repository the banners still
+          use. Unsplash was here and is not any more — nothing on either page
+          points at it now. Drop whichever of these stops being the host of the
+          first banner.
         */}
-        <link rel="preconnect" href="https://images.unsplash.com" crossOrigin="" />
+        <link rel="preconnect" href="https://ctr-unified-media-storage.s3.ap-south-1.amazonaws.com" crossOrigin="" />
+        <link rel="preconnect" href="https://raw.githubusercontent.com" crossOrigin="" />
         {children}
       </body>
     </html>

@@ -1,76 +1,87 @@
 /**
- * PLACEHOLDER PHOTOGRAPHY — every URL here is a stock photo hosted by Unsplash.
+ * The photography the pages fall back to.
  *
- * These are only DEFAULTS now. The live values live in the database and are
- * edited at /admin/landing (page photography) and /admin/sports (per-sport
- * photo and crest). This file is what a fresh database is seeded with, and what
- * the admin's "Load defaults" restores.
+ * These are only DEFAULTS. The live values are in the `ctr_content` row for each
+ * page and are edited at /console/landing and /console/incrc; this file is what
+ * renders when there is no row yet, when the database is unreachable
+ * (`getLandingContentSafe` / `getIncrcContentSafe`), and per-field when a stored
+ * document is missing one.
  *
- * They are remote, so they are NOT covered by the immutable cache header in
- * next.config.js (that only covers /images) and they cost one extra connection
- * — which is why src/app/layout.tsx preconnects to the host. Once real
- * photography is uploaded through the admin, that preconnect can go.
+ * That last case is why these were pulled from the live documents rather than
+ * left as the stock photographs they started as. A fallback that does not look
+ * like the site is a fallback that looks like a fault: an outage used to put
+ * Unsplash stadium stock on the front page, and one missing field in an
+ * otherwise good document used to put a stock sprinter between two real ones.
+ *
+ * Three hosts appear below, and the difference matters when one of them moves:
+ *
+ *   /images/…    in this repo, under /public. Covered by the immutable cache
+ *                header in next.config.js. Nothing to go wrong.
+ *   …s3…amazonaws.com  uploaded through the admin's own media library. As
+ *                permanent as the bucket.
+ *   raw.githubusercontent.com/…/asset-temp  a separate repository holding
+ *                artwork that has not been through the media library. Live uses
+ *                these today, so they are what a fallback has to match.
+ *
+ * The site draws all of these with plain <img>, so nothing here needs a
+ * next.config entry — only the preconnect in src/app/layout.tsx, which points at
+ * whichever host the first paint needs.
  */
 
-const UNSPLASH = "https://images.unsplash.com";
+/** Artwork kept beside the code rather than in the bucket. */
+const ASSETS = "https://raw.githubusercontent.com/Krishna-Vijay-G/asset-temp/refs/heads/main";
 
-/** Unsplash serves a resized, re-encoded file per query string — ask for the size we draw. */
-function photo(id: string, width: number, quality = 72): string {
-  return `${UNSPLASH}/${id}?auto=format&fit=crop&w=${width}&q=${quality}`;
-}
+/** Uploaded through the admin. The prefix the media library writes under. */
+const MEDIA = "https://ctr-unified-media-storage.s3.ap-south-1.amazonaws.com/ctr-unified/media";
 
 /**
- * The banner photographs, in the order the default banners use them.
+ * The landing page's banner photographs, in the order its banners use them.
  *
- * All three are bright enough to read as photographs rather than black panels,
- * with enough contrast left in the corners that white type still sits on them
- * once a banner template's gradients are applied. The first is also the fallback
- * for any banner whose photo is blank or unusable.
+ * The first is also the fallback for ANY banner whose image is blank or
+ * unusable — see `normaliseBanners` — so it has to be one that reads on its own
+ * with no title over it, which is what the live first banner is.
  */
 export const BANNER_PHOTOS = [
-  /** Full stadium under floodlights. */
-  photo("photo-1522778119026-d647f0596c20", 1800, 76),
-  /** Sprinters off the blocks. */
-  photo("photo-1461896836934-ffe607ba8211", 1800, 76),
-  /** Circuit racing at dusk. */
-  photo("photo-1552519507-da3b142c6e3d", 1800, 76),
+  /** The championship banner artwork. */
+  `${ASSETS}/banner1.jpeg`,
+  /** The CTR Unified wordmark, drawn whole rather than cropped — `fit: "fit"`. */
+  `${ASSETS}/CTR%20UNIFIED%20(Medium).png`,
+  /** Circuit action. */
+  `${ASSETS}/DSC_0528%7E2%20(Medium).jpeg`,
 ];
 
-/** The two photos flanking the about copy. */
+/** The two photos flanking the about copy. Their labels are content, so they live here too. */
 export const ABOUT_PHOTOS = [
-  { src: photo("photo-1461896836934-ffe607ba8211", 800), label: "Track & Field" },
-  { src: photo("photo-1517649763962-0c623066013b", 800), label: "Endurance" },
+  {
+    src: "https://www.evoindia.com/evoindia/2024-02/1dc1ca47-79c5-49e0-b10c-3bfb59652723/Deepak_Ravikumar__winner_of_the_Touring_Cars_Race_1__July_22_.jpg",
+    label: "Track & Field",
+  },
+  { src: `${MEDIA}/bdfa54cd-ce60-4347-940d-85b2a84b534c.webp`, label: "Endurance" },
 ];
 
 /**
  * The INCRC page's photography.
  *
- * Two kinds. The `artwork` group is the championship's OWN material — the
- * circuit render, the car line-up, the signing photographs, the grid portrait
- * and the two partner marks — which came across with the deck and lives in
- * /public/images/incrc. Everything else is stock, standing in until the
- * championship's own photography is uploaded through the admin.
- *
- * All of it is only a default: every one of these is an editable field.
+ * `artwork` is the championship's OWN material — the circuit render, the car
+ * line-up, the signing photographs and the three partner marks — which came
+ * across with the deck and lives in /public/images/incrc. The banners and the
+ * newsroom photographs are the live ones: five and three respectively, which is
+ * what the page actually shows.
  */
 export const INCRC_PHOTOS = {
-  /** The rotating panels at the top. Dark enough to hold white type. */
+  /** The rotating panels at the top. Five, matching the live document. */
   banners: [
-    photo("photo-1552519507-da3b142c6e3d", 1800, 76),
-    photo("photo-1568605117036-5fe5e7bab0b7", 1800, 76),
-    photo("photo-1583121274602-3e2820c69888", 1800, 76),
+    `${ASSETS}/banner1.jpeg`,
+    "/images/incrc/signing-2.webp",
+    `${ASSETS}/DR%20(Medium).png`,
+    `${ASSETS}/chairman%20JK%20TYRES%20(Medium).png`,
+    `${ASSETS}/MAKAPA%20(Medium).png`,
   ],
-  /** One per venue card. */
-  venues: [
-    photo("photo-1541447271487-09612b3f49f7", 900),
-    photo("photo-1502877338535-766e1452684a", 900),
-    photo("photo-1533473359331-0135ef1b58bf", 900),
-  ],
-  /** One per post card. */
+  /** One per newsroom card, uploaded through the media library. */
   posts: [
-    photo("photo-1600661653561-629509216228", 900),
-    photo("photo-1517994112540-009c47ea476b", 900),
-    photo("photo-1503376780353-7e6692767b70", 900),
+    `${MEDIA}/37d7578e-1b72-4c6e-b326-863b2bb2b3b1.webp`,
+    `${MEDIA}/e7722247-977f-48af-a641-7dd04d021b7a.webp`,
+    `${MEDIA}/62a1551c-34a4-46d3-a675-2cef692a0789.webp`,
   ],
   artwork: {
     circuit: "/images/incrc/one-nation.webp",
@@ -85,14 +96,4 @@ export const INCRC_PHOTOS = {
     jkTyre: "/images/incrc/jktyre.webp",
     fmsci: "/images/incrc/fmsci.webp",
   },
-} as const;
-
-/** Seeded onto the matching sport row, then editable per sport in the admin. */
-export const SPORT_PHOTOS = {
-  pickleball: photo("photo-1626224583764-f87db24ac4ea", 800),
-  volleyball: photo("photo-1612872087720-bb876e2e67d1", 800),
-  cricket: photo("photo-1540747913346-19e32dc3e97e", 800),
-  hockey: photo("photo-1580748141549-71748dbe0bdc", 800),
-  formula4: photo("photo-1552519507-da3b142c6e3d", 800),
-  nationalRacing: photo("photo-1568605117036-5fe5e7bab0b7", 800),
 } as const;
