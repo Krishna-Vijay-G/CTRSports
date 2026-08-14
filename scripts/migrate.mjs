@@ -128,6 +128,22 @@ async function ensureLedger(client) {
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const client = await pool.connect();
 
+/*
+ * Every migration from 0002 on reports what it moved with RAISE NOTICE — how
+ * many deck pages became rows, how many former addresses could not be carried
+ * over. Without this they are all swallowed, and the reconciliation a migration
+ * does on itself is only useful if somebody can read it.
+ *
+ * The "already exists, skipping" chorus from 0001's idempotent statements is
+ * dropped: on a database that has been through it once, that is forty lines
+ * saying nothing happened, which would bury the six that matter.
+ */
+client.on?.("notice", (notice) => {
+  const message = notice?.message ?? "";
+  if (/already exists, skipping|does not exist, skipping/.test(message)) return;
+  console.log(`      ${message}`);
+});
+
 try {
   const migrations = readMigrations();
 
