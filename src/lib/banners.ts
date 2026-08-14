@@ -40,6 +40,12 @@ export type BannerTemplate = (typeof BANNER_TEMPLATES)[number];
  *            whatever space is left over. Right for artwork or a poster where
  *            cropping would cut off type — nothing is lost, and the leftover
  *            space is the picture's own colours rather than a black bar.
+ *            ON A PHONE it behaves differently, and deliberately: a wide
+ *            picture shown whole in a tall box is a thin strip across the
+ *            middle with blur above and below it, which reads as a banner that
+ *            failed to load. So below `md` it fills the height — touching top
+ *            and bottom, running off both sides — and travels across itself,
+ *            so everything that runs off the side is still seen.
  *   stretch  the frame is filled exactly by distorting the picture. Included
  *            because it is sometimes what a flat graphic wants; on a photograph
  *            of a person it is always wrong, and the admin says so.
@@ -119,7 +125,7 @@ export const BANNER_FIT_META: Record<BannerFit, { name: string; description: str
   fit: {
     name: "Fit",
     description:
-      "The whole picture, nothing cropped. A blurred copy of it fills the space left over.",
+      "The whole picture, nothing cropped. A blurred copy of it fills the space left over. On a phone it fills the height instead and pans across, so nothing is a thin strip in the middle.",
   },
   stretch: {
     name: "Stretch",

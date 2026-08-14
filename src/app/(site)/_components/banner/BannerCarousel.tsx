@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { BANNER_INTERVAL, type Banner } from "@/lib/banners";
 import { usePreviewMode } from "@/components/ui/PreviewMode";
+import { BannerViewer, BannerViewerProvider } from "./BannerViewer";
 import { TEMPLATES } from "./templates";
 
 /**
@@ -32,6 +33,8 @@ export function BannerCarousel({
 }) {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
+  /** The banner being looked at full size, if any. See BannerViewer. */
+  const [viewing, setViewing] = useState<Banner | null>(null);
   const preview = usePreviewMode();
 
   const controlled = activeIndex !== undefined;
@@ -44,6 +47,10 @@ export function BannerCarousel({
     // Nothing to rotate between, someone else is driving, or the pointer is
     // resting on it — in the admin's preview it never advances at all, because a
     // banner sliding away mid-edit is the opposite of a preview.
+    // Deliberately NOT paused by `viewing`: the picture that is open is a
+    // snapshot of the banner it was opened from and does not change under the
+    // reader, so the carousel behind it has no reason to stop — and closing
+    // onto a page that has been frozen for a minute is its own kind of odd.
     if (controlled || preview || paused || banners.length < 2) return;
 
     const timer = window.setInterval(() => {
@@ -56,6 +63,7 @@ export function BannerCarousel({
   const banner: Banner | undefined = banners[current];
 
   return (
+    <BannerViewerProvider onOpen={setViewing}>
     <section
       // bg-surface so a photograph set to "Fit" letterboxes against the card's
       // own colour rather than against whatever happens to be behind it.
@@ -87,7 +95,7 @@ export function BannerCarousel({
       {/* Dots only when there is somewhere to go. Controlled means the admin is
           driving, and a control that fights the editor is worse than none. */}
       {banners.length > 1 && !controlled ? (
-        <div className="absolute inset-x-0 bottom-5 z-20 flex justify-center gap-2">
+        <div className="pointer-events-none absolute inset-x-0 bottom-5 z-20 flex justify-center gap-2">
           {banners.map((entry, position) => (
             <button
               key={entry.id}
@@ -97,13 +105,16 @@ export function BannerCarousel({
               aria-current={position === current}
               className={
                 position === current
-                  ? "h-1.5 w-7 rounded-full bg-accent transition-all"
-                  : "h-1.5 w-1.5 rounded-full bg-white/45 transition-all hover:bg-white/80"
+                  ? "pointer-events-auto h-1.5 w-7 rounded-full bg-accent transition-all"
+                  : "pointer-events-auto h-1.5 w-1.5 rounded-full bg-white/45 transition-all hover:bg-white/80"
               }
             />
           ))}
         </div>
       ) : null}
+
+      {viewing ? <BannerViewer banner={viewing} onClose={() => setViewing(null)} /> : null}
     </section>
+    </BannerViewerProvider>
   );
 }

@@ -37,8 +37,12 @@ export function BackButton({ className }: { className?: string }) {
         router.back();
       }}
       className={cn(
-        "inline-flex shrink-0 items-center gap-1.5 rounded-full border border-white/25 bg-black/25 px-3 py-1.5",
-        "text-sm font-medium text-white/80 backdrop-blur-sm transition hover:border-white/40 hover:text-white",
+        // A flat scrim rather than a blurred one: the blur was the last of it in
+        // this header, it is an expensive paint for an effect nobody asked for,
+        // and a slightly darker wash does the same job of keeping white type
+        // readable over whichever photograph is behind it.
+        "inline-flex shrink-0 items-center gap-1.5 rounded-full border border-white/25 bg-black/35 px-3 py-1.5",
+        "text-sm font-medium text-white/80 transition hover:border-white/40 hover:text-white",
         className
       )}
     >

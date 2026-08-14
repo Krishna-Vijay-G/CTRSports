@@ -111,6 +111,20 @@
     @apply rounded-panel border border-line bg-panel;
   }
 
+  /* A row that scrolls sideways with no bar under it.
+     The global scrollbar rule above is sized for a page's vertical bar; on a
+     one-line row of links it would take a third of the row's height and appear
+     only on the phones where the links happen not to fit, which is the least
+     predictable place to put a control. Swiping is the gesture on a touch
+     screen anyway. */
+  .rail-scroll {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .rail-scroll::-webkit-scrollbar {
+    display: none;
+  }
+
   /* Small outlined chip that labels a section. */
   .pill-label {
     @apply inline-flex items-center rounded-full border border-line bg-panel px-4 py-1.5
@@ -172,9 +186,11 @@
  * only one banner, which does not rotate and would otherwise stop at the far
  * edge and sit there.
  *
- * Only below `md`, and only where the picture is being cropped at all — Fit
- * already shows the whole thing, and panning what is entirely visible would be
- * motion for its own sake.
+ * Only below `md`, and only where the picture is being cropped at all. That
+ * includes Fit at these widths: it shows the whole picture on a wide screen,
+ * but on a phone it fills the height and runs off both sides, so it has the
+ * same off-frame picture to travel across. Stretch never pans — it distorts to
+ * fill and cuts nothing, so there is nothing to travel to.
  *
  * `object-position` rather than a transform: it moves the picture INSIDE its
  * box, so nothing overflows and no parent needs to know the image's

@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import type { LandingContent } from "@/lib/landingContent";
 import { cn } from "@/lib/utils";
 import { BackButton } from "./BackButton";
@@ -16,6 +15,23 @@ import { BackButton } from "./BackButton";
  * `className` replaces the positioning, for the one case that has no banner
  * underneath it: /incrc with its carousel emptied, where the header becomes a
  * solid bar in the flow instead of an overlay.
+ *
+ * ── On a phone, everything is in a row ────────────────────────────────────
+ *
+ * There was a hamburger here that opened a panel down over the page. It is gone,
+ * and so is the state, the blurred button, the outside-click and Escape
+ * handling, and the width-dependent shuffling of which things lived in the row
+ * and which lived in the panel.
+ *
+ * What replaced it: the brand and the call to action stay in the top row at
+ * every width, and the links run left to right underneath, scrolling sideways
+ * when there are more than fit. That behaves the same at 320px as at 500px —
+ * nothing is hidden behind a tap, nothing rearranges itself at a breakpoint, and
+ * a link that will not fit is one swipe away rather than two taps. It is the
+ * same pattern the admin sidebar uses below `md`, for the same reason.
+ *
+ * There are no links on this site's footer navigation today; the row appears the
+ * moment there are some, so adding them is an edit in the admin.
  *
  * ── `home` ────────────────────────────────────────────────────────────────
  *
@@ -45,46 +61,12 @@ export function SiteHeader({
   className?: string;
 }) {
   const { brand, nav } = content;
-  const [open, setOpen] = useState(false);
-  const root = useRef<HTMLElement>(null);
 
   const cta = home && nav.cta.label ? nav.cta : null;
-  const hasMenu = nav.links.length > 0 || cta !== null;
-
-  /**
-   * A dropdown that stays open after the thing behind it was tapped is a
-   * dropdown that feels stuck, so it closes on a press outside itself and on
-   * Escape. `pointerdown` rather than `click`: it fires before the press turns
-   * into a click on whatever is underneath, so the menu is out of the way by the
-   * time that lands.
-   */
-  useEffect(() => {
-    if (!open) return;
-
-    const away = (event: PointerEvent) => {
-      if (!root.current?.contains(event.target as Node)) setOpen(false);
-    };
-    const escape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-
-    document.addEventListener("pointerdown", away);
-    document.addEventListener("keydown", escape);
-    return () => {
-      document.removeEventListener("pointerdown", away);
-      document.removeEventListener("keydown", escape);
-    };
-  }, [open]);
 
   return (
-    <header ref={root} className={cn("absolute inset-x-0 top-0 z-20", className)}>
-      {/*
-        One row at every width. Below md the links come out of it and into the
-        dropdown below — they used to wrap onto a second centred line, which put
-        the brand and the links on two different rhythms and left the row looking
-        misaligned on a phone.
-      */}
-      <div className="mx-auto flex max-w-[1560px] items-center justify-between gap-4 px-5 py-5 sm:px-8">
+    <header className={cn("absolute inset-x-0 top-0 z-20", className)}>
+      <div className="mx-auto flex max-w-[1560px] items-center justify-between gap-3 px-5 py-5 sm:gap-4 sm:px-8">
         <div className="flex min-w-0 items-center gap-3">
           {home ? null : <BackButton />}
 
@@ -105,14 +87,15 @@ export function SiteHeader({
               decoding="async"
               className="h-9 w-auto shrink-0"
             />
-            <span className="truncate font-display text-lg font-extrabold tracking-tight text-white">
+            <span className="truncate font-display text-base font-extrabold tracking-tight text-white sm:text-lg">
               {brand.name}
             </span>
           </a>
         </div>
 
+        {/* From md the links sit in this row, where there is room for them. */}
         {nav.links.length > 0 ? (
-          <nav className="hidden items-center gap-7 md:flex lg:gap-8">
+          <nav aria-label="Site" className="hidden items-center gap-7 md:flex lg:gap-8">
             {nav.links.map((link) => (
               <a
                 key={`${link.label}-${link.href}`}
@@ -125,101 +108,54 @@ export function SiteHeader({
           </nav>
         ) : null}
 
-        <div className="flex shrink-0 items-center gap-2">
-          {cta ? (
-            <a
-              href={cta.href}
-              className="group hidden shrink-0 items-center gap-2 rounded-full bg-white py-1.5 pl-5 pr-1.5 text-sm font-semibold text-accent-ink transition hover:bg-white/90 md:inline-flex"
-            >
-              <span>{cta.label}</span>
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-accent">
-                <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden>
-                  <path
-                    d="M3 7h8M7.5 3.5 11 7l-3.5 3.5"
-                    stroke="#0A0A0A"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </span>
-            </a>
-          ) : null}
-
-          {hasMenu ? (
-            <button
-              type="button"
-              onClick={() => setOpen((was) => !was)}
-              aria-expanded={open}
-              aria-controls="site-menu"
-              aria-label={open ? "Close menu" : "Open menu"}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/25 bg-black/25 text-white backdrop-blur-sm transition hover:border-white/40 md:hidden"
-            >
-              {/* Two bars into a cross, drawn rather than swapped for a second
-                  icon so the change is one animation and not a flicker. */}
-              <span className="relative block h-3 w-4">
-                <span
-                  className={cn(
-                    "absolute inset-x-0 block h-0.5 rounded-full bg-current transition-transform duration-200",
-                    open ? "top-1/2 -translate-y-1/2 rotate-45" : "top-0"
-                  )}
+        {/*
+          In the row at every width now, rather than folded into a menu below
+          md. It is the one thing on the page a visitor is being asked to do, and
+          it was the only thing the phone's menu button existed to hide.
+          The arrow's disc is dropped on the narrowest screens so the pill stays
+          short enough to leave the brand its width.
+        */}
+        {cta ? (
+          <a
+            href={cta.href}
+            className="inline-flex shrink-0 items-center gap-2 rounded-full bg-white py-1.5 pl-4 pr-4 text-[13px] font-semibold text-accent-ink transition hover:bg-white/90 sm:pl-5 sm:pr-1.5 sm:text-sm"
+          >
+            <span className="whitespace-nowrap">{cta.label}</span>
+            <span className="hidden h-7 w-7 items-center justify-center rounded-full bg-accent sm:flex">
+              <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden>
+                <path
+                  d="M3 7h8M7.5 3.5 11 7l-3.5 3.5"
+                  stroke="#0A0A0A"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                 />
-                <span
-                  className={cn(
-                    "absolute inset-x-0 block h-0.5 rounded-full bg-current transition-transform duration-200",
-                    open ? "top-1/2 -translate-y-1/2 -rotate-45" : "bottom-0"
-                  )}
-                />
-              </span>
-            </button>
-          ) : null}
-        </div>
+              </svg>
+            </span>
+          </a>
+        ) : null}
       </div>
 
       {/*
-        The dropdown. Solid rather than translucent: it opens over a photograph,
-        and a wash dark enough to read white type on ANY banner is dark enough to
-        just be a panel. It carries the CTA too, so the phone row stays three
-        things wide however much the home page's nav grows.
+        The same links below md, as one row that runs left to right and scrolls
+        sideways if it has to. `rail-scroll` hides the bar — see globals.css.
+        `-mt-1 pb-4` keeps the two rows reading as one bar rather than two.
       */}
-      {hasMenu && open ? (
-        <div id="site-menu" className="mx-auto max-w-[1560px] px-5 pb-3 sm:px-8 md:hidden">
-          <div className="overflow-hidden rounded-2xl border border-line bg-surface p-2 shadow-2xl">
-            <nav className="flex flex-col">
-              {nav.links.map((link) => (
-                <a
-                  key={`${link.label}-${link.href}`}
-                  href={link.href}
-                  onClick={() => setOpen(false)}
-                  className="rounded-xl px-4 py-3 text-sm font-medium text-white/80 transition hover:bg-white/5 hover:text-white"
-                >
-                  {link.label}
-                </a>
-              ))}
-            </nav>
-
-            {cta ? (
-              <a
-                href={cta.href}
-                onClick={() => setOpen(false)}
-                className="mt-1 flex items-center justify-between gap-2 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-accent-ink transition hover:bg-white/90"
-              >
-                <span>{cta.label}</span>
-                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-accent">
-                  <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden>
-                    <path
-                      d="M3 7h8M7.5 3.5 11 7l-3.5 3.5"
-                      stroke="#0A0A0A"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </span>
-              </a>
-            ) : null}
-          </div>
-        </div>
+      {nav.links.length > 0 ? (
+        <nav
+          aria-label="Site"
+          className="rail-scroll mx-auto -mt-1 flex max-w-[1560px] items-center gap-6 overflow-x-auto px-5 pb-4 sm:px-8 md:hidden"
+        >
+          {nav.links.map((link) => (
+            <a
+              key={`${link.label}-${link.href}`}
+              href={link.href}
+              className="shrink-0 whitespace-nowrap text-sm font-medium text-white/75 transition hover:text-white"
+            >
+              {link.label}
+            </a>
+          ))}
+        </nav>
       ) : null}
     </header>
   );

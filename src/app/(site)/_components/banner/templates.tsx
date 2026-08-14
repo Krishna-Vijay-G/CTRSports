@@ -11,6 +11,7 @@ import {
 } from "@/lib/banners";
 import { cn } from "@/lib/utils";
 import { ActionButton } from "@/components/ui/ActionButton";
+import { useBannerViewer } from "./BannerViewer";
 
 /**
  * The banner layouts, and the lookup that picks between them.
@@ -48,7 +49,19 @@ const rise = {
 const FIT_CLASS: Record<BannerFit, string> = {
   fill: "object-cover",
   zoom: "object-cover scale-[1.18]",
-  fit: "object-contain",
+  /*
+   * Fit is the one that changes with the screen.
+   *
+   * On a wide screen it shows the whole picture, which is what it is for. On a
+   * phone that same rule left a wide picture as a thin strip across the middle
+   * of a tall box with blurred nothing above and below it — a banner that
+   * looked like it had failed to load rather than one shown whole. So below
+   * `md` it fills the height instead: the picture touches the top and the
+   * bottom, runs off both sides, and travels across them — see `banner-pan`.
+   * Nothing is lost, because everything that runs off the side is what the pan
+   * then shows.
+   */
+  fit: "object-cover md:object-contain",
   stretch: "object-fill",
 };
 
@@ -89,6 +102,10 @@ const PAN_Y: Record<BannerFocus, string> = {
  * It costs no extra download: same `src`, so the browser fetches it once and
  * paints it twice.
  *
+ * It is hidden below `md`, where Fit fills the height and leaves no space for a
+ * backdrop to fill — painting a blurred copy behind a picture that covers it
+ * completely is a full-screen blur nobody can see.
+ *
  * The scale is what keeps it clean — a blur samples past the edge of its
  * element and would otherwise fade to transparent along the boundary, leaving a
  * pale seam exactly where the frame is.
@@ -96,6 +113,7 @@ const PAN_Y: Record<BannerFocus, string> = {
 function Photo({ banner, className }: { banner: Banner; className?: string }) {
   const box = cn("absolute inset-0 h-full w-full", className);
   const crops = fitCrops(banner.fit);
+  const open = useBannerViewer();
 
   return (
     <>
@@ -105,7 +123,7 @@ function Photo({ banner, className }: { banner: Banner; className?: string }) {
           alt=""
           aria-hidden
           decoding="async"
-          className={cn(box, "scale-110 object-cover blur-2xl")}
+          className={cn(box, "hidden scale-110 object-cover blur-2xl md:block")}
         />
       ) : null}
 
@@ -132,11 +150,41 @@ function Photo({ banner, className }: { banner: Banner; className?: string }) {
           // cut off. Fit and Stretch centre it, whatever `focus` last held from
           // a spell on one of the cropping modes.
           FOCUS_CLASS[crops ? banner.focus : "center"],
-          // Only a cropped banner has anything to travel across — see the
-          // `banner-pan` note in globals.css.
-          crops && "banner-pan"
+          /*
+           * Anything with something off the side of the box travels across it —
+           * see the `banner-pan` note in globals.css, which also confines this
+           * to phone widths. That now includes Fit, which crops horizontally
+           * below `md`; on a wide screen the class is inert, which is exactly
+           * right, because there it shows the whole picture and has nothing to
+           * travel to. Stretch never pans: it distorts to fit and cuts nothing.
+           */
+          (crops || banner.fit === "fit") && "banner-pan"
         )}
       />
+
+      {/*
+        The picture, made clickable.
+        
+        A banner box is a window onto a photograph rather than the photograph —
+        every mode but Stretch cuts something off — so opening the whole thing
+        is worth a click. It is a button covering exactly the photo, sitting in
+        the same stacking context as the images and therefore UNDER the copy,
+        which is `relative z-10`: the headline, the subtitle and the call to
+        action keep working, and everything around them opens the picture.
+
+        `open` is null when no carousel is providing a viewer, which is how the
+        admin's preview renders this with nothing to click.
+      */}
+      {open ? (
+        <button
+          type="button"
+          onClick={() => open(banner)}
+          aria-label={
+            banner.title ? `View the full picture: ${banner.title}` : "View the full picture"
+          }
+          className={cn(box, "cursor-zoom-in")}
+        />
+      ) : null}
     </>
   );
 }
