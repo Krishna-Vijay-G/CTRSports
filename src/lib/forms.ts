@@ -51,6 +51,7 @@
  */
 
 import { BODY_MAX, isRecord, isoDate, lines, oneOf, optionalText, text } from "@/lib/normalise";
+import { checkDialled } from "@/lib/dialling";
 import { FORM_PAGE_KEYS, type FormPageKey } from "@/lib/roles";
 import { fallbackSlug, isUsableSlug, slugify, usableSlug } from "@/lib/slug";
 
@@ -182,6 +183,8 @@ export const CONDITION_OPS = [
   "blank",
   "atLeast",
   "atMost",
+  "moreThan",
+  "lessThan",
   "between",
 ] as const;
 export type ConditionOp = (typeof CONDITION_OPS)[number];
@@ -194,6 +197,8 @@ export const CONDITION_OP_LABELS: Record<ConditionOp, string> = {
   blank: "was left blank",
   atLeast: "is at least",
   atMost: "is at most",
+  moreThan: "is more than",
+  lessThan: "is less than",
   between: "is between",
 };
 
@@ -204,7 +209,13 @@ export function opTakesValue(op: ConditionOp): boolean {
 
 /** Whether it compares numbers — an age, a number field — rather than words. */
 export function opIsNumeric(op: ConditionOp): boolean {
-  return op === "atLeast" || op === "atMost" || op === "between";
+  return (
+    op === "atLeast" ||
+    op === "atMost" ||
+    op === "moreThan" ||
+    op === "lessThan" ||
+    op === "between"
+  );
 }
 
 /** Whether it takes two numbers rather than one: the range. */
@@ -473,13 +484,24 @@ export function conditionPasses(condition: Condition, answers: Submission): bool
       return wanted.some((value) => given.includes(value));
 
     case "atLeast":
-    case "atMost": {
+    case "atMost":
+    case "moreThan":
+    case "lessThan": {
       const got = numberOf(given[0]);
       const bar = numberOf(wanted[0]);
       // Neither side being a number is not "false is fine" — it is a comparison
       // that cannot be made, and the safe reading of that is not to ask.
       if (got === null || bar === null) return false;
-      return condition.op === "atLeast" ? got >= bar : got <= bar;
+
+      /*
+       * Both the inclusive and the strict pair, because "under 18" is how the
+       * rule is actually worded and writing it as "at most 17" is a translation
+       * somebody has to get right — and gets wrong the first time an age with a
+       * decimal in it turns up.
+       */
+      if (condition.op === "atLeast") return got >= bar;
+      if (condition.op === "atMost") return got <= bar;
+      return condition.op === "moreThan" ? got > bar : got < bar;
     }
 
     case "between": {
@@ -574,14 +596,24 @@ export function offeredOptions(field: FormField, answers: Submission): string[] 
  * A blank bound means no bound: `min` alone is "at least this", `max` alone is
  * "at most this", both is a range.
  */
-export const RULE_KINDS = ["none", "length", "number", "date", "pattern"] as const;
+export const RULE_KINDS = [
+  "none",
+  "length",
+  "number",
+  "digits",
+  "date",
+  "age",
+  "pattern",
+] as const;
 export type RuleKind = (typeof RULE_KINDS)[number];
 
 export const RULE_KIND_LABELS: Record<RuleKind, string> = {
   none: "Anything",
   length: "How long it is",
   number: "How big it is",
+  digits: "How many digits it has",
   date: "How early or late it is",
+  age: "How old it makes them",
   pattern: "A particular shape",
 };
 
@@ -666,12 +698,35 @@ export function ruleKindsFor(type: FormFieldType): RuleKind[] {
     case "textarea":
       return ["none", "length", "pattern"];
     case "email":
-    case "phone":
       return ["none", "pattern"];
+    /*
+     * A phone number is counted, not measured.
+     *
+     * "At least ten" of a phone number means ten DIGITS, and its length in
+     * characters is not that: "+91 98765 43210" is fifteen characters and ten
+     * digits. Nothing here could say it before, so a mobile number was written
+     * as a Number question with "at least 10" — a bound on the value, which
+     * nine digits passes because 987654321 is bigger than ten.
+     */
+    case "phone":
+      return ["none", "digits", "pattern"];
     case "number":
-      return ["none", "number"];
+      return ["none", "number", "digits"];
+    /*
+     * A date can be bounded two ways, and they are not the same question.
+     *
+     * "No earlier than 1 March" is about the date. "Eighteen or over" is about
+     * the person, and it moves: a date that was too young last year is not this
+     * year. The second is why `age` exists — written as a date bound it would
+     * have to be edited every season, and quietly stop being true in between.
+     *
+     * Offered whether or not the age COLUMN is switched on. The two are
+     * independent — one stores the age beside the date, the other decides what
+     * is accepted — and tying them together would mean turning the column off
+     * silently dropped the age limit with it.
+     */
     case "date":
-      return ["none", "date"];
+      return ["none", "date", "age"];
     default:
       // A choice is already limited to its options, and a tick is a tick.
       return ["none"];
@@ -730,7 +785,7 @@ export function safePattern(source: string): RegExp | null {
  * check's business, and telling somebody their blank answer is the wrong shape
  * is not help.
  */
-export function checkRule(field: FormField, value: string): string {
+export function checkRule(field: FormField, value: string, now: Date = new Date()): string {
   const rule = field.rule;
   if (rule.kind === "none") return "";
 
@@ -765,6 +820,28 @@ export function checkRule(field: FormField, value: string): string {
       return "";
     }
 
+    case "digits": {
+      // Only the digits count, so the spaces, brackets, plus and hyphens people
+      // write a phone number with make no difference to whether it passes.
+      const count = (value.match(/\d/g) ?? []).length;
+      const low = numberOf(min);
+      const high = numberOf(max);
+
+      if (low !== null && count < low) {
+        return (
+          rule.message ||
+          `${name} has to have at least ${low} digits — that has ${count === 1 ? "1 digit" : `${count} digits`}.`
+        );
+      }
+      if (high !== null && count > high) {
+        return (
+          rule.message ||
+          `${name} has to have ${high} digits or fewer — that has ${count === 1 ? "1 digit" : `${count} digits`}.`
+        );
+      }
+      return "";
+    }
+
     case "date": {
       // Both sides are ISO, so a string comparison IS a date comparison — and
       // one that cannot be caught out by a timezone.
@@ -774,6 +851,39 @@ export function checkRule(field: FormField, value: string): string {
       if (max && isoDate(max) && value > max) {
         return rule.message || `${name} cannot be later than ${max}.`;
       }
+      return "";
+    }
+
+    case "age": {
+      /*
+       * The rule is about the age, not the date, so it is worked out the same
+       * way the stored age is — same function, same `now`, same UTC arithmetic.
+       * Anything else and the browser and the server could disagree by a day
+       * about somebody's eighteenth birthday, which is the exact bug `ageFrom`
+       * is written the way it is to prevent.
+       */
+      const worked = ageFrom(value, now);
+      if (worked === "") return rule.message || `${name} does not look like a date of birth.`;
+
+      const years = Number(worked);
+      const low = numberOf(min);
+      const high = numberOf(max);
+
+      // Both ends count, like every other bound here: "under 18" is a highest
+      // of 17, and 18 with no highest is "18 and over".
+      if (low !== null && years < low) {
+        return (
+          rule.message ||
+          `You have to be ${low} or older on the day you enter — that date works out to ${years}.`
+        );
+      }
+      if (high !== null && years > high) {
+        return (
+          rule.message ||
+          `You have to be ${high} or younger on the day you enter — that date works out to ${years}.`
+        );
+      }
+
       return "";
     }
 
@@ -1430,7 +1540,7 @@ export function normaliseFormFields(
         options,
         when: condition(entry.when),
         optionsWhen: isChoice(type) ? optionFilter(entry.optionsWhen, options) : { ...ALL_OPTIONS },
-        rule: fieldRule(entry.rule, type),
+        rule: fieldRule(entry.rule, type, optionalText(entry.label, FORM_LIMITS.field_label) || `Question ${index + 1}`, notes),
         sectionId: optionalText(entry.sectionId, 64).replace(/[^A-Za-z0-9_-]/g, ""),
         maxMb:
           type === "file"
@@ -1746,11 +1856,34 @@ function condition(value: unknown): Condition {
  * of invisible leftover as a filter pointing at a question that has changed
  * type. Dropping it on the way in is what stops it becoming one.
  */
-function fieldRule(value: unknown, type: FormFieldType): FieldRule {
+function fieldRule(
+  value: unknown,
+  type: FormFieldType,
+  name: string,
+  notes?: string[]
+): FieldRule {
   if (!isRecord(value)) return { ...NO_RULE };
 
   const kind = oneOf(value.kind, RULE_KINDS, "none");
-  if (!ruleKindsFor(type).includes(kind)) return { ...NO_RULE };
+  if (!ruleKindsFor(type).includes(kind)) {
+    /*
+     * Said out loud, not merely dropped.
+     *
+     * Changing a question's type is how a rule ends up here, and it used to go
+     * without a word: a mobile number set to "at least 10 digits" as a text
+     * question, then switched to a Number question, came back accepting
+     * anything — with the builder showing no rule and nobody able to say when
+     * it stopped being checked.
+     */
+    if (kind !== "none") {
+      notes?.push(
+        `“${name}” accepts any answer now — its “${RULE_KIND_LABELS[kind]}” check does not apply ` +
+          `to a ${FIELD_TYPE_LABELS[type].toLowerCase()} question.`
+      );
+    }
+
+    return { ...NO_RULE };
+  }
 
   return {
     kind,
@@ -2064,8 +2197,22 @@ export function validateSubmission(
 
       case "phone": {
         const one = clamp(raw, FORM_LIMITS.value_phone);
-        if (one && !isPhone(one)) errors[field.id] = `${name} does not look like a phone number.`;
-        else value = one;
+
+        if (one && !isPhone(one)) {
+          errors[field.id] = `${name} does not look like a phone number.`;
+        } else {
+          /*
+           * A number carrying a dialling code is checked against that country's
+           * own length — the same check the picker makes as it is typed, from
+           * the same list, so the control cannot promise something the route
+           * then refuses. A number WITHOUT a code is left alone: those are the
+           * answers given before the picker existed, and a form that starts
+           * rejecting them is a form that broke.
+           */
+          const wrong = one ? checkDialled(one) : "";
+          if (wrong) errors[field.id] = wrong;
+          else value = one;
+        }
         break;
       }
 
@@ -2101,7 +2248,9 @@ export function validateSubmission(
      * disagree with.
      */
     if (!errors[field.id] && typeof value === "string" && value !== "") {
-      const broken = checkRule(field, value);
+      // `now` goes through: an age rule has to be worked out against the same
+      // day the stored age is, or the two disagree on somebody's birthday.
+      const broken = checkRule(field, value, now);
       if (broken) errors[field.id] = broken;
     }
 

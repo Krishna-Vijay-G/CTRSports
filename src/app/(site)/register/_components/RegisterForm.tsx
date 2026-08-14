@@ -18,6 +18,7 @@ import {
   type Submission,
 } from "@/lib/forms";
 import { cn } from "@/lib/utils";
+import { PhoneField } from "@/components/ui/PhoneField";
 
 /**
  * The form itself: the controls, and what happens when they are sent.
@@ -1030,6 +1031,22 @@ function Control({
               />
             ) : null}
           </>
+        ) : field.type === "phone" ? (
+          /*
+           * The country is part of the answer, so it is part of the control.
+           * One box could not tell "98765 43210" (complete, in India) from a
+           * number missing its last digit, and an entrant flying in writes a
+           * different number entirely. See PhoneField.
+           */
+          <PhoneField
+            id={id}
+            value={single}
+            onChange={onChange}
+            disabled={disabled}
+            invalid={Boolean(error)}
+            describedBy={described || undefined}
+            placeholder={field.placeholder}
+          />
         ) : (
           <input
             {...shared}

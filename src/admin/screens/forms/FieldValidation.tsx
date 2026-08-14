@@ -80,36 +80,107 @@ export function FieldValidation({
         </Select>
       </div>
 
-      {rule.kind === "length" || rule.kind === "number" || rule.kind === "date" ? (
-        <div className="grid gap-2 sm:grid-cols-2">
-          <div className="block">
-            <Label>{rule.kind === "date" ? "No earlier than" : "At least"}</Label>
-            <Input
-              type={rule.kind === "date" ? "date" : "number"}
-              value={rule.min}
-              onChange={(event) => onChange({ ...rule, min: event.target.value })}
-              className="mt-1.5"
-              aria-label="Lowest allowed"
-            />
+      {BOUNDED.includes(rule.kind) ? (
+        <>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <div className="block">
+              <Label>
+                {rule.kind === "date" ? "No earlier than" : rule.kind === "age" ? "No younger than" : "At least"}
+              </Label>
+              <Input
+                type={rule.kind === "date" ? "date" : "number"}
+                value={rule.min}
+                onChange={(event) => onChange({ ...rule, min: event.target.value })}
+                className="mt-1.5"
+                placeholder={rule.kind === "age" ? "18" : undefined}
+                aria-label={rule.kind === "age" ? "Youngest age allowed" : "Lowest allowed"}
+              />
+            </div>
+            <div className="block">
+              <Label>
+                {rule.kind === "date" ? "No later than" : rule.kind === "age" ? "No older than" : "At most"}
+              </Label>
+              <Input
+                type={rule.kind === "date" ? "date" : "number"}
+                value={rule.max}
+                onChange={(event) => onChange({ ...rule, max: event.target.value })}
+                className="mt-1.5"
+                placeholder={rule.kind === "age" ? "any" : undefined}
+                aria-label={rule.kind === "age" ? "Oldest age allowed" : "Highest allowed"}
+              />
+            </div>
           </div>
-          <div className="block">
-            <Label>{rule.kind === "date" ? "No later than" : "At most"}</Label>
-            <Input
-              type={rule.kind === "date" ? "date" : "number"}
-              value={rule.max}
-              onChange={(event) => onChange({ ...rule, max: event.target.value })}
-              className="mt-1.5"
-              aria-label="Highest allowed"
-            />
-          </div>
-        </div>
-      ) : null}
 
-      {rule.kind === "length" || rule.kind === "number" || rule.kind === "date" ? (
-        <Hint>
-          Leave one blank for an open end — a lowest with no highest is “at least this”.
-          {rule.kind === "length" ? " Counted in characters." : null}
-        </Hint>
+          <Hint>
+            Leave one blank for an open end — a lowest with no highest is “at least this”.
+            {rule.kind === "length" ? " Counted in characters." : null}
+            {rule.kind === "digits"
+              ? " Counted in digits only: spaces, brackets, hyphens and the plus sign are ignored," +
+                " so “98765 43210” is ten. A country code is digits though — “+91 98765 43210” is" +
+                " twelve — so set a highest only if you mean to turn those away."
+              : null}
+            {rule.kind === "age"
+              ? " In whole years, worked out on the day they send the form — not when the form was" +
+                " written, so it stays true next season. Both ends count: 18 with no highest is" +
+                " “18 and over”, and “under 18” is a highest of 17."
+              : null}
+          </Hint>
+
+          {/*
+            The trap this note exists for: "How big it is → at least 10" on a
+            mobile number question, which accepts nine digits because 987654321
+            is bigger than ten. The rule is doing what it says; what it says is
+            not what it was read as.
+          */}
+          {rule.kind === "number" ? (
+            <Note>
+              This is the value itself, not how many digits it has — 987654321 is nine digits and
+              far bigger than 10. For a count of digits, choose “How many digits it has”. And for a
+              mobile number, a Phone question is the right kind: a Number question loses a leading
+              zero and cannot hold “+91”.
+            </Note>
+          ) : null}
+
+          {/* The country picker already does most of this job on a Phone
+              question, and its digits are counted here too. */}
+          {rule.kind === "digits" && field.type === "phone" ? (
+            <Note>
+              A Phone question already checks the length for the country picked — ten digits for
+              India, nine for Australia — so this is only worth setting if you want the same bound
+              whatever country they choose. Remember the dialling code counts: “+91 9876543210” is
+              twelve digits, not ten.
+            </Note>
+          ) : null}
+
+          {rule.kind === "digits" && crossed(rule.min, rule.max) ? (
+            <Note className="text-destructive">
+              The fewest is above the most, so no answer can be accepted.
+            </Note>
+          ) : null}
+
+          {rule.kind === "age" ? (
+            <>
+              {/*
+                Only a warning. The rule works whether or not the age is stored —
+                it works the age out itself — and refusing to accept it would
+                mean switching the column off quietly dropped the age limit too.
+              */}
+              {!field.age ? (
+                <Note>
+                  This checks the age without storing it. Switch “Work out their age too” on above
+                  if you also want it as a column in the export, or want a later question to depend
+                  on it.
+                </Note>
+              ) : null}
+
+              {crossed(rule.min, rule.max) ? (
+                <Note className="text-destructive">
+                  The youngest is above the oldest, so no date of birth can be accepted.
+                </Note>
+              ) : null}
+            </>
+          ) : null}
+        </>
       ) : null}
 
       {rule.kind === "pattern" ? (
@@ -198,8 +269,39 @@ export function FieldValidation({
   );
 }
 
+/** The kinds that are written as a pair of bounds, either of which may be blank. */
+const BOUNDED: FieldRule["kind"][] = ["length", "number", "digits", "date", "age"];
+
+/** A pair of bounds that can never both be satisfied. */
+function crossed(min: string, max: string): boolean {
+  if (!min.trim() || !max.trim()) return false;
+
+  const low = Number(min);
+  const high = Number(max);
+  return Number.isFinite(low) && Number.isFinite(high) && low > high;
+}
+
 /** The built-in sentence, shown as the placeholder so its wording is visible. */
 function placeholderMessage(field: FormField): string {
+  /*
+   * An age rule needs a DATE to fail against, and which date fails depends on
+   * which end is set: today makes somebody 0, which is under any minimum, and a
+   * date long ago makes them ancient, which is over any maximum. One of the two
+   * produces the sentence; both being blank is a rule with no bounds at all.
+   */
+  if (field.rule.kind === "age") {
+    const today = new Date().toISOString().slice(0, 10);
+    // A hundred years back rather than a fixed year: `ageFrom` refuses anything
+    // over 130, so a literal 1900 would quietly stop working one day.
+    const ancient = `${new Date().getUTCFullYear() - 100}-01-01`;
+
+    return (
+      checkRule(field, today) ||
+      checkRule(field, ancient) ||
+      "You have to be within the ages this accepts."
+    );
+  }
+
   /*
    * Runs the real thing rather than repeating its wording here — two copies of
    * a sentence is one copy that goes stale. What it needs is a value that FAILS

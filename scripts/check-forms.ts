@@ -41,6 +41,7 @@ import {
   isTakingEntries,
   normaliseFormFields,
   normaliseFormInput,
+  ruleKindsFor,
   isOtherAnswer,
   offeredOptions,
   placesLeft,
@@ -48,6 +49,7 @@ import {
   validateSubmission,
   withOrphans,
 } from "@/lib/forms";
+import { checkNational, countryFor, joinNumber, splitNumber } from "@/lib/dialling";
 
 let failures = 0;
 
@@ -501,6 +503,212 @@ section("A range is one comparison, and it keeps both of its ends");
   ]);
 
   check("and a range of nothing but a space is no range", bands[1].optionsWhen.bands, []);
+}
+
+section("A phone number carries the country it belongs to");
+{
+  const [india, uk] = [countryFor("IN"), countryFor("GB")];
+
+  check("a stored number splits back into the two halves it was built from", splitNumber("+91 9876543210"), {
+    country: india,
+    national: "9876543210",
+  });
+  // Longest code first, or "+1" claims a "+94" number and a Sri Lankan entrant
+  // is told a ten-digit number is the wrong length for the United States.
+  check("a longer code is not eaten by a shorter one", splitNumber("+94 712345678").country.code, "LK");
+  check("what people type between digits is decoration", splitNumber("+44 (7911) 123-456").national, "7911123456");
+
+  // Nothing before the picker existed is thrown away: it comes back on the home
+  // country with its digits intact, which is what the box then shows.
+  check("a number with no code at all", splitNumber("98765 43210"), { country: india, national: "9876543210" });
+  check("and nothing at all", splitNumber(""), { country: india, national: "" });
+
+  check("joined as it is stored", joinNumber(india, "98765 43210"), "+91 9876543210");
+  check("nothing typed stores nothing, not a bare code", joinNumber(india, ""), "");
+
+  check("the right length for the country", checkNational(india, "9876543210"), "");
+  check(
+    "one digit short",
+    checkNational(india, "987654321"),
+    "A number in India is 10 digits after +91 — that has 9."
+  );
+  check("a range is a range", [checkNational(uk, "791112345"), checkNational(uk, "7911123456")], ["", ""]);
+  check("nothing typed is not an error, it is unanswered", checkNational(india, ""), "");
+}
+
+{
+  /*
+   * The half that matters: the browser drawing a picker is a courtesy, and the
+   * route is what decides. A number the control could not have produced must
+   * not be accepted just because it was posted around the control.
+   */
+  const [field] = normaliseFormFields([{ id: "p", type: "phone", label: "Mobile" }]);
+  const at = (typed: string) => validateSubmission([field], { p: typed });
+
+  check("ten digits on +91 is accepted", at("+91 9876543210").errors.p, undefined);
+  check("and stored as it was sent", at("+91 9876543210").values.p, "+91 9876543210");
+  check("nine is refused by the route, not only by the box", at("+91 987654321").errors.p !== undefined, true);
+  check("and the refusal names the country", at("+91 987654321").errors.p?.includes("India"), true);
+
+  // An answer given before the picker existed has no code, so no country claims
+  // it — and a form that starts rejecting the numbers it already holds is one
+  // that broke on the day a control was added.
+  check("a codeless number is left alone", at("9876543210").errors.p, undefined);
+  check("as is a landline written the old way", at("044 2345 6789").errors.p, undefined);
+  check("but nonsense is still nonsense", at("not a number").errors.p !== undefined, true);
+}
+
+section("Digits are counted, and a value is measured — they are different rules");
+{
+  /*
+   * The bug this section exists for. A mobile number was written as a Number
+   * question with "How big it is → at least 10", and nine digits sailed through:
+   * 987654321 is bigger than ten. The rule was right; the reading of it was not,
+   * and until now there was no rule that could say "ten digits".
+   */
+  const [value] = normaliseFormFields([
+    { id: "m", type: "number", label: "Mobile Number", rule: { kind: "number", min: "10" } },
+  ]);
+  check(
+    "nine digits passes a bound on the value, as it always did",
+    validateSubmission([value], { m: "987654321" }).errors.m,
+    undefined
+  );
+
+  const [digits] = normaliseFormFields([
+    { id: "m", type: "number", label: "Mobile Number", rule: { kind: "digits", min: "10" } },
+  ]);
+  check(
+    "and fails a bound on the digits",
+    validateSubmission([digits], { m: "987654321" }).errors.m,
+    "Mobile Number has to have at least 10 digits — that has 9 digits."
+  );
+  check("ten of them is accepted", validateSubmission([digits], { m: "9876543210" }).errors.m, undefined);
+}
+
+{
+  const [phone] = normaliseFormFields([
+    { id: "p", type: "phone", label: "Mobile", rule: { kind: "digits", min: "10", max: "10" } },
+  ]);
+  const at = (typed: string) => validateSubmission([phone], { p: typed }).errors.p;
+
+  check("the punctuation people write a number with is not counted", at("98765 43210"), undefined);
+  check("nor are brackets and hyphens", at("(98765)-43210"), undefined);
+  check("but a country code is digits", at("+91 98765 43210") !== undefined, true);
+  check("and nine is still nine", at("987654321") !== undefined, true);
+}
+
+{
+  // A phone question could carry no bound at all before this: its only rule was
+  // a regular expression, which is a lot to ask for "ten digits".
+  check("a phone question can be counted now", ruleKindsFor("phone").includes("digits"), true);
+  check("and so can a number question", ruleKindsFor("number").includes("digits"), true);
+  check("a text question is measured, not counted", ruleKindsFor("text").includes("digits"), false);
+}
+
+{
+  const notes: string[] = [];
+  const fields = normaliseFormFields(
+    [{ id: "m", type: "number", label: "Mobile", rule: { kind: "length", min: "10" } }],
+    notes
+  );
+
+  check("a rule the new type cannot enforce is dropped", fields[0].rule.kind, "none");
+  check(
+    "and it is reported rather than vanishing",
+    notes.some((note) => note.includes("Mobile") && note.includes("accepts any answer now")),
+    true
+  );
+}
+
+section("A date question can refuse an age as well as a date");
+{
+  const noon = new Date("2026-08-14T12:00:00Z");
+  const fields = normaliseFormFields([
+    {
+      id: "dob",
+      type: "date",
+      age: true,
+      label: "Date of birth",
+      rule: { kind: "age", min: "12", max: "16" },
+    },
+  ]);
+
+  check("the rule survives on a date question", fields[0].rule.kind, "age");
+
+  const at = (dob: string) => validateSubmission(fields, { dob }, noon).errors.dob;
+
+  // Both ends count, so the day somebody turns 12 is the first day they are in.
+  check("too young", at("2015-01-01") !== undefined, true);
+  check("the day they turn twelve", at("2014-08-14"), undefined);
+  check("the day before that", at("2014-08-15") !== undefined, true);
+  check("the last day of being sixteen", at("2009-08-15"), undefined);
+  check("and the day they turn seventeen", at("2009-08-14") !== undefined, true);
+  check("the sentence says what it wants and what it got", at("2015-01-01"), [
+    "You have to be 12 or older on the day you enter — that date works out to 11.",
+  ][0]);
+
+  // The rule is checked against the SAME day the stored age is worked out from,
+  // or the two halves of one entry disagree about somebody's birthday.
+  const entry = validateSubmission(fields, { dob: "2014-08-14" }, noon);
+  check("and the age it stored agrees with it", entry.values[ageKey("dob")], "12");
+}
+
+{
+  const fields = normaliseFormFields([
+    { id: "dob", type: "date", rule: { kind: "age", min: "18", max: "" } },
+  ]);
+  const noon = new Date("2026-08-14T12:00:00Z");
+
+  // The age COLUMN is off here. The rule works the age out for itself, so
+  // switching that column off cannot silently drop an age limit with it.
+  check("an age limit does not need the age column", fields[0].rule.min, "18");
+  check(
+    "and it is still enforced",
+    validateSubmission(fields, { dob: "2012-01-01" }, noon).errors.dob !== undefined,
+    true
+  );
+  check(
+    "the age is not stored, though",
+    ageKey("dob") in validateSubmission(fields, { dob: "2000-01-01" }, noon).values,
+    false
+  );
+}
+
+{
+  const fields = normaliseFormFields([
+    { id: "dob", type: "date", rule: { kind: "age", min: "18", max: "" } },
+  ]);
+  const noon = new Date("2026-08-14T12:00:00Z");
+
+  check(
+    "a date no age can come from is refused by the rule too",
+    validateSubmission(fields, { dob: "2035-01-01" }, noon).errors.dob !== undefined,
+    true
+  );
+}
+
+{
+  // The wrong kind of rule on the wrong kind of question is dropped on the way
+  // in, exactly as a length rule on a date already was.
+  const fields = normaliseFormFields([{ id: "n", type: "number", rule: { kind: "age", min: "18" } }]);
+  check("an age rule only belongs to a date", fields[0].rule.kind, "none");
+}
+
+section("Less than is its own comparison, not at most with the number moved");
+{
+  const fields = normaliseFormFields([
+    { id: "dob", type: "date", age: true },
+    { id: "u", type: "text", when: { key: ageKey("dob"), op: "lessThan", values: ["18"] } },
+    { id: "o", type: "text", when: { key: ageKey("dob"), op: "moreThan", values: ["18"] } },
+  ]);
+  const noon = new Date("2026-08-14T12:00:00Z");
+  const asked = (dob: string) =>
+    validateSubmission(fields, { dob }, noon).asked.map((field) => field.id);
+
+  check("seventeen is under eighteen", asked("2009-01-01"), ["dob", "u"]);
+  check("eighteen is neither under nor over it", asked("2008-01-01"), ["dob"]);
+  check("nineteen is over it", asked("2007-01-01"), ["dob", "o"]);
 }
 
 /* ──────────────────────────── Dates and ages ──────────────────────────── */
