@@ -1,4 +1,5 @@
 import type { IncrcContent } from "@/lib/incrcContent";
+import { cn } from "@/lib/utils";
 import { ActionButton } from "@/components/ui/ActionButton";
 import { Reveal } from "@/components/ui/Reveal";
 
@@ -15,11 +16,21 @@ export function PostsSection({ posts }: { posts: IncrcContent["posts"] }) {
   return (
     <section id="posts" className="shell py-16 sm:py-20">
       <Reveal className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+        {/* `.pill-label` is a bordered, filled pill — an empty one is an outline
+            holding nothing. The <div> stays either way: it is what pushes the
+            button to the far end of the row. */}
         <div>
-          <span className="pill-label">{posts.label}</span>
-          <h2 className="headline mt-4 max-w-2xl text-[clamp(1.7rem,3.6vw,2.7rem)]">
-            {posts.title}
-          </h2>
+          {posts.label ? <span className="pill-label">{posts.label}</span> : null}
+          {posts.title ? (
+            <h2
+              className={cn(
+                "headline max-w-2xl text-[clamp(1.7rem,3.6vw,2.7rem)]",
+                posts.label && "mt-4"
+              )}
+            >
+              {posts.title}
+            </h2>
+          ) : null}
         </div>
 
         {posts.ctaLabel ? (

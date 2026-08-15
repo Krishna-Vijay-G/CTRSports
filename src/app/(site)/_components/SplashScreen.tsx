@@ -22,6 +22,12 @@ export function SplashScreen({ splash }: { splash: LandingContent["splash"] }) {
   const [visible, setVisible] = useState(true);
   const [fading, setFading] = useState(false);
 
+  // Nothing to show is no splash. This covers the whole viewport for up to
+  // 1.8 seconds, so with neither a mark nor a name it is a blank page held over
+  // the real one — and the <img> would be an empty `src`, which the browser
+  // resolves against the page and re-requests before drawing a broken mark.
+  const shown = Boolean(splash.logo || splash.title);
+
   useEffect(() => {
     const startedAt = performance.now();
     let fadeTimer: number | undefined;
@@ -54,25 +60,31 @@ export function SplashScreen({ splash }: { splash: LandingContent["splash"] }) {
     };
   }, []);
 
-  if (!visible) return null;
+  // After the effect, never before it: the hooks above run on every render or
+  // none, and an early return between them is the one way to break that.
+  if (!shown || !visible) return null;
 
   return (
     <div
-      aria-label={`Loading ${splash.title}`}
+      aria-label={splash.title ? `Loading ${splash.title}` : "Loading"}
       className={`fixed inset-0 z-[999] grid place-content-center justify-items-center gap-4 bg-page transition-opacity duration-500 ${
         fading ? "pointer-events-none opacity-0" : "opacity-100"
       }`}
     >
-      <img
-        src={splash.logo}
-        alt={`${splash.title} logo`}
-        fetchPriority="high"
-        decoding="async"
-        className="w-[min(190px,42vw)] animate-float"
-      />
-      <p className="font-display text-sm font-bold tracking-[0.24em] text-fg-faint">
-        {splash.title.toUpperCase()}
-      </p>
+      {splash.logo ? (
+        <img
+          src={splash.logo}
+          alt={splash.title ? `${splash.title} logo` : ""}
+          fetchPriority="high"
+          decoding="async"
+          className="w-[min(190px,42vw)] animate-float"
+        />
+      ) : null}
+      {splash.title ? (
+        <p className="font-display text-sm font-bold tracking-[0.24em] text-fg-faint">
+          {splash.title.toUpperCase()}
+        </p>
+      ) : null}
     </div>
   );
 }

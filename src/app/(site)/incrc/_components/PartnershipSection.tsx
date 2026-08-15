@@ -1,5 +1,6 @@
 import { cellName, collageVars, resolveCollage } from "@/lib/collage";
 import type { IncrcContent } from "@/lib/incrcContent";
+import { cn } from "@/lib/utils";
 import { Reveal } from "@/components/ui/Reveal";
 
 /**
@@ -29,16 +30,45 @@ export function PartnershipSection({
   // one that fits, so this only trims a list normalised against an older max.
   const shots = layout ? partnership.shots.slice(0, layout.cells) : [];
 
+  const written = partnership.label || partnership.title || partnership.body;
+  if (!written && shots.length === 0) return null;
+
   return (
     <section id="partnership" className="shell py-16 sm:py-20">
-      <Reveal className="max-w-2xl">
-        <span className="pill-label">{partnership.label}</span>
-        <h2 className="headline mt-4 text-[clamp(1.7rem,3.6vw,2.7rem)]">{partnership.title}</h2>
-        <p className="body-copy mt-4">{partnership.body}</p>
-      </Reveal>
+      {/* `.pill-label` is a bordered, filled pill, so an empty one is a visible
+          outline with nothing in it. Each line is drawn only when written, and
+          its top margin goes with it. */}
+      {written ? (
+        <Reveal className="max-w-2xl">
+          {partnership.label ? <span className="pill-label">{partnership.label}</span> : null}
+          {partnership.title ? (
+            <h2
+              className={cn(
+                "headline text-[clamp(1.7rem,3.6vw,2.7rem)]",
+                partnership.label && "mt-4"
+              )}
+            >
+              {partnership.title}
+            </h2>
+          ) : null}
+          {partnership.body ? (
+            <p
+              className={cn(
+                "body-copy",
+                (partnership.label || partnership.title) && "mt-4"
+              )}
+            >
+              {partnership.body}
+            </p>
+          ) : null}
+        </Reveal>
+      ) : null}
 
       {layout ? (
-        <div className="collage mt-10" style={collageVars(layout) as React.CSSProperties}>
+        <div
+          className={cn("collage", written && "mt-10")}
+          style={collageVars(layout) as React.CSSProperties}
+        >
           {shots.map((shot, index) => (
             <Reveal
               key={`${shot.image}-${index}`}

@@ -1,6 +1,7 @@
 "use client";
 
 import type { LandingContent } from "@/lib/landingContent";
+import { cn } from "@/lib/utils";
 import { Reveal } from "@/components/ui/Reveal";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import type { Sport } from "@/lib/sports";
@@ -32,7 +33,14 @@ export function SportsSection({
     <section id="sports" className="shell py-16 sm:py-20">
       <SectionHeading label={heading.label} title={heading.title} />
 
-      <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      {/* The heading draws nothing when neither half is written, so the gap
+          under it goes too — 40px of margin with nothing above it. */}
+      <div
+        className={cn(
+          "grid gap-5 sm:grid-cols-2 lg:grid-cols-3",
+          (heading.label || heading.title) && "mt-10"
+        )}
+      >
         {sports.map((sport, index) => (
           <Reveal key={sport.id} delay={0.06 * (index % 3)} y={28} className="h-full">
             <Card href={sport.href} title={sport.title}>

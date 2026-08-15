@@ -18,16 +18,26 @@ import { Tricolour } from "./icons";
  * its own, which is a perfectly good ending.
  */
 export function FamilyBanner({ family }: { family: IncrcContent["family"] }) {
+  // A band with nothing in it is 420px of gradient with a flag floating in the
+  // middle of it — the page's change of pace, changing pace to say nothing. The
+  // flag and the rules on either side of it are a divider BETWEEN the lead and
+  // the quote, so with neither there is nothing for them to divide.
+  if (!family.image && !family.lead && !family.quote && family.links.length === 0) return null;
+
   return (
     <section className="relative min-h-[420px] overflow-hidden md:min-h-[520px]">
-      <img
-        src={family.image}
-        alt=""
-        aria-hidden
-        loading="lazy"
-        decoding="async"
-        className="absolute inset-0 h-full w-full object-cover"
-      />
+      {/* An <img> with no src is not an empty image: the browser resolves ""
+          against the page and re-requests the page itself. */}
+      {family.image ? (
+        <img
+          src={family.image}
+          alt=""
+          aria-hidden
+          loading="lazy"
+          decoding="async"
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      ) : null}
       {/* Heavy, and heaviest at the foot: the quote is large and centred, so it
           crosses whatever the photograph is doing in the middle. */}
       <div className="absolute inset-0 bg-gradient-to-t from-page via-page/75 to-page/45" />
@@ -40,19 +50,24 @@ export function FamilyBanner({ family }: { family: IncrcContent["family"] }) {
             </p>
           ) : null}
 
-          {family.showFlag ? (
-            <span aria-hidden className="my-5 flex items-center justify-center gap-3">
-              <span className="h-px w-10 bg-accent/50" />
-              <Tricolour />
-              <span className="h-px w-10 bg-accent/50" />
-            </span>
-          ) : (
-            <span aria-hidden className="my-5 block h-px w-16 bg-accent/50 mx-auto" />
-          )}
+          {/* The divider only divides when there are two things to keep apart. */}
+          {family.lead && family.quote ? (
+            family.showFlag ? (
+              <span aria-hidden className="my-5 flex items-center justify-center gap-3">
+                <span className="h-px w-10 bg-accent/50" />
+                <Tricolour />
+                <span className="h-px w-10 bg-accent/50" />
+              </span>
+            ) : (
+              <span aria-hidden className="my-5 block h-px w-16 bg-accent/50 mx-auto" />
+            )
+          ) : null}
 
-          <p className="headline mx-auto max-w-4xl text-[clamp(1.8rem,5vw,3.5rem)]">
-            {family.quote}
-          </p>
+          {family.quote ? (
+            <p className="headline mx-auto max-w-4xl text-[clamp(1.8rem,5vw,3.5rem)]">
+              {family.quote}
+            </p>
+          ) : null}
 
           {family.links.length > 0 ? (
             <div className="mt-9 flex flex-wrap items-center justify-center gap-3">

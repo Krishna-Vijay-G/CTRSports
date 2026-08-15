@@ -43,12 +43,21 @@ export function IntroSection({
             </p>
           ))}
 
-          <div className="mt-9 flex flex-wrap items-center gap-3">
-            {intro.ctaLabel ? (
-              <ActionButton href={intro.ctaHref}>{intro.ctaLabel}</ActionButton>
-            ) : null}
-            <FollowButton href={meta.instagram} handle={meta.handle} />
-          </div>
+          {/* Neither button is guaranteed now that the chip's wording is the
+              document's, so the row itself is conditional — an empty flex box
+              with a 36px top margin is a gap nobody asked for. */}
+          {intro.ctaLabel || (meta.followLabel && meta.instagram) ? (
+            <div className="mt-9 flex flex-wrap items-center gap-3">
+              {intro.ctaLabel ? (
+                <ActionButton href={intro.ctaHref}>{intro.ctaLabel}</ActionButton>
+              ) : null}
+              <FollowButton
+                href={meta.instagram}
+                handle={meta.handle}
+                label={meta.followLabel}
+              />
+            </div>
+          ) : null}
         </Reveal>
 
         {intro.partners.length > 0 ? (

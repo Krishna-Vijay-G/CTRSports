@@ -1,4 +1,5 @@
 import type { IncrcContent } from "@/lib/incrcContent";
+import { cn } from "@/lib/utils";
 import { ActionButton } from "@/components/ui/ActionButton";
 import { Reveal } from "@/components/ui/Reveal";
 
@@ -9,6 +10,11 @@ import { Reveal } from "@/components/ui/Reveal";
  * allowed on top of it, so every piece of type here says so explicitly.
  */
 export function RegisterBand({ register }: { register: IncrcContent["register"] }) {
+  // Nothing to ask for is no band. The band is a flat accent rectangle 14rem
+  // tall with a blur laid over one corner — with no words in it that is not a
+  // quiet section, it is the loudest thing on the page saying nothing at all.
+  if (!register.kicker && !register.title && !register.body && !register.ctaLabel) return null;
+
   // Registration lives on this site now — at /register/<slug>, or at the
   // section on this page that lists the open forms. This is left in place for
   // the one case it still serves: an admin who has deliberately typed an
@@ -35,13 +41,27 @@ export function RegisterBand({ register }: { register: IncrcContent["register"] 
               </span>
             ) : null}
 
-            <h2 className="headline mt-5 text-[clamp(1.75rem,3.6vw,3rem)] text-accent-ink">
-              {register.title}
-            </h2>
+            {register.title ? (
+              <h2
+                className={cn(
+                  "headline text-[clamp(1.75rem,3.6vw,3rem)] text-accent-ink",
+                  register.kicker && "mt-5"
+                )}
+              >
+                {register.title}
+              </h2>
+            ) : null}
 
-            <p className="mx-auto mt-4 max-w-2xl text-[15px] leading-relaxed text-accent-ink/75">
-              {register.body}
-            </p>
+            {register.body ? (
+              <p
+                className={cn(
+                  "mx-auto max-w-2xl text-[15px] leading-relaxed text-accent-ink/75",
+                  (register.kicker || register.title) && "mt-4"
+                )}
+              >
+                {register.body}
+              </p>
+            ) : null}
 
             {register.ctaLabel ? (
               <div className="mt-8 flex justify-center">

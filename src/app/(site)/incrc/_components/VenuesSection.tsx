@@ -20,6 +20,12 @@ import { PinIcon } from "./icons";
  * button under them going to the page that holds all of them. The order is the
  * circuits screen's order, so which three appear here is dragged, not coded.
  *
+ * The button's words and its address are the document's, as are the two lines
+ * every card prints around the circuit's own details. They were constants here,
+ * which put "View all circuits" on a page whose document said nothing — copy
+ * arriving from a component rather than from whoever edits the site. Blank
+ * leaves each piece off rather than falling back to wording nobody chose.
+ *
  * The layout is the point of these cards. A venue is a name and a city on every
  * other motorsport site; the shape of the track is the thing that actually tells
  * a driver what the weekend will be like. `CircuitMap` is what draws it, so a
@@ -42,6 +48,11 @@ export function VenuesSection({
   tracks: Track[];
 }) {
   const shown = tracks.slice(0, SHOWN);
+  const button = Boolean(venues.ctaLabel && venues.ctaHref);
+
+  // Nothing to head, nothing to list and nowhere to go is not a section — it is
+  // 128px of vertical padding wrapped around an empty <section>.
+  if (!venues.label && !venues.title && shown.length === 0 && !button) return null;
 
   return (
     <section id="venues" className="shell py-16 sm:py-20">
@@ -54,18 +65,25 @@ export function VenuesSection({
             // invalid and browsers reparent it.
             <li key={track.id} className="flex">
               <Reveal delay={index * 0.06} className="flex w-full">
-                <VenueCard track={track} position={index + 1} />
+                <VenueCard
+                  track={track}
+                  position={index + 1}
+                  label={venues.cardLabel}
+                  cta={venues.cardCta}
+                />
               </Reveal>
             </li>
           ))}
         </ul>
       ) : null}
 
-      <Reveal className="mt-10 flex justify-center">
-        <ActionButton href="/circuits" variant="outline">
-          View all circuits
-        </ActionButton>
-      </Reveal>
+      {button ? (
+        <Reveal className="mt-10 flex justify-center">
+          <ActionButton href={venues.ctaHref} variant="outline">
+            {venues.ctaLabel}
+          </ActionButton>
+        </Reveal>
+      ) : null}
     </section>
   );
 }
@@ -78,7 +96,19 @@ export function VenuesSection({
  * has a page, so there is no dead card to worry about, and spans rather than
  * divs inside it because it is an <a>.
  */
-function VenueCard({ track, position }: { track: Track; position: number }) {
+function VenueCard({
+  track,
+  position,
+  label,
+  cta,
+}: {
+  track: Track;
+  position: number;
+  /** The word before the card's number. Blank prints no eyebrow at all. */
+  label: string;
+  /** The line at the foot of the card. Blank prints nothing, arrow included. */
+  cta: string;
+}) {
   const drawn = hasLayout(track);
 
   return (
@@ -99,11 +129,18 @@ function VenueCard({ track, position }: { track: Track; position: number }) {
       ) : null}
 
       <span className={cn("flex flex-1 flex-col p-6", drawn && "border-t border-line")}>
-        <span className="text-[11px] font-semibold uppercase tracking-[0.3em] text-accent">
-          Circuit {String(position).padStart(2, "0")}
-        </span>
+        {label ? (
+          <span className="text-[11px] font-semibold uppercase tracking-[0.3em] text-accent">
+            {label} {String(position).padStart(2, "0")}
+          </span>
+        ) : null}
 
-        <span className="mt-2 font-display text-lg font-bold leading-snug text-fg transition-colors group-hover:text-accent">
+        <span
+          className={cn(
+            "font-display text-lg font-bold leading-snug text-fg transition-colors group-hover:text-accent",
+            label && "mt-2"
+          )}
+        >
           {track.name}
         </span>
 
@@ -118,12 +155,17 @@ function VenueCard({ track, position }: { track: Track; position: number }) {
           <span className="mt-3 text-sm leading-relaxed text-fg-muted">{track.note}</span>
         ) : null}
 
-        <span className="mt-auto inline-flex items-center gap-2 pt-5 text-[13px] font-semibold text-fg-faint transition-colors group-hover:text-accent">
-          Track overview
-          <span aria-hidden className="transition-transform duration-300 group-hover:translate-x-1">
-            &rarr;
+        {cta ? (
+          <span className="mt-auto inline-flex items-center gap-2 pt-5 text-[13px] font-semibold text-fg-faint transition-colors group-hover:text-accent">
+            {cta}
+            <span
+              aria-hidden
+              className="transition-transform duration-300 group-hover:translate-x-1"
+            >
+              &rarr;
+            </span>
           </span>
-        </span>
+        ) : null}
       </span>
     </Link>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import type { LandingContent } from "@/lib/landingContent";
+import { cn } from "@/lib/utils";
 import { ActionButton } from "@/components/ui/ActionButton";
 import { Reveal } from "@/components/ui/Reveal";
 import type { Sport } from "@/lib/sports";
@@ -33,6 +34,13 @@ export function CtaBand({
 }) {
   const crests = sports.filter((sport) => sport.logo_url).slice(0, SCATTER.length);
 
+  // Nothing to ask for is no band. This is a flat accent rectangle 20rem tall
+  // with the crests scattered over it — with no words in it, it is not a quiet
+  // section but the loudest thing on the page saying nothing at all. The chip
+  // is the same trap in miniature: `bg-accent-ink` fills the pill whether or
+  // not there is a label inside it.
+  if (!band.label && !band.title && !band.body && !band.ctaLabel) return null;
+
   return (
     <section className="shell pb-16 sm:pb-20">
       <Reveal>
@@ -50,21 +58,46 @@ export function CtaBand({
           ))}
 
           <div className="relative z-10 mx-auto max-w-2xl">
-            <span className="inline-flex items-center rounded-full bg-accent-ink px-4 py-1.5 text-[11px] font-semibold tracking-wide text-white">
-              {band.label}
-            </span>
+            {band.label ? (
+              <span className="inline-flex items-center rounded-full bg-accent-ink px-4 py-1.5 text-[11px] font-semibold tracking-wide text-white">
+                {band.label}
+              </span>
+            ) : null}
 
-            <h2 className="headline mt-5 text-[clamp(1.6rem,3.4vw,2.5rem)] text-accent-ink">{band.title}</h2>
+            {band.title ? (
+              <h2
+                className={cn(
+                  "headline text-[clamp(1.6rem,3.4vw,2.5rem)] text-accent-ink",
+                  band.label && "mt-5"
+                )}
+              >
+                {band.title}
+              </h2>
+            ) : null}
 
-            <p className="mx-auto mt-4 max-w-lg text-sm leading-relaxed text-accent-ink/70">
-              {band.body}
-            </p>
+            {band.body ? (
+              <p
+                className={cn(
+                  "mx-auto max-w-lg text-sm leading-relaxed text-accent-ink/70",
+                  (band.label || band.title) && "mt-4"
+                )}
+              >
+                {band.body}
+              </p>
+            ) : null}
 
-            <div className="mt-7 flex justify-center">
-              <ActionButton href={band.ctaHref} variant="white">
-                {band.ctaLabel}
-              </ActionButton>
-            </div>
+            {band.ctaLabel ? (
+              <div
+                className={cn(
+                  "flex justify-center",
+                  (band.label || band.title || band.body) && "mt-7"
+                )}
+              >
+                <ActionButton href={band.ctaHref} variant="white">
+                  {band.ctaLabel}
+                </ActionButton>
+              </div>
+            ) : null}
           </div>
         </div>
       </Reveal>

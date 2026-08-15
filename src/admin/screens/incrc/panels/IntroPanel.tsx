@@ -11,11 +11,11 @@ type Meta = IncrcContent["meta"];
 /**
  * The introduction — and, with it, the championship's own details.
  *
- * The name and the Instagram handle are not a section of the page, so they have
- * no tab of their own. They live here because this is the section that says who
- * the championship is: the name it is introduced by, and the follow button
- * sitting in this very block. The quote banner further down uses the same
- * handle, and the browser tab and search result use the same name.
+ * The name and the follow button are not a section of the page, so they have no
+ * tab of their own. They live here because this is the section that says who the
+ * championship is: the name it is introduced by, and the chip sitting in this
+ * very block. The browser tab, the search result and each round's label use the
+ * same name.
  */
 export function IntroPanel({
   value,
@@ -87,18 +87,29 @@ export function IntroPanel({
         </div>
       </Panel>
 
-      <Panel title="Instagram" hint="the follow button, in two places">
-        <Row>
-          <Field label="Handle" value={meta.handle} onChange={(handle) => setMeta({ handle })} />
+      <Panel title="Follow button" hint="the chip beside the copy above">
+        <div className="space-y-3">
           <Field
-            label="Address"
-            value={meta.instagram}
-            onChange={(instagram) => setMeta({ instagram })}
+            label="Label"
+            value={meta.followLabel}
+            onChange={(followLabel) => setMeta({ followLabel })}
+            maxLength={60}
+            placeholder="Follow the championship"
+            hint="Blank leaves the chip off the introduction."
           />
-        </Row>
+          <Row>
+            <Field label="Handle" value={meta.handle} onChange={(handle) => setMeta({ handle })} />
+            <Field
+              label="Address"
+              value={meta.instagram}
+              onChange={(instagram) => setMeta({ instagram })}
+            />
+          </Row>
+        </div>
         <Note className="mt-3">
-          The button beside the copy above, and the one over the quote banner further down the
-          page. Both read from here, so they can never disagree.
+          The handle prints in the accent after the label. No address is no chip — a button that
+          goes nowhere is worse than none. The chips over the quote banner further down the page
+          are their own list, on the Family tab.
         </Note>
       </Panel>
 

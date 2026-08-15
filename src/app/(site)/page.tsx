@@ -81,10 +81,24 @@ export default async function LandingPage() {
             past that the card centres and the margin grows. */}
         <div className="mx-auto max-w-[1920px] overflow-hidden rounded-card bg-surface">
           <main id="main-content">
-            <BannerCarousel
-              banners={content.banners}
-              header={<SiteHeader content={content} home />}
-            />
+            {/* The carousel is a 600px box with the header laid over it, so an
+                empty banner list would be 600px of surface colour with the nav
+                floating in the top of it. Emptying the list drops the carousel
+                and puts the header back in the flow as a solid bar — the same
+                fallback /incrc has had, so the two pages behave alike and the
+                page can never come up with no way to navigate away from it. */}
+            {content.banners.length > 0 ? (
+              <BannerCarousel
+                banners={content.banners}
+                header={<SiteHeader content={content} home />}
+              />
+            ) : (
+              <SiteHeader
+                content={content}
+                home
+                className="relative z-20 border-b border-line bg-surface"
+              />
+            )}
             <AboutSection about={content.about} />
             <SportsSection heading={content.sportsSection} sports={sports} />
             <CtaBand band={content.ctaBand} sports={sports} />

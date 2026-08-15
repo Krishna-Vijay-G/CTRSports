@@ -1,4 +1,5 @@
 import type { IncrcContent } from "@/lib/incrcContent";
+import { cn } from "@/lib/utils";
 import { Reveal } from "@/components/ui/Reveal";
 
 /**
@@ -7,27 +8,61 @@ import { Reveal } from "@/components/ui/Reveal";
  *
  * The inset sits on a white tile — it is artwork with its own light background,
  * and it loses its edges against the page otherwise.
+ *
+ * Nothing written is nothing drawn, piece by piece. Every wrapper here paints
+ * something of its own — the figure has a border and a panel fill, the chip is
+ * a bordered pill — so a section that has not been written yet used to come out
+ * as a bordered box beside an empty outline. An `<img>` with no `src` is the
+ * worst of them: the browser resolves "" against the page and re-requests the
+ * page itself, then draws the bordered frame around the nothing it got back.
  */
 export function GridSection({ grid }: { grid: IncrcContent["grid"] }) {
+  // The whole section is its picture and its copy. With neither there is no
+  // section — only 128px of vertical padding around an empty two-column grid.
+  if (!grid.image && !grid.label && !grid.heading && !grid.body && !grid.inset) return null;
+
   return (
     <section id="grid" className="shell py-16 sm:py-20">
       <div className="grid gap-10 lg:grid-cols-2 lg:items-center lg:gap-14">
-        <Reveal>
-          <figure className="group overflow-hidden rounded-panel border border-line bg-panel">
-            <img
-              src={grid.image}
-              alt={grid.imageAlt}
-              loading="lazy"
-              decoding="async"
-              className="h-auto w-full transition-transform duration-700 group-hover:scale-[1.03]"
-            />
-          </figure>
-        </Reveal>
+        {grid.image ? (
+          <Reveal>
+            <figure className="group overflow-hidden rounded-panel border border-line bg-panel">
+              <img
+                src={grid.image}
+                alt={grid.imageAlt}
+                loading="lazy"
+                decoding="async"
+                className="h-auto w-full transition-transform duration-700 group-hover:scale-[1.03]"
+              />
+            </figure>
+          </Reveal>
+        ) : null}
 
         <Reveal delay={0.1}>
-          <span className="pill-label">{grid.label}</span>
-          <h2 className="headline mt-4 text-[clamp(1.7rem,3.6vw,2.7rem)]">{grid.heading}</h2>
-          <p className="body-copy mt-4 max-w-lg">{grid.body}</p>
+          {/* `.pill-label` is a bordered, filled pill, so an empty one is a
+              visible outline with nothing in it rather than nothing at all.
+              The same goes for the two blocks under it and their margins. */}
+          {grid.label ? <span className="pill-label">{grid.label}</span> : null}
+          {grid.heading ? (
+            <h2
+              className={cn(
+                "headline text-[clamp(1.7rem,3.6vw,2.7rem)]",
+                grid.label && "mt-4"
+              )}
+            >
+              {grid.heading}
+            </h2>
+          ) : null}
+          {grid.body ? (
+            <p
+              className={cn(
+                "body-copy max-w-lg",
+                (grid.label || grid.heading) && "mt-4"
+              )}
+            >
+              {grid.body}
+            </p>
+          ) : null}
 
           {grid.inset ? (
             <figure className="panel-card mt-8 p-5">

@@ -70,27 +70,41 @@ export function SiteHeader({
         <div className="flex min-w-0 items-center gap-3">
           {home ? null : <BackButton />}
 
-          <a
-            // The top of this page when this IS the home page; the home page
-            // itself from anywhere else.
-            href={home ? "#top" : "/"}
-            className="flex min-w-0 items-center gap-2.5"
-            aria-label={`${brand.name} home`}
-          >
-            <img
-              src={brand.logo}
-              alt=""
-              aria-hidden
-              width={40}
-              height={40}
-              fetchPriority="high"
-              decoding="async"
-              className="h-9 w-auto shrink-0"
-            />
-            <span className="truncate font-display text-base font-extrabold tracking-tight text-white sm:text-lg">
-              {brand.name}
-            </span>
-          </a>
+          {/* Neither a mark nor a name is no link. It would be a zero-width
+              anchor — invisible, but a tab stop, and one announcing itself as
+              " home". Nothing to click is better than something that cannot be
+              seen but can be reached. */}
+          {brand.logo || brand.name ? (
+            <a
+              // The top of this page when this IS the home page; the home page
+              // itself from anywhere else.
+              href={home ? "#top" : "/"}
+              className="flex min-w-0 items-center gap-2.5"
+              aria-label={brand.name ? `${brand.name} home` : "Home"}
+            >
+              {/* No logo is no <img>. An empty `src` is not an absent picture:
+                  the browser resolves "" against the page, re-requests the page
+                  itself, and then draws the 40×40 box the attributes reserved —
+                  a white square where a mark should be. */}
+              {brand.logo ? (
+                <img
+                  src={brand.logo}
+                  alt=""
+                  aria-hidden
+                  width={40}
+                  height={40}
+                  fetchPriority="high"
+                  decoding="async"
+                  className="h-9 w-auto shrink-0"
+                />
+              ) : null}
+              {brand.name ? (
+                <span className="truncate font-display text-base font-extrabold tracking-tight text-white sm:text-lg">
+                  {brand.name}
+                </span>
+              ) : null}
+            </a>
+          ) : null}
         </div>
 
         {/* From md the links sit in this row, where there is room for them. */}

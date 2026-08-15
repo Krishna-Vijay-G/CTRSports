@@ -1,4 +1,5 @@
 import type { IncrcContent } from "@/lib/incrcContent";
+import { cn } from "@/lib/utils";
 import { Reveal } from "@/components/ui/Reveal";
 import { VISION_GLYPHS } from "./icons";
 
@@ -11,13 +12,28 @@ import { VISION_GLYPHS } from "./icons";
  * heading-over-grid — three of those in a row would read as one long list.
  */
 export function VisionSection({ vision }: { vision: IncrcContent["vision"] }) {
+  if (!vision.label && !vision.title && vision.items.length === 0) return null;
+
   return (
     <section id="vision" className="shell py-16 sm:py-20">
       <div className="grid gap-10 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.4fr)] lg:gap-16">
-        <Reveal className="lg:sticky lg:top-8 lg:self-start">
-          <span className="pill-label">{vision.label}</span>
-          <h2 className="headline mt-4 text-[clamp(1.7rem,3.6vw,2.7rem)]">{vision.title}</h2>
-        </Reveal>
+        {/* `.pill-label` is a bordered, filled pill — an empty one is a visible
+            outline holding nothing, not nothing at all. */}
+        {vision.label || vision.title ? (
+          <Reveal className="lg:sticky lg:top-8 lg:self-start">
+            {vision.label ? <span className="pill-label">{vision.label}</span> : null}
+            {vision.title ? (
+              <h2
+                className={cn(
+                  "headline text-[clamp(1.7rem,3.6vw,2.7rem)]",
+                  vision.label && "mt-4"
+                )}
+              >
+                {vision.title}
+              </h2>
+            ) : null}
+          </Reveal>
+        ) : null}
 
         <ul className="grid gap-3 sm:grid-cols-2">
           {vision.items.map((item, index) => {

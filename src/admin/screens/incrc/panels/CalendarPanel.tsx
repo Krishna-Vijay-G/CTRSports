@@ -41,6 +41,67 @@ export function CalendarPanel({
         </div>
       </Panel>
 
+      {/*
+        The words the cards are read with, rather than the season itself.
+        These were fixed in the component, which meant a championship that runs
+        "events" or "meetings" still had a page calling them rounds. Each blank
+        leaves that piece off the cards; nothing here falls back to a word.
+      */}
+      <Panel title="Wording" hint="what the cards print around each round">
+        <div className="space-y-3">
+          <Row>
+            <Field
+              label="A round is called"
+              value={value.roundLabel}
+              onChange={(roundLabel) => set({ roundLabel })}
+              maxLength={40}
+              placeholder="Round"
+              hint="The number follows it."
+            />
+            <Field
+              label="The next one is called"
+              value={value.nextLabel}
+              onChange={(nextLabel) => set({ nextLabel })}
+              maxLength={40}
+              placeholder="Next round"
+              hint="The chip on the big card."
+            />
+          </Row>
+
+          <Row>
+            <Field
+              label="Over the countdown"
+              value={value.countdownLabel}
+              onChange={(countdownLabel) => set({ countdownLabel })}
+              maxLength={40}
+              placeholder="Lights out in"
+            />
+            <Field
+              label="No date yet"
+              value={value.tbcLabel}
+              onChange={(tbcLabel) => set({ tbcLabel })}
+              maxLength={40}
+              placeholder="Date TBC"
+            />
+          </Row>
+
+          <Field
+            label="Link to the circuit"
+            value={value.trackCtaLabel}
+            onChange={(trackCtaLabel) => set({ trackCtaLabel })}
+            maxLength={40}
+            placeholder="Circuit guide"
+            hint="On the big card, and only when the round names a circuit. Blank leaves the link off."
+          />
+
+          <Note>
+            &ldquo;Next&rdquo;, &ldquo;Done&rdquo; and &ldquo;Completed&rdquo; are not here. The
+            page reads those off the clock — a weekend is past or it is not — so there is nothing
+            to decide about them.
+          </Note>
+        </div>
+      </Panel>
+
       <Repeater<Round>
         title="Rounds"
         addLabel="Add round"

@@ -1,6 +1,7 @@
 "use client";
 
 import { mailHref, telHref, type LandingContent } from "@/lib/landingContent";
+import { cn } from "@/lib/utils";
 import { FooterEnquiry } from "@/components/layout/FooterEnquiry";
 import { SocialIcon } from "@/components/ui/SocialIcon";
 
@@ -44,43 +45,72 @@ export function SiteFooter({ content, year }: { content: LandingContent; year: n
   const tel = telHref(contact.phone);
   const mail = mailHref(contact.email);
   const hasContact = Boolean(contact.address || contact.phone || contact.email);
+  const hasBrand = Boolean(brand.logo || brand.name || brand.subtitle);
 
   return (
     <footer id="footer" className="border-t border-line">
       <div className="shell flex flex-wrap gap-x-12 gap-y-8 py-9 sm:py-10">
-        {/* ── Who ── */}
-        <div className="w-full sm:w-[17rem]">
-          <div className="flex items-center gap-2.5">
-            <img
-              src={brand.logo}
-              alt=""
-              aria-hidden
-              width={36}
-              height={36}
-              loading="lazy"
-              decoding="async"
-              className="h-9 w-auto"
-            />
-            <span className="flex flex-col leading-tight">
-              <strong className="font-display text-[15px] font-extrabold tracking-tight text-fg">
-                {brand.name}
-              </strong>
-              <span className="text-[11px] text-fg-faint">{brand.subtitle}</span>
-            </span>
+        {/* ── Who ──
+            The column is drawn only when it has something in it: with no mark,
+            no name, no line and no social links it is an empty 17rem block that
+            still claims its share of the row's `gap-x-12`, pushing the columns
+            after it out of place for content that is not there. */}
+        {hasBrand || footer.blurb || socials.length > 0 ? (
+          <div className="w-full sm:w-[17rem]">
+            {hasBrand ? (
+              <div className="flex items-center gap-2.5">
+                {/* Same as the header: an empty `src` draws the 36×36 box the
+                    attributes reserved rather than nothing at all. */}
+                {brand.logo ? (
+                  <img
+                    src={brand.logo}
+                    alt=""
+                    aria-hidden
+                    width={36}
+                    height={36}
+                    loading="lazy"
+                    decoding="async"
+                    className="h-9 w-auto"
+                  />
+                ) : null}
+                <span className="flex flex-col leading-tight">
+                  {brand.name ? (
+                    <strong className="font-display text-[15px] font-extrabold tracking-tight text-fg">
+                      {brand.name}
+                    </strong>
+                  ) : null}
+                  {brand.subtitle ? (
+                    <span className="text-[11px] text-fg-faint">{brand.subtitle}</span>
+                  ) : null}
+                </span>
+              </div>
+            ) : null}
+
+            {footer.blurb ? (
+              <p
+                className={cn(
+                  "text-[13px] leading-relaxed text-fg-muted",
+                  hasBrand && "mt-3"
+                )}
+              >
+                {footer.blurb}
+              </p>
+            ) : null}
+
+            {socials.length > 0 ? (
+              <div
+                className={cn(
+                  "flex flex-wrap items-center gap-1.5",
+                  (hasBrand || footer.blurb) && "mt-4"
+                )}
+              >
+                {socials.map((social) => (
+                  <SocialPill key={`${social.label}-${social.href}`} social={social} />
+                ))}
+              </div>
+            ) : null}
           </div>
-
-          {footer.blurb ? (
-            <p className="mt-3 text-[13px] leading-relaxed text-fg-muted">{footer.blurb}</p>
-          ) : null}
-
-          {socials.length > 0 ? (
-            <div className="mt-4 flex flex-wrap items-center gap-1.5">
-              {socials.map((social) => (
-                <SocialPill key={`${social.label}-${social.href}`} social={social} />
-              ))}
-            </div>
-          ) : null}
-        </div>
+        ) : null}
 
         {/* ── Where to ── */}
         {nav.links.length > 0 ? (
@@ -155,8 +185,11 @@ export function SiteFooter({ content, year }: { content: LandingContent; year: n
         </div>
       </div>
 
+      {/* Assembled rather than interpolated. Written inline, an unset brand name
+          printed "© 2026 . All rights reserved." — a gap and a stranded full
+          stop, which reads as a bug rather than as a name nobody has typed. */}
       <div className="border-t border-line py-3.5 text-center text-[11px] text-fg-faint">
-        © {year} {brand.name}. All rights reserved.
+        {[`© ${year}${brand.name ? ` ${brand.name}` : ""}`, "All rights reserved"].join(". ")}.
       </div>
     </footer>
   );

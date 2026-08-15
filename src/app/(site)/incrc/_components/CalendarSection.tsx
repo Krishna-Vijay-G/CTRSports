@@ -35,6 +35,16 @@ import { PinIcon } from "./icons";
  *
  * Circuits come from ctr.tracks. A round with no `trackId` falls back to the
  * venue and city typed on it, and simply has no photograph.
+ *
+ * The words the cards are read with — what a round is called, what the featured
+ * one is called, what sits over the clock, what an unfixed weekend says, what
+ * the link to a circuit says — are the document's, not constants here. They were
+ * constants, which is why a page whose document said nothing still printed
+ * "Next round" and "Lights out in". Each blank simply leaves that piece off.
+ *
+ * The state badges are NOT among them. "Next", "Done" and "Completed" are read
+ * off the clock rather than written by anyone, and a field for a word the editor
+ * cannot change the meaning of is a field that only ever goes stale.
  */
 export function CalendarSection({
   calendar,
@@ -61,6 +71,10 @@ export function CalendarSection({
   const next = now ? nextRoundIndex(rounds, now) : -1;
 
   if (rounds.length === 0) {
+    // A heading over an unannounced season is worth keeping — it says the
+    // season exists. A heading nobody has written is not a section at all.
+    if (!calendar.label && !calendar.title) return null;
+
     return (
       <section id="calendar" className="shell py-16 sm:py-20">
         <SectionHeading label={calendar.label} title={calendar.title} />
@@ -76,7 +90,12 @@ export function CalendarSection({
       <SectionHeading label={calendar.label} title={calendar.title} />
 
       <Reveal className="mt-10">
-        <NextRound round={lead} track={findTrack(tracks, lead.trackId)} isNext={next !== -1} />
+        <NextRound
+          round={lead}
+          track={findTrack(tracks, lead.trackId)}
+          isNext={next !== -1}
+          words={calendar}
+        />
       </Reveal>
 
       {/* The whole season stays in the list, the next round included, because
@@ -91,6 +110,7 @@ export function CalendarSection({
                 track={findTrack(tracks, round.trackId)}
                 past={isPast(round, now)}
                 current={index === leadIndex && next !== -1}
+                words={calendar}
               />
             </Reveal>
           </li>
@@ -103,21 +123,45 @@ export function CalendarSection({
 /* ─────────────────────────── The next round ─────────────────────────── */
 
 /**
+ * The wording both cards read from — the calendar section minus its rounds.
+ *
+ * Passed whole rather than field by field: five props threaded through two
+ * components is a signature nobody can read, and every one of them comes from
+ * the same panel anyway.
+ */
+type Words = IncrcContent["calendar"];
+
+/** "Round 03", or just "03" when the championship has no word for a round. */
+function roundName(words: Words, round: Round): string {
+  return [words.roundLabel, round.round].filter(Boolean).join(" ");
+}
+
+/**
  * The event. Full width, the circuit's photograph behind it, the clock running.
  */
 function NextRound({
   round,
   track,
   isNext,
+  words,
 }: {
   round: Round;
   track: Track | undefined;
   isNext: boolean;
+  words: Words;
 }) {
   const start = roundStart(round);
   const date = roundDateParts(round);
   const venue = track?.name || round.venue;
   const where = track?.location || round.city;
+
+  const name = roundName(words, round);
+  /* The pill says "Next round" when there is a word for it and the round's own
+     name when there is not — the featured card must not lose its only heading
+     because one field was left blank. */
+  const badge = (isNext ? words.nextLabel : "") || name;
+  /* The round's name beside the pill, and only when the pill is not already it. */
+  const tail = isNext && name && name !== badge ? name : "";
 
   return (
     <article className="relative isolate overflow-hidden rounded-card border border-line bg-panel">
@@ -148,16 +192,21 @@ function NextRound({
       <div className="relative flex flex-col gap-8 p-6 sm:p-8 lg:flex-row lg:items-end lg:justify-between lg:p-10">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-accent px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-accent-ink">
-              {isNext ? (
-                <span aria-hidden className="block size-1.5 animate-pulse rounded-full bg-accent-ink" />
-              ) : null}
-              {isNext ? "Next round" : `Round ${round.round}`}
-            </span>
+            {badge ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-accent px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-accent-ink">
+                {isNext ? (
+                  <span
+                    aria-hidden
+                    className="block size-1.5 animate-pulse rounded-full bg-accent-ink"
+                  />
+                ) : null}
+                {badge}
+              </span>
+            ) : null}
 
-            {isNext && round.round ? (
+            {tail ? (
               <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-white/60">
-                Round {round.round}
+                {tail}
               </span>
             ) : null}
 
@@ -168,28 +217,32 @@ function NextRound({
             ) : null}
           </div>
 
-          {/* The date block: days large, everything else beneath at a whisper. */}
-          <div className="mt-6 flex items-end gap-4">
-            {date ? (
-              <>
-                <span className="font-display text-[clamp(3rem,8vw,5.5rem)] font-extrabold leading-[0.85] tracking-[-0.03em] text-white">
-                  {date.days}
-                </span>
-                <span className="pb-2">
-                  <span className="block font-display text-xl font-extrabold uppercase leading-none tracking-[0.06em] text-accent sm:text-2xl">
-                    {date.month}
+          {/* The date block: days large, everything else beneath at a whisper.
+              A weekend with no date and no word for one draws no block at all,
+              rather than an empty row holding a 24px margin open. */}
+          {date || words.tbcLabel ? (
+            <div className="mt-6 flex items-end gap-4">
+              {date ? (
+                <>
+                  <span className="font-display text-[clamp(3rem,8vw,5.5rem)] font-extrabold leading-[0.85] tracking-[-0.03em] text-white">
+                    {date.days}
                   </span>
-                  <span className="mt-1 block text-sm font-semibold text-white/50">
-                    {date.year}
+                  <span className="pb-2">
+                    <span className="block font-display text-xl font-extrabold uppercase leading-none tracking-[0.06em] text-accent sm:text-2xl">
+                      {date.month}
+                    </span>
+                    <span className="mt-1 block text-sm font-semibold text-white/50">
+                      {date.year}
+                    </span>
                   </span>
+                </>
+              ) : (
+                <span className="font-display text-[clamp(2rem,5vw,3rem)] font-extrabold uppercase leading-none text-white/40">
+                  {words.tbcLabel}
                 </span>
-              </>
-            ) : (
-              <span className="font-display text-[clamp(2rem,5vw,3rem)] font-extrabold uppercase leading-none text-white/40">
-                Date TBC
-              </span>
-            )}
-          </div>
+              )}
+            </div>
+          ) : null}
 
           <h3 className="headline mt-6 text-[clamp(1.5rem,3vw,2.25rem)] text-white">{venue}</h3>
 
@@ -207,13 +260,15 @@ function NextRound({
           </div>
 
           {/* Only when the round points at a circuit: a round that carries only
-              typed-in venue text has no page to go to. */}
-          {track ? (
+              typed-in venue text has no page to go to. Blank wording is the
+              other way of switching this link off, for a season whose circuits
+              have nothing worth reading on their own pages yet. */}
+          {track && words.trackCtaLabel ? (
             <Link
               href={trackHref(track)}
               className="mt-5 inline-flex items-center gap-2 rounded-full border border-white/25 px-4 py-2 text-[13px] font-semibold text-white transition hover:border-accent hover:text-accent"
             >
-              Circuit guide
+              {words.trackCtaLabel}
               <span aria-hidden>&rarr;</span>
             </Link>
           ) : null}
@@ -224,9 +279,15 @@ function NextRound({
             competes with the date block for the eye. */}
         {start ? (
           <div className="shrink-0 lg:text-right">
-            <p className="mb-2.5 text-[10px] font-semibold uppercase tracking-[0.24em] text-white/45">
-              {isNext ? "Lights out in" : "Starts in"}
-            </p>
+            {/* One line for both states. It used to read "Lights out in" over
+                the next round and "Starts in" otherwise, but "otherwise" is
+                either the frame before the browser has read its clock or a
+                season that has finished — neither is worth a second field. */}
+            {words.countdownLabel ? (
+              <p className="mb-2.5 text-[10px] font-semibold uppercase tracking-[0.24em] text-white/45">
+                {words.countdownLabel}
+              </p>
+            ) : null}
             <Countdown target={start} />
           </div>
         ) : null}
@@ -243,12 +304,14 @@ function RoundCard({
   track,
   past,
   current,
+  words,
 }: {
   round: Round;
   track: Track | undefined;
   /** Decided by the parent from its one clock read, never here. */
   past: boolean;
   current: boolean;
+  words: Words;
 }) {
   const start = roundStart(round);
   const date = roundDateParts(round);
@@ -281,9 +344,11 @@ function RoundCard({
           className="absolute inset-0 bg-gradient-to-t from-panel via-panel/40 to-transparent"
         />
 
-        <span className="absolute left-4 top-3 text-[10px] font-bold uppercase tracking-[0.24em] text-white/70">
-          Round
-        </span>
+        {words.roundLabel ? (
+          <span className="absolute left-4 top-3 text-[10px] font-bold uppercase tracking-[0.24em] text-white/70">
+            {words.roundLabel}
+          </span>
+        ) : null}
         <span
           aria-hidden
           className="absolute bottom-2 left-4 font-display text-4xl font-extrabold leading-none text-white drop-shadow"
@@ -316,11 +381,11 @@ function RoundCard({
                 <span className="text-[11px] font-semibold text-fg-faint">{date.year}</span>
               </span>
             </>
-          ) : (
+          ) : words.tbcLabel ? (
             <span className="font-display text-lg font-extrabold uppercase text-fg-faint">
-              Date TBC
+              {words.tbcLabel}
             </span>
-          )}
+          ) : null}
         </div>
 
         {/* The whole card is not a link — a past round with nothing to read
