@@ -1,6 +1,7 @@
 import "server-only";
 
 import {
+  CopyObjectCommand,
   DeleteObjectsCommand,
   GetObjectCommand,
   ListObjectsV2Command,
@@ -124,8 +125,14 @@ export type MediaListing = {
   truncated: boolean;
 };
 
-/** `""` → the prefix itself; `"decks/2025"` → `ctr-sports/media/decks/2025/`. */
-function prefixFor(folder: string): string {
+/**
+ * `""` → the prefix itself; `"decks/2025"` → `ctr-sports/media/decks/2025/`.
+ *
+ * Exported for `entityMedia.ts`, which has to hand the same prefix to
+ * `rewriteKeyPrefix` that the listing was taken with. Two ways of spelling one
+ * prefix is how a move copies to one place and re-addresses to another.
+ */
+export function prefixFor(folder: string): string {
   return folder ? `${MEDIA_PREFIX}${folder}/` : MEDIA_PREFIX;
 }
 
@@ -430,6 +437,82 @@ export async function getObject(
     // its file if somebody has been into the bucket by hand.
     return null;
   }
+}
+
+/**
+ * One object at a new key. S3 has no rename, and this is the half of one.
+ *
+ * `MetadataDirective` is left at its default of COPY, which carries the source's
+ * `ContentType` and `CacheControl` across untouched. The explicit alternative —
+ * REPLACE with `IMMUTABLE` written in — would need a `HeadObject` first to learn
+ * the content type, so it is a round trip bought for nothing, and it would
+ * quietly stamp `immutable` onto a directory marker that was deliberately
+ * written `no-store`.
+ *
+ * `CopySource` is the one place in this file a key is URL-encoded. It travels as
+ * a header rather than a signed path element, and `parseSegment` permits spaces
+ * in a folder name, so a raw key would break the request the first time somebody
+ * made a folder called "2025 season". `encodeURI` is the right tool: it escapes
+ * the space and leaves the separators alone. It cannot double-encode, because a
+ * key containing `%` never gets this far — `assertUnderMedia` refuses it.
+ */
+export async function copyObject(from: string, to: string): Promise<void> {
+  assertUnderMedia(from);
+  assertUnderMedia(to);
+
+  await getClient().send(
+    new CopyObjectCommand({
+      Bucket: BUCKET,
+      CopySource: encodeURI(`${BUCKET}/${from}`),
+      Key: to,
+    })
+  );
+}
+
+/**
+ * Every file under one folder copied to the same place under another.
+ *
+ * COPIES. It does not delete, and the omission is the point: the caller has to
+ * rewrite the database between the copy and the delete, so that a failure
+ * anywhere in the middle leaves duplicate objects rather than a row pointing at
+ * a key that is no longer there. Duplicates can be re-run away. A 404 on a live
+ * page cannot. See `moveEntityFolder` in src/lib/server/entityMedia.ts, which is
+ * the only thing that should call this.
+ *
+ * Bounded by `listFolderDeep`'s cap, and it refuses a truncated listing outright
+ * rather than moving the part of a folder it could see — a half-moved folder is
+ * the one outcome worse than a failed move, because nothing afterwards can tell
+ * which half is which.
+ */
+export async function copyFolder(
+  from: string,
+  to: string
+): Promise<{ pairs: { from: string; to: string }[]; markers: string[] }> {
+  const { files, markers, truncated } = await listFolderDeep(from);
+
+  if (truncated) {
+    throw new Error(`"${from}" holds too many files to move in one go.`);
+  }
+
+  const fromPrefix = prefixFor(from);
+  const toPrefix = prefixFor(to);
+
+  const pairs = files.map((file) => ({
+    from: file.key,
+    to: `${toPrefix}${file.key.slice(fromPrefix.length)}`,
+  }));
+
+  // The destination's own markers, so an empty-but-real folder survives the move
+  // and the explorer can show it before anything lands in it.
+  await createFolder(to);
+
+  // Ten at a time. Sequential is a minute for a fifty-page deck and unbounded
+  // parallelism is a burst of fifty signed requests; neither is worth defending.
+  for (let at = 0; at < pairs.length; at += 10) {
+    await Promise.all(pairs.slice(at, at + 10).map((pair) => copyObject(pair.from, pair.to)));
+  }
+
+  return { pairs, markers };
 }
 
 /**

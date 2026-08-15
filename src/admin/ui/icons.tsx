@@ -219,6 +219,50 @@ export const FolderIcon = (p: IconProps) => (
   </Icon>
 );
 
+/* ── The media library ── */
+
+export const FolderPlusIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M2.8 6a1.4 1.4 0 0 1 1.4-1.4h3l1.8 2h6.8A1.4 1.4 0 0 1 17.2 8v6.6a1.4 1.4 0 0 1-1.4 1.4H4.2a1.4 1.4 0 0 1-1.4-1.4Z" />
+    <path d="M10 9.6v3.8M8.1 11.5h3.8" />
+  </Icon>
+);
+
+/**
+ * A sheet with its corner turned. Deliberately plain: the media grid writes the
+ * uppercase extension underneath it, so one icon covers PDF, XLSX and the rest
+ * — and "PDF" says more to a reader than any bespoke glyph for it would.
+ */
+export const FileIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M11.4 2.8H5.8a1.4 1.4 0 0 0-1.4 1.4v11.6a1.4 1.4 0 0 0 1.4 1.4h8.4a1.4 1.4 0 0 0 1.4-1.4V6.8Z" />
+    <path d="M11.4 2.8v4h4.2" />
+  </Icon>
+);
+
+export const GridIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="3" y="3" width="5.6" height="5.6" rx="1.2" />
+    <rect x="11.4" y="3" width="5.6" height="5.6" rx="1.2" />
+    <rect x="3" y="11.4" width="5.6" height="5.6" rx="1.2" />
+    <rect x="11.4" y="11.4" width="5.6" height="5.6" rx="1.2" />
+  </Icon>
+);
+
+export const CopyIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="7.2" y="7.2" width="9.6" height="9.6" rx="1.6" />
+    <path d="M12.8 4.6a1.4 1.4 0 0 0-1.4-1.4H4.6a1.4 1.4 0 0 0-1.4 1.4v6.8a1.4 1.4 0 0 0 1.4 1.4" />
+  </Icon>
+);
+
+export const SearchIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="9" cy="9" r="5.4" />
+    <path d="m13 13 3.6 3.6" />
+  </Icon>
+);
+
 export const EyeIcon = (p: IconProps) => (
   <Icon {...p}>
     <path d="M1.9 10S5 4.8 10 4.8 18.1 10 18.1 10 15 15.2 10 15.2 1.9 10 1.9 10Z" />

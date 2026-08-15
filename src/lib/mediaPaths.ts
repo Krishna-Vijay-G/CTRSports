@@ -19,7 +19,24 @@
  *
  * Rejecting `%` matters for the same reason: it means no percent-decode
  * anywhere later in the stack can turn a stored name back into `..` or `/`.
+ *
+ * ── On the second half of this file ───────────────────────────────────────
+ *
+ * Below the path rules sits a second question — WHOSE folder is this? — which
+ * exists because a page editor scoped to the INCRC page must not be able to list,
+ * fill or empty the decks page's media. That is an authorisation boundary, so it
+ * is enforced in the routes; the predicates live here, beside the path rules they
+ * are about, and are shared with the browser for the same reason the validators
+ * are: the explorer has to know which folders to draw before it asks for any.
  */
+
+import {
+  PAGE_KEYS,
+  canEditAnyPage,
+  canEditPage,
+  type PageKey,
+  type Scoped,
+} from "@/lib/roles";
 
 /**
  * The prefix everything this project uploads lives under.
@@ -48,8 +65,18 @@ export const MAX_SEGMENT = 48;
 /** Where a tile upload goes when nobody chose. */
 export const DEFAULT_UPLOAD_FOLDER = "uploads";
 
-/** Where a deck's bulk upload goes — fifty pages in the root is the mess this prevents. */
+/**
+ * The root of each page editor's own tree, for the case where there is no one
+ * record to name a folder after — a screen with nothing open yet.
+ *
+ * These are the `PAGE_KEYS` strings, and `pageOfFolder` further down depends on
+ * their being exactly that. See the note beside it.
+ */
 export const DECK_UPLOAD_FOLDER = "decks";
+export const CIRCUIT_UPLOAD_FOLDER = "circuits";
+
+/** Sports have no address of their own to be named after; see `visibleRoots`. */
+export const SPORTS_UPLOAD_FOLDER = "landing/sports";
 
 /**
  * Names that would be confusing, dangerous or both.
@@ -225,4 +252,152 @@ export function folderOfKey(key: string): string {
   const rest = key.slice(MEDIA_PREFIX.length);
   const cut = rest.lastIndexOf("/");
   return cut < 0 ? "" : rest.slice(0, cut);
+}
+
+/* ─────────────────── Which page owns a folder, and who may touch it ─────────────────── */
+
+/**
+ * The top-level folder for each page editor IS its page key.
+ *
+ * `decks/`, `circuits/`, `landing/`, `incrc/` — the same four strings as
+ * `PAGE_KEYS`, deliberately, so `pageOfFolder` is a set-membership test rather
+ * than a mapping table somebody has to remember to extend. Adding a page editor
+ * gives it a media folder for free; a second list would drift from the first,
+ * which is the exact failure the note on `MEDIA_PREFIX` above records.
+ *
+ * None of the four collides with `RESERVED`.
+ *
+ * The role predicates are composed from `src/lib/roles.ts` rather than
+ * reimplemented. That file is explicit that it is the only place a role is
+ * interpreted, and this is a question about folders that ends in a question
+ * about roles — so it asks, the way every route guard does.
+ */
+
+/**
+ * Folders belonging to no page in particular.
+ *
+ * `uploads` is where a tile upload goes when nobody chose, and where a shared
+ * file is rescued to when the entity owning its folder is deleted. It is
+ * cross-cutting by construction, so it cannot belong to one page.
+ */
+export const SHARED_ROOTS: string[] = [DEFAULT_UPLOAD_FOLDER];
+
+/**
+ * Which page editor a folder belongs to, or null for one that belongs to none.
+ *
+ * Null covers two different things that need the same answer here and different
+ * answers in `canWriteFolder`: the shared folders above, and the media ROOT,
+ * where every upload made before folders existed still sits — unattributed, and
+ * un-attributable.
+ */
+export function pageOfFolder(folder: string): PageKey | null {
+  const clean = parseFolder(folder);
+  if (clean === null || clean === "") return null;
+
+  const root = clean.split("/")[0] as PageKey;
+  return PAGE_KEYS.includes(root) ? root : null;
+}
+
+/**
+ * Whether this account may LIST a folder.
+ *
+ * A page's folder is that page's editors and the owner. Everything with no page
+ * — the shared folders and the legacy root — is readable by any page editor,
+ * because the root is where every image on the site currently lives and hiding
+ * it would leave a scoped editor with nothing to pick from.
+ */
+export function canBrowseFolder(session: Scoped | null | undefined, folder: string): boolean {
+  const page = pageOfFolder(folder);
+  return page === null ? canEditAnyPage(session) : canEditPage(session, page);
+}
+
+/**
+ * Whether this account may UPLOAD INTO or DELETE FROM a folder.
+ *
+ * Identical to browsing except at the root, which is owners only. Those files
+ * are unattributed, they are the ones most likely to be shared between pages,
+ * and there is no scan that can prove otherwise — so the account that may remove
+ * one is the account that can see every page it might be on.
+ */
+export function canWriteFolder(session: Scoped | null | undefined, folder: string): boolean {
+  const clean = parseFolder(folder);
+  if (clean === null) return false;
+  if (clean === "") return session?.role === "owner";
+
+  return canBrowseFolder(session, clean);
+}
+
+/** The top-level folders to draw for this account, page folders first. */
+export function visibleRoots(session: Scoped | null | undefined): string[] {
+  if (!canEditAnyPage(session)) return [];
+
+  return [...PAGE_KEYS.filter((page) => canEditPage(session, page)), ...SHARED_ROOTS];
+}
+
+/**
+ * Whether this account may delete a file that something still points at.
+ *
+ * The second lock, and the one folder permission cannot provide. A landing
+ * editor owns `landing/`, so they may delete out of it — but the media library
+ * offers every picture to every screen, so a file in `landing/` may well be the
+ * photograph on an INCRC section. Deleting it would break a page they do not
+ * administer, from inside a folder they do.
+ *
+ * So: an UNREFERENCED file may be deleted by anyone who may write its folder,
+ * and a referenced one only if every page named is one they administer. The gate
+ * bites exactly where it matters and nowhere else.
+ *
+ * A ref belonging to no page — a form, or something the code itself pins — takes
+ * an owner. That is the strict reading of `null`, and the right one: nobody else
+ * can see the thing that would break.
+ */
+export function canOverrideUsage(
+  session: Scoped | null | undefined,
+  refs: { page: PageKey | null }[]
+): boolean {
+  if (!session) return false;
+  if (session.role === "owner") return true;
+
+  return refs.every((ref) => ref.page !== null && canEditPage(session, ref.page));
+}
+
+/* ─────────────────────────── An entity's own folder ─────────────────────────── */
+
+/**
+ * A deterministic folder segment for one record.
+ *
+ * A slug is very nearly a folder name already — `slugify` emits `[a-z0-9-]`, a
+ * strict subset of `SEGMENT` — but "very nearly" is not a guarantee, and two
+ * cases genuinely differ:
+ *
+ *   LENGTH    `SLUG_MAX` is 80 and `MAX_SEGMENT` is 48. A slug in between is a
+ *             legal address and an illegal folder name.
+ *   RESERVED  a deck slugged `media` is a legal address and a refused folder.
+ *
+ * Both fall back to a short piece of the record's id rather than throwing. The
+ * caller is a save that has already succeeded; refusing here would mean a record
+ * that exists and has nowhere to put its pictures.
+ *
+ * DETERMINISM is the whole requirement. This is called once to decide where an
+ * upload goes, and again later to find that same folder in order to move or
+ * delete it. The two calls have to agree, so nothing here may be random or
+ * time-based — which is why the id is used and `fallbackSlug` is not.
+ */
+export function entitySegment(slug: string, id: string): string {
+  if (slug.length <= MAX_SEGMENT) {
+    const direct = parseSegment(slug);
+    if (direct !== null) return direct;
+  }
+
+  // Enough of the id to separate two records whose slugs agree this far, and
+  // short enough to leave the slug readable: a uuid's first eight hex digits.
+  const short = id.replace(/[^a-z0-9]/gi, "").slice(0, 8).toLowerCase() || "record";
+  const head = slug.slice(0, Math.max(MAX_SEGMENT - short.length - 1, 0)).replace(/-+$/, "");
+
+  return parseSegment(head ? `${head}-${short}` : short) ?? short;
+}
+
+/** `decks/world-of-ctr`. The root is the page key; see the note above. */
+export function folderForEntity(page: PageKey, slug: string, id: string): string {
+  return `${page}/${entitySegment(slug, id)}`;
 }

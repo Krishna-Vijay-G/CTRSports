@@ -15,6 +15,8 @@ import {
 } from "@/admin/ui/icons";
 import { ErrorNote, Hint } from "@/admin/components/Fields";
 import { ImageField } from "@/admin/components/ImageField";
+import { SPORTS_UPLOAD_FOLDER } from "@/lib/mediaPaths";
+import { UploadFolder } from "@/admin/components/UploadFolder";
 
 /**
  * One sport, as a collapsed strip that opens into a form.
@@ -255,22 +257,35 @@ export function SportRow({
             />
           </label>
 
-          <ImageField
-            label="Crest"
-            value={sport.logo_url}
-            onChange={(url) => set("logo_url", url)}
-            disabled={busy}
-            variant="logo"
-            hint="Shown as a badge over the photo."
-          />
+          {/*
+            A subfolder of the landing page's, not a folder of its own: a sport
+            has no address to be named after — `ctr.sports` has no slug, and its
+            title is editable and not unique — so there is nothing to key a
+            per-sport folder on that would survive a rename. Crests and photos
+            of a dozen teams among the landing page's own pictures is the mess
+            this one extra level prevents.
 
-          <ImageField
-            label="Photo"
-            value={sport.photo_url}
-            onChange={(url) => set("photo_url", url)}
-            disabled={busy}
-            hint="The picture behind the crest."
-          />
+            The provider nests inside the landing editor's, so nothing between
+            here and there has to know about it.
+          */}
+          <UploadFolder folder={SPORTS_UPLOAD_FOLDER}>
+            <ImageField
+              label="Crest"
+              value={sport.logo_url}
+              onChange={(url) => set("logo_url", url)}
+              disabled={busy}
+              variant="logo"
+              hint="Shown as a badge over the photo."
+            />
+
+            <ImageField
+              label="Photo"
+              value={sport.photo_url}
+              onChange={(url) => set("photo_url", url)}
+              disabled={busy}
+              hint="The picture behind the crest."
+            />
+          </UploadFolder>
 
           <label className="block">
             <Label>Link</Label>

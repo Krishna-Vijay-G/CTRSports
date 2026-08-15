@@ -1,8 +1,7 @@
 import "server-only";
 
-import { PAGE_LABELS } from "@/lib/roles";
+import { PAGE_KEYS, PAGE_LABELS, type PageKey } from "@/lib/roles";
 import { getSql } from "@/lib/server/db";
-import { MEDIA_PREFIX } from "@/lib/server/s3";
 
 /**
  * What points at an uploaded file, before anybody deletes it.
@@ -71,6 +70,22 @@ import { MEDIA_PREFIX } from "@/lib/server/s3";
 export type UsageRef = {
   kind: "content" | "deck" | "sport" | "track" | "form" | "source";
   label: string;
+  /**
+   * The page editor this reference belongs to, or null for one that belongs to
+   * no page.
+   *
+   * Carried so a delete can be REFUSED rather than merely warned about. Folder
+   * permission stops a decks editor reaching into `landing/`; it does not stop
+   * them deleting a file out of their own folder that the INCRC page happens to
+   * use, because the media library offers every picture to every screen. This
+   * field is what closes that: you may confirm past a usage warning only if
+   * every page named is one you administer. See `canOverrideUsage`.
+   *
+   * Null is deliberately the STRICTEST value, not the most permissive — a form
+   * belongs to the registrations admin, who cannot reach the media library at
+   * all, so only an owner can override one.
+   */
+  page: PageKey | null;
 };
 
 export type KeyUsage = { key: string; refs: UsageRef[] };
@@ -78,6 +93,18 @@ export type KeyUsage = { key: string; refs: UsageRef[] };
 /** Past this, the pull-it-all-in-memory bet stops being a good one. */
 const TOO_MANY = 2000;
 let warned = false;
+
+/**
+ * A `page_key` column narrowed to a page editor, or null for one nobody edits.
+ *
+ * `ctr.pages` is a lookup table and can hold a key `PAGE_KEYS` does not, so this
+ * is a check rather than a cast: an unrecognised page reads as "no editor owns
+ * this", which makes it overridable by an owner alone. Unknown means stricter,
+ * never looser — the same posture `normaliseRole` takes.
+ */
+function pageKeyOf(value: string): PageKey | null {
+  return (PAGE_KEYS as readonly string[]).includes(value) ? (value as PageKey) : null;
+}
 
 /**
  * Nothing is pinned from the source any more, and there is nothing left to pin.
@@ -196,17 +223,25 @@ export async function findUsage(keys: string[]): Promise<KeyUsage[]> {
 
   for (const row of sectionRows) {
     const page = PAGE_LABELS[row.page_key as keyof typeof PAGE_LABELS] ?? row.page_key;
-    scan(row.blob, () => ({ kind: "content", label: `${page} — ${row.section_id}` }));
+    scan(row.blob, () => ({
+      kind: "content",
+      label: `${page} — ${row.section_id}`,
+      page: pageKeyOf(row.page_key),
+    }));
   }
 
+  // A form belongs to the registrations admin, who has no media library at all,
+  // so there is no page editor who can be said to own one.
   for (const row of formRows) {
-    scan(row.blob, () => ({ kind: "form", label: `Form: ${row.name}` }));
+    scan(row.blob, () => ({ kind: "form", label: `Form: ${row.name}`, page: null }));
   }
 
   for (const row of columns as { kind: string; label: string; blob: string }[]) {
     scan(row.blob, () => ({
       kind: row.kind === "sport" ? "sport" : "track",
       label: `${row.kind === "sport" ? "Sport" : "Circuit"}: ${row.label}`,
+      // A sport is edited on the landing screen and a circuit on its own.
+      page: row.kind === "sport" ? "landing" : "circuits",
     }));
   }
 
@@ -230,22 +265,34 @@ export async function findUsage(keys: string[]): Promise<KeyUsage[]> {
   attribute(
     banners as unknown[],
     (row: { url: string }) => row.url,
-    (row: { page_key: string }) => ({ kind: "content", label: `${pageLabel(row.page_key)} — banner` })
+    (row: { page_key: string }) => ({
+      kind: "content",
+      label: `${pageLabel(row.page_key)} — banner`,
+      page: pageKeyOf(row.page_key),
+    })
   );
   attribute(
     posts as unknown[],
     (row: { url: string }) => row.url,
-    (row: { page_key: string }) => ({ kind: "content", label: `${pageLabel(row.page_key)} — newsroom` })
+    (row: { page_key: string }) => ({
+      kind: "content",
+      label: `${pageLabel(row.page_key)} — newsroom`,
+      page: pageKeyOf(row.page_key),
+    })
   );
   attribute(
     partners as unknown[],
     (row: { url: string }) => row.url,
-    (row: { page_key: string }) => ({ kind: "content", label: `${pageLabel(row.page_key)} — partners` })
+    (row: { page_key: string }) => ({
+      kind: "content",
+      label: `${pageLabel(row.page_key)} — partners`,
+      page: pageKeyOf(row.page_key),
+    })
   );
   attribute(
     deckPages as unknown[],
     (row: { url: string }) => row.url,
-    (row: { name: string }) => ({ kind: "deck", label: `Deck: ${row.name}` })
+    (row: { name: string }) => ({ kind: "deck", label: `Deck: ${row.name}`, page: "decks" })
   );
 
   /*
@@ -255,7 +302,9 @@ export async function findUsage(keys: string[]): Promise<KeyUsage[]> {
   const pinned = sourcePinnedKeys();
   for (const key of wanted) {
     if (pinned.has(key)) {
-      add(key, { kind: "source", label: "Built into the code (src/config/images.ts)" });
+      // No page owns the source. Only an owner could ever override this one,
+      // which is the right answer for a file the code itself depends on.
+      add(key, { kind: "source", label: "Built into the code (src/config/images.ts)", page: null });
     }
   }
 

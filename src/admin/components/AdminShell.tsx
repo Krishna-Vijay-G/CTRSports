@@ -6,6 +6,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   ROLE_LABELS,
+  canEditAnyPage,
   canEditPage,
   canManageAdmins,
   canSeeForms,
@@ -17,6 +18,7 @@ import { Button } from "@/admin/ui/Button";
 import {
   CaretDownIcon,
   FlagIcon,
+  FolderIcon,
   ImagesIcon,
   MapIcon,
   PanelIcon,
@@ -82,7 +84,7 @@ type NavItem = {
   /** The page editor this screen is. */
   page?: PageKey;
   /** Or the other thing it needs. */
-  needs?: "forms" | "owner";
+  needs?: "forms" | "owner" | "anyPage";
 };
 
 const NAV: NavItem[] = [
@@ -90,6 +92,13 @@ const NAV: NavItem[] = [
   { href: "/incrc", label: "INCRC", icon: FlagIcon, page: "incrc" },
   { href: "/tracks", label: "Circuits", icon: MapIcon, page: "circuits" },
   { href: "/decks", label: "Decks", icon: StackIcon, page: "decks" },
+  /*
+   * `FolderIcon` rather than `ImagesIcon`: the latter is already the landing
+   * page's glyph and two rows sharing one shape defeats the point of the rail.
+   * It is also what the "Library" button inside every image field wears, so the
+   * glyph and the destination match.
+   */
+  { href: "/media", label: "Media", icon: FolderIcon, needs: "anyPage" },
   { href: "/forms", label: "Registrations", icon: TicketIcon, needs: "forms" },
   { href: "/admins", label: "Accounts", icon: UsersIcon, needs: "owner" },
 ];
@@ -99,6 +108,7 @@ function allowedNav(scope: { role: AdminRole; pages: PageKey[] }): NavItem[] {
     if (item.page) return canEditPage(scope, item.page);
     if (item.needs === "forms") return canSeeForms(scope);
     if (item.needs === "owner") return canManageAdmins(scope);
+    if (item.needs === "anyPage") return canEditAnyPage(scope);
     return true;
   });
 }

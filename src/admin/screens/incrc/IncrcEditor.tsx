@@ -13,6 +13,7 @@ import { AdminRailSlot } from "@/admin/components/AdminShell";
 import { EditorToolbar } from "@/admin/components/EditorToolbar";
 import { IncrcPreview } from "@/admin/components/previews/IncrcPreview";
 import { SectionRail } from "@/admin/components/SectionRail";
+import { UploadFolder } from "@/admin/components/UploadFolder";
 import { BannersPanel } from "@/admin/components/banners/BannersPanel";
 import { TABS, type TabId } from "./sections";
 import { CalendarPanel } from "./panels/CalendarPanel";
@@ -281,6 +282,10 @@ export function IncrcEditor({
     : false;
 
   return (
+    // The other half of the banner-panel argument in LandingEditor: the same
+    // component, the same field, a different page — and the folder is what says
+    // which. See src/admin/components/UploadFolder.tsx.
+    <UploadFolder folder="incrc">
     <div className="flex min-h-0 flex-col gap-2 md:h-full">
       <AdminRailSlot>
         <SectionRail
@@ -351,5 +356,6 @@ export function IncrcEditor({
         </div>
       </div>
     </div>
+    </UploadFolder>
   );
 }

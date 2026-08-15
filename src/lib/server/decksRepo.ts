@@ -402,13 +402,25 @@ export async function reorderDecks(ids: string[]): Promise<void> {
  * key, and `slugs` cannot have one (its `entity_id` points at either of two
  * tables), so a trigger does the same job. See migrations/0002.
  *
- * The images are NOT deleted from the bucket, and that is deliberate. They sit
- * under the media prefix, where they are shared: the same upload can be a deck
- * page and the photograph on a section of a page, because the media library
- * offers every picture to every screen. Deleting the objects would take the
- * picture off a page that has nothing to do with this deck. Registration
- * attachments are the opposite case — private, single-use, under their own
- * prefix — which is why deleting a form does delete those.
+ * ── The images, and why this function still does not touch them ───────────
+ *
+ * This used to say the bucket was deliberately left alone, because media is
+ * shared — the same upload can be a deck page AND the photograph on a section of
+ * some page, so deleting the objects could take a picture off something with
+ * nothing to do with this deck.
+ *
+ * That reason is now HANDLED rather than merely true. A deck's pictures live in
+ * a folder of its own named after its address, and the route calls
+ * `deleteEntityFolder` after this returns: the scan runs with the deck's rows
+ * already gone, so everything it still finds belongs to somebody else, and those
+ * files are moved to the shared folder instead of removed. See
+ * src/lib/server/entityMedia.ts.
+ *
+ * What has NOT changed is that this function does none of it. The repos speak
+ * SQL and nothing else — no repo in this project has ever reached for S3 — and
+ * the ordering the purge depends on is "row first, then bucket", which only the
+ * caller can guarantee. `deleteForm` is the exception that proves it, and it is
+ * one worth being uncomfortable about rather than copying.
  */
 export async function deleteDeck(id: string): Promise<boolean> {
   const sql = getSql();

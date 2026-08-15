@@ -9,6 +9,7 @@ import { AdminRailSlot } from "@/admin/components/AdminShell";
 import { EditorToolbar } from "@/admin/components/EditorToolbar";
 import { LandingPreview } from "@/admin/components/previews/LandingPreview";
 import { SectionRail } from "@/admin/components/SectionRail";
+import { UploadFolder } from "@/admin/components/UploadFolder";
 import { BannersPanel } from "@/admin/components/banners/BannersPanel";
 import { SECTIONS, type SectionId } from "./sections";
 import { AboutPanel } from "./panels/AboutPanel";
@@ -191,6 +192,10 @@ export function LandingEditor({
   const { Icon } = section;
 
   return (
+    // Everything uploaded from this screen belongs to the landing page —
+    // including the banner, whose panel is shared with the INCRC editor and so
+    // cannot know which page it is on. See src/admin/components/UploadFolder.tsx.
+    <UploadFolder folder="landing">
     <div className="flex min-h-0 flex-col gap-2 md:h-full">
       <AdminRailSlot>
         <SectionRail items={SECTIONS} active={active} onSelect={setActive} />
@@ -240,5 +245,6 @@ export function LandingEditor({
         </div>
       </div>
     </div>
+    </UploadFolder>
   );
 }

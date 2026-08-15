@@ -20,6 +20,7 @@ import { FormerSlugs } from "@/admin/components/FormerSlugs";
 import { ImageField } from "@/admin/components/ImageField";
 import { Repeater } from "@/admin/components/Repeater";
 import { SlugField } from "@/admin/components/SlugField";
+import { useUploadFolder } from "@/admin/components/UploadFolder";
 
 /**
  * One deck's record: what it is called, where it lives, and its pages in order.
@@ -242,6 +243,7 @@ function AddPages({
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const folder = useUploadFolder();
   const room = MAX_DECK_PAGES - count;
   const working = progress !== null;
 
@@ -268,6 +270,9 @@ function AddPages({
         const webp = await toWebp(file, DOCUMENT_EDGE);
         const form = new FormData();
         form.append("file", webp);
+        // Fifty scanned pages arriving in the root is the exact mess the folders
+        // exist to prevent, so this uploader names its destination too.
+        form.append("folder", folder);
 
         const response = await fetch("/api/admin/upload", { method: "POST", body: form });
         const data = await response.json().catch(() => ({}));

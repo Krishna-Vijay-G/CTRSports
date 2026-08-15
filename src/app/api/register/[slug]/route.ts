@@ -23,6 +23,7 @@ import { getFormBySlug } from "@/lib/server/formsRepo";
 import { notifyNewEntry } from "@/lib/server/notify";
 import { callerIp, take } from "@/lib/server/rateLimit";
 import { checkToken, consumeToken } from "@/lib/server/registerToken";
+import { entitySegment } from "@/lib/mediaPaths";
 import { ENTRY_PREFIX, deleteObjects, isS3Configured, uploadPrivateObject } from "@/lib/server/s3";
 
 export const runtime = "nodejs";
@@ -171,7 +172,30 @@ async function readMultipart(
     // The extension comes from the type we just checked, never from the name
     // the browser sent — that is a string a stranger chose.
     const extension = sent.type.split("/")[1]?.replace(/[^a-z0-9]/gi, "").slice(0, 8) || "bin";
-    const key = `${ENTRY_PREFIX}${form.id}/${randomUUID()}.${extension}`;
+
+    /*
+     * Named after the form's address rather than its uuid, so a folder of these
+     * is legible to whoever has to go and look in the bucket.
+     *
+     * Still under ENTRY_PREFIX, and that is not negotiable. These are licence
+     * scans, indemnity forms and passport photographs belonging to named people.
+     * `ctr-sports/media/` is served publicly and immutably; this prefix is a
+     * SIBLING of it, written `private, no-store`, never given a public URL, and
+     * readable only through an authenticated route that streams it. A folder
+     * called `registration` under the media prefix would be a readable name on
+     * a public bucket, which is the one change this file must never make.
+     *
+     * `entitySegment` is borrowed from the media paths purely as a name
+     * sanitiser — it is where the "a slug is not always a legal folder name"
+     * rule lives, and there is no second copy of it.
+     *
+     * The address can change and this folder does not follow it, which is
+     * deliberate: the key is STORED, in `form_entry_files.s3_key` and in the
+     * answer itself, so every read, export and delete already works from the
+     * stored string. A renamed form simply starts filling a new folder; nothing
+     * written before it moves, and nothing breaks.
+     */
+    const key = `${ENTRY_PREFIX}${entitySegment(form.slug, form.id)}/${randomUUID()}.${extension}`;
 
     await uploadPrivateObject(key, Buffer.from(await sent.arrayBuffer()), sent.type);
     uploads.push(key);

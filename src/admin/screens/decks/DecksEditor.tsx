@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { BLANK_DECK, DECK_STATUS_LABELS, type Deck } from "@/lib/decks";
+import { DECK_UPLOAD_FOLDER, folderForEntity } from "@/lib/mediaPaths";
 import type { LandingContent } from "@/lib/landingContent";
 import type { SlugHolder } from "@/lib/slug";
 import { cn } from "@/lib/utils";
@@ -11,6 +12,7 @@ import { AdminRailSlot } from "@/admin/components/AdminShell";
 import { EditorToolbar } from "@/admin/components/EditorToolbar";
 import { Note, Panel } from "@/admin/components/Fields";
 import { NewRecord } from "@/admin/components/NewRecord";
+import { UploadFolder } from "@/admin/components/UploadFolder";
 import { SectionRail, type RailItem } from "@/admin/components/SectionRail";
 import { DeckPreview } from "@/admin/components/previews/DeckPreview";
 import { DeckForm } from "./DeckForm";
@@ -347,7 +349,25 @@ export function DecksEditor({
     Icon: ImagesIcon,
   }));
 
+  /*
+   * Where this deck's pictures go — from the SAVED address, never the draft one.
+   *
+   * `active.slug` is whatever is currently in the address box, which changes as
+   * it is typed. Uploading against that would put a file in `decks/<new-slug>/`
+   * while the bucket still has `decks/<old-slug>/` and the database still says
+   * the old address — and if the editor then abandoned the save, that file would
+   * be orphaned in a folder that never comes to exist. `activeSaved` is the last
+   * thing the server acknowledged, so it always names a folder that is real.
+   *
+   * The rename carries the files across; see the PUT in
+   * src/app/api/admin/decks/[id]/route.ts.
+   */
+  const uploadFolder = activeSaved
+    ? folderForEntity("decks", activeSaved.slug, activeSaved.id)
+    : DECK_UPLOAD_FOLDER;
+
   return (
+    <UploadFolder folder={uploadFolder}>
     <div className="flex min-h-0 flex-col gap-2 md:h-full">
       <AdminRailSlot>
         <SectionRail
@@ -486,5 +506,6 @@ export function DecksEditor({
         </div>
       </div>
     </div>
+    </UploadFolder>
   );
 }

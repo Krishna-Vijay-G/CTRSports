@@ -3,13 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import type { Round } from "@/lib/incrcContent";
 import type { LandingContent } from "@/lib/landingContent";
-import { BLANK_TRACK, type Track } from "@/lib/tracks";
+import { CIRCUIT_UPLOAD_FOLDER, folderForEntity } from "@/lib/mediaPaths";
+import { BLANK_TRACK, trackSlug, type Track } from "@/lib/tracks";
 import { cn } from "@/lib/utils";
 import { Button } from "@/admin/ui/Button";
 import { MapIcon, PlusIcon } from "@/admin/ui/icons";
 import { AdminRailSlot } from "@/admin/components/AdminShell";
 import { EditorToolbar } from "@/admin/components/EditorToolbar";
 import { SectionRail, type RailItem } from "@/admin/components/SectionRail";
+import { UploadFolder } from "@/admin/components/UploadFolder";
 import { CircuitPreview } from "@/admin/components/previews/CircuitPreview";
 import { TrackForm } from "./TrackForm";
 
@@ -263,7 +265,19 @@ export function TracksEditor({
     Icon: MapIcon,
   }));
 
+  /*
+   * From the SAVED circuit, for the reason the decks editor gives at length: a
+   * folder derived from a draft is a folder that may never come to exist.
+   *
+   * A circuit's address is frozen at creation, so unlike a deck's this one never
+   * moves — see the note at the top of src/app/api/admin/tracks/[id]/route.ts.
+   */
+  const uploadFolder = activeSaved
+    ? folderForEntity("circuits", trackSlug(activeSaved), activeSaved.id)
+    : CIRCUIT_UPLOAD_FOLDER;
+
   return (
+    <UploadFolder folder={uploadFolder}>
     <div className="flex min-h-0 flex-col gap-2 md:h-full">
       <AdminRailSlot>
         <SectionRail
@@ -359,5 +373,6 @@ export function TracksEditor({
         </div>
       </div>
     </div>
+    </UploadFolder>
   );
 }

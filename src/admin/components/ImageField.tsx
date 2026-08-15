@@ -8,6 +8,7 @@ import { Input, Label } from "@/admin/ui/Input";
 import { FolderIcon, TrashIcon, UploadIcon } from "@/admin/ui/icons";
 import { Hint } from "@/admin/components/Fields";
 import { MediaPicker } from "@/admin/components/MediaPicker";
+import { useUploadFolder } from "@/admin/components/UploadFolder";
 
 /**
  * Picks an image, four ways: drop a file on the tile, click the tile to browse
@@ -31,6 +32,7 @@ export function ImageField({
   variant = "photo",
   maxEdge,
   className,
+  folder,
 }: {
   label: string;
   value: string;
@@ -45,12 +47,23 @@ export function ImageField({
    */
   maxEdge?: number;
   className?: string;
+  /**
+   * Where this one field's uploads go, when it differs from the screen's.
+   *
+   * Almost never needed — the folder comes from `UploadFolder` above, which is
+   * what keeps the other twelve call sites unchanged. This is the escape hatch
+   * for a field whose pictures belong somewhere its neighbours' do not.
+   */
+  folder?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [browsing, setBrowsing] = useState(false);
   const [dropping, setDropping] = useState(false);
+
+  const screenFolder = useUploadFolder();
+  const destination = folder ?? screenFolder;
 
   async function upload(file: File) {
     setUploading(true);
@@ -61,6 +74,7 @@ export function ImageField({
 
       const form = new FormData();
       form.append("file", webp);
+      form.append("folder", destination);
 
       const response = await fetch("/api/admin/upload", { method: "POST", body: form });
       const data = await response.json().catch(() => ({}));
@@ -202,7 +216,14 @@ export function ImageField({
         className="hidden"
       />
 
-      <MediaPicker open={browsing} onClose={() => setBrowsing(false)} onSelect={onChange} />
+      {/* Opens where this field's uploads go. One value, two uses — the picker
+          and the uploader cannot disagree about which folder is "here". */}
+      <MediaPicker
+        open={browsing}
+        onClose={() => setBrowsing(false)}
+        onSelect={onChange}
+        startFolder={destination}
+      />
 
       {error ? (
         <p role="alert" className="mt-1 text-[11px] text-destructive">

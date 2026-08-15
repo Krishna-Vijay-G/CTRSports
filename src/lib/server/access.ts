@@ -2,6 +2,7 @@ import "server-only";
 
 import { notFound } from "next/navigation";
 import { NextResponse } from "next/server";
+import { canBrowseFolder, canWriteFolder } from "@/lib/mediaPaths";
 import {
   canEditAnyPage,
   canEditPage,
@@ -51,15 +52,41 @@ export function guardPage(page: PageKey): Promise<NextResponse | null> {
 }
 
 /**
- * Any page editor at all.
+ * Any page editor at all. The door to the media library.
  *
- * What the media library and the uploader use: a picture is not owned by one
- * page, and asking which page an upload is "for" would mean threading a page
- * key through a file input for no gain. A registrations admin has no picture to
- * place, so they are still out.
+ * This used to be the WHOLE of the media library's protection, on the argument
+ * that a picture is not owned by one page and that asking which page an upload
+ * was "for" would mean threading a page key through a file input for no gain.
+ * That was true while the library was a read-only list of every object in the
+ * bucket. It stopped being true twice over: uploads now go into a folder named
+ * after the page that owns them, and the library can delete.
+ *
+ * So this is now the outer door and `guardFolder` is the inner one — a
+ * registrations admin still has no picture to place and never gets through
+ * either, and a page editor gets through this one and then only into their own
+ * folders.
  */
 export function guardAnyPage(): Promise<NextResponse | null> {
   return guard(canEditAnyPage);
+}
+
+/**
+ * One folder. The check every media route makes after `guardAnyPage`.
+ *
+ * `browse` is listing, `write` is uploading into, creating and deleting. They
+ * differ in exactly one place — the legacy root, which anybody may read and only
+ * an owner may change — and the reasoning for that is on `canWriteFolder`.
+ *
+ * A folder that does not parse is refused here rather than passed on as `""`,
+ * which would silently widen the request to the whole library.
+ */
+export async function guardFolder(
+  folder: string,
+  need: "browse" | "write"
+): Promise<NextResponse | null> {
+  return guard((session) =>
+    need === "write" ? canWriteFolder(session, folder) : canBrowseFolder(session, folder)
+  );
 }
 
 /** Building forms and reading entries. Owners and the registrations admin. */
@@ -103,6 +130,21 @@ export function guardOwner(): Promise<NextResponse | null> {
 export async function requirePage(page: PageKey): Promise<AdminSession> {
   const session = await getSession();
   if (!session || !canEditPage(session, page)) notFound();
+  return session;
+}
+
+/**
+ * The media library's screen. Any page editor at all, like the routes it calls.
+ *
+ * Not a `PAGE_KEYS` entry of its own, deliberately: media is cross-cutting, and
+ * a new key would silently lock every existing scoped account out of the library
+ * until an owner went and re-ticked a box for each of them. What narrows the
+ * screen is the folder map, which is a better answer than a key would have been
+ * because it also narrows what is inside.
+ */
+export async function requireAnyPage(): Promise<AdminSession> {
+  const session = await getSession();
+  if (!session || !canEditAnyPage(session)) notFound();
   return session;
 }
 
