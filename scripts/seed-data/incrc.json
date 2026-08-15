@@ -10,7 +10,8 @@
         "short": "INCRC",
         "tagline": "One Nation · One Championship",
         "handle": "@incrc_",
-        "instagram": "https://www.instagram.com/incrc_"
+        "instagram": "https://www.instagram.com/incrc_",
+        "followLabel": "Follow the championship"
       }
     },
     {
@@ -118,7 +119,11 @@
       "visible": true,
       "data": {
         "label": "Championship venues",
-        "title": "Three iconic circuits. One championship."
+        "title": "Three iconic circuits. One championship.",
+        "ctaLabel": "View all circuits",
+        "ctaHref": "/circuits",
+        "cardLabel": "Circuit",
+        "cardCta": "Track overview"
       }
     },
     {
@@ -127,7 +132,12 @@
       "visible": true,
       "data": {
         "label": "FMSCI Indian National Car Racing Championship",
-        "title": "The 2026 Season"
+        "title": "The 2026 Season",
+        "roundLabel": "Round",
+        "nextLabel": "Next round",
+        "countdownLabel": "Lights out in",
+        "tbcLabel": "Date TBC",
+        "trackCtaLabel": "Circuit guide"
       }
     },
     {
@@ -141,15 +151,15 @@
         "layout": "three-hero-left",
         "shots": [
           {
-            "image": "/images/incrc/signing-1.webp",
+            "image": "https://raw.githubusercontent.com/Krishna-Vijay-G/CTRSports/refs/heads/assets/incrc/partnership/partnership1.webp",
             "alt": "CTR, JK Tyre and FMSCI officials signing the championship agreement."
           },
           {
-            "image": "/images/incrc/signing-2.webp",
+            "image": "https://raw.githubusercontent.com/Krishna-Vijay-G/CTRSports/refs/heads/assets/incrc/partnership/partnership2.webp",
             "alt": "CTR and JK Tyre representatives sealing the partnership with a handshake."
           },
           {
-            "image": "/images/incrc/signing-3.webp",
+            "image": "https://raw.githubusercontent.com/Krishna-Vijay-G/CTRSports/refs/heads/assets/incrc/partnership/partnership3.webp",
             "alt": "The CTR, JK Tyre and FMSCI leadership with the signed championship agreement."
           }
         ]
@@ -160,7 +170,7 @@
       "position": 9,
       "visible": true,
       "data": {
-        "image": "/images/incrc/family.webp",
+        "image": "https://raw.githubusercontent.com/Krishna-Vijay-G/CTRSports/refs/heads/assets/incrc/family/family.webp",
         "lead": "Entertainment isn't created by one organiser.",
         "quote": "It is powered by an entire motorsport family.",
         "showFlag": true,
@@ -256,7 +266,23 @@
         "label": "Read more",
         "title": "Documents and decks",
         "body": "",
-        "items": []
+        "items": [
+          {
+            "slug": "world-of-ctr",
+            "title": "",
+            "blurb": ""
+          },
+          {
+            "slug": "ctr-jk-tyre-indian-national-car-racing-championship",
+            "title": "",
+            "blurb": ""
+          },
+          {
+            "slug": "sponsorship-brand-partnership",
+            "title": "",
+            "blurb": ""
+          }
+        ]
       }
     }
   ],
@@ -265,7 +291,7 @@
       "banner_id": "incrc-banner-1",
       "position": 1,
       "template": "spotlight",
-      "image": "https://raw.githubusercontent.com/Krishna-Vijay-G/asset-temp/refs/heads/main/banner1.jpeg",
+      "image": "https://raw.githubusercontent.com/Krishna-Vijay-G/CTRSports/refs/heads/assets/incrc/banners/banner1.webp",
       "fit": "fill",
       "focus": "center",
       "overlay": "none",
@@ -278,7 +304,7 @@
       "banner_id": "incrc-banner-2",
       "position": 2,
       "template": "spotlight",
-      "image": "/images/incrc/signing-2.webp",
+      "image": "https://raw.githubusercontent.com/Krishna-Vijay-G/CTRSports/refs/heads/assets/incrc/banners/banner2.webp",
       "fit": "fit",
       "focus": "center",
       "overlay": "none",
@@ -291,7 +317,7 @@
       "banner_id": "incrc-banner-3",
       "position": 3,
       "template": "spotlight",
-      "image": "https://raw.githubusercontent.com/Krishna-Vijay-G/asset-temp/refs/heads/main/DR%20(Medium).png",
+      "image": "https://raw.githubusercontent.com/Krishna-Vijay-G/CTRSports/refs/heads/assets/incrc/banners/banner3.webp",
       "fit": "fit",
       "focus": "center",
       "overlay": "none",
@@ -304,7 +330,7 @@
       "banner_id": "incrc-banner-4",
       "position": 4,
       "template": "spotlight",
-      "image": "https://raw.githubusercontent.com/Krishna-Vijay-G/asset-temp/refs/heads/main/chairman%20JK%20TYRES%20(Medium).png",
+      "image": "https://raw.githubusercontent.com/Krishna-Vijay-G/CTRSports/refs/heads/assets/incrc/banners/banner4.webp",
       "fit": "fit",
       "focus": "center",
       "overlay": "none",
@@ -317,7 +343,7 @@
       "banner_id": "incrc-banner-5",
       "position": 5,
       "template": "spotlight",
-      "image": "https://raw.githubusercontent.com/Krishna-Vijay-G/asset-temp/refs/heads/main/MAKAPA%20(Medium).png",
+      "image": "https://raw.githubusercontent.com/Krishna-Vijay-G/CTRSports/refs/heads/assets/incrc/banners/banner5.webp",
       "fit": "fit",
       "focus": "center",
       "overlay": "none",
@@ -377,7 +403,7 @@
     {
       "post_id": "post-1",
       "position": 1,
-      "image": "/images/incrc/cars-lineup.webp",
+      "image": "https://raw.githubusercontent.com/Krishna-Vijay-G/CTRSports/refs/heads/assets/post/post1.webp",
       "category": "LGBF4",
       "date": "August 2026",
       "title": "Seven categories, one national banner",
@@ -387,7 +413,7 @@
     {
       "post_id": "post-2",
       "position": 2,
-      "image": "/images/incrc/one-nation.webp",
+      "image": "https://raw.githubusercontent.com/Krishna-Vijay-G/CTRSports/refs/heads/assets/post/post2.webp",
       "category": "FORMULA 1300",
       "date": "August 2026",
       "title": "Three circuits that will decide the title",
@@ -397,7 +423,7 @@
     {
       "post_id": "post-3",
       "position": 3,
-      "image": "/images/incrc/signing-1.webp",
+      "image": "https://raw.githubusercontent.com/Krishna-Vijay-G/CTRSports/refs/heads/assets/post/post3.webp",
       "category": "LEVITAS",
       "date": "July 2026",
       "title": "Inside the partnership that built INCRC",
@@ -409,19 +435,19 @@
     {
       "position": 1,
       "name": "Chennai Turbo Riders",
-      "logo": "/images/brand/ctr-logo.webp",
-      "href": "https://chennaiturboriders.in"
+      "logo": "https://raw.githubusercontent.com/Krishna-Vijay-G/CTRSports/refs/heads/assets/incrc/introduction/ctr.webp",
+      "href": "https://www.chennaiturboriders.in"
     },
     {
       "position": 2,
       "name": "JK Tyre",
-      "logo": "/images/incrc/jktyre.webp",
+      "logo": "https://raw.githubusercontent.com/Krishna-Vijay-G/CTRSports/refs/heads/assets/incrc/introduction/jktyre.webp",
       "href": "https://www.jktyre.com"
     },
     {
       "position": 3,
       "name": "FMSCI",
-      "logo": "/images/incrc/fmsci.webp",
+      "logo": "https://raw.githubusercontent.com/Krishna-Vijay-G/CTRSports/refs/heads/assets/incrc/introduction/fmsci.webp",
       "href": "https://www.fmsci.co.in"
     }
   ]

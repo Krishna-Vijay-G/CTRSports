@@ -58,11 +58,11 @@
         "ctaHref": "#sports",
         "photos": [
           {
-            "src": "https://www.evoindia.com/evoindia/2024-02/1dc1ca47-79c5-49e0-b10c-3bfb59652723/Deepak_Ravikumar__winner_of_the_Touring_Cars_Race_1__July_22_.jpg",
+            "src": "https://raw.githubusercontent.com/Krishna-Vijay-G/CTRSports/refs/heads/assets/landing/about/about1.webp",
             "label": "Track & Field"
           },
           {
-            "src": "/images/hero/background.webp",
+            "src": "https://raw.githubusercontent.com/Krishna-Vijay-G/CTRSports/refs/heads/assets/landing/about/about2.webp",
             "label": "Endurance"
           }
         ]
@@ -99,7 +99,7 @@
         "phone": "9500016999",
         "email": "admin@ctrsports.in",
         "formHeading": "Send a message",
-        "formNote": "Tell us what you need and we will reply by email."
+        "formNote": "Tell us what you need."
       }
     },
     {
@@ -143,7 +143,7 @@
       "banner_id": "banner-1",
       "position": 1,
       "template": "spotlight",
-      "image": "https://raw.githubusercontent.com/Krishna-Vijay-G/asset-temp/refs/heads/main/banner1.jpeg",
+      "image": "https://raw.githubusercontent.com/Krishna-Vijay-G/CTRSports/refs/heads/assets/landing/banners/banner1.webp",
       "fit": "fill",
       "focus": "center",
       "overlay": "none",
@@ -156,7 +156,7 @@
       "banner_id": "banner-2",
       "position": 2,
       "template": "spotlight",
-      "image": "https://raw.githubusercontent.com/Krishna-Vijay-G/asset-temp/refs/heads/main/CTR%20UNIFIED%20(Medium).png",
+      "image": "https://raw.githubusercontent.com/Krishna-Vijay-G/CTRSports/refs/heads/assets/landing/banners/banner2.webp",
       "fit": "fit",
       "focus": "center",
       "overlay": "none",
@@ -169,7 +169,7 @@
       "banner_id": "banner-3",
       "position": 3,
       "template": "split",
-      "image": "https://raw.githubusercontent.com/Krishna-Vijay-G/asset-temp/refs/heads/main/DSC_0528%7E2%20(Medium).jpeg",
+      "image": "https://raw.githubusercontent.com/Krishna-Vijay-G/CTRSports/refs/heads/assets/landing/banners/banner3.webp",
       "fit": "fill",
       "focus": "center",
       "overlay": "none",

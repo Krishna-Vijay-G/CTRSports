@@ -37,6 +37,7 @@ next-env.d.ts
 # pre-WebP source art, kept locally so `npm run webp -- --restore` works
 /public/_originals/
 /public/_decks/
+/public/assets/
 /docs
 .vercel
 .env*
