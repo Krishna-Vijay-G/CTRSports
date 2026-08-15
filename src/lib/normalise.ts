@@ -83,11 +83,21 @@ export function image(value: unknown, fallback: string): string {
   return trimmed.startsWith("/") || isHttpUrl(trimmed) ? trimmed : fallback;
 }
 
-/** Same rule as an image, plus in-page anchors, which is what most CTAs are. */
+/**
+ * Same rule as an image, plus in-page anchors, which is what most CTAs are.
+ *
+ * `//host` is refused BEFORE the leading-slash branch, and the order is the whole
+ * point: a protocol-relative address starts with a slash and is not a path on
+ * this site — it is `https://host` wearing a path's clothes. Left to the
+ * `startsWith("/")` test it was returned untouched, so a CTA, a sport card or a
+ * link in an article could send a visitor to another site while reading, in the
+ * admin, as though it pointed at ours. `image()` above has always guarded this;
+ * the two are now the same rule, which is what this file exists to guarantee.
+ */
 export function link(value: unknown, fallback: string): string {
   if (typeof value !== "string") return fallback;
   const trimmed = value.trim().slice(0, URL_MAX);
-  if (!trimmed) return fallback;
+  if (!trimmed || trimmed.startsWith("//")) return fallback;
   if (trimmed.startsWith("#") || trimmed.startsWith("/")) return trimmed;
   return isHttpUrl(trimmed) ? trimmed : fallback;
 }

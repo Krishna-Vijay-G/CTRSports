@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { SITE } from "@/config/site";
+import { listPublishedArticles } from "@/lib/server/articlesRepo";
 import { listDeckSummaries } from "@/lib/server/decksRepo";
 import { listTracks } from "@/lib/server/tracksRepo";
 import { trackSlug } from "@/lib/tracks";
@@ -27,10 +28,19 @@ import { trackSlug } from "@/lib/tracks";
  * so it is worth finding. Only the published ones — a draft is not on the
  * internet at all — and the list comes from the table for the same reason the
  * circuits do.
+ *
+ * The articles at /articles/<slug> are here on the same argument as the decks,
+ * only more so: an article is written to be read and to be found. Every published
+ * one is listed whatever page it belongs to, because `page_key` decides who may
+ * edit an article and never who may read it.
  */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
-  const [tracks, decks] = await Promise.all([listTracks(), listDeckSummaries()]);
+  const [tracks, decks, articles] = await Promise.all([
+    listTracks(),
+    listDeckSummaries(),
+    listPublishedArticles(),
+  ]);
 
   return [
     {
@@ -68,6 +78,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       // wholesale or not at all.
       changeFrequency: "yearly" as const,
       priority: 0.5,
+    })),
+    {
+      url: `${SITE.url}/articles`,
+      lastModified: now,
+      // The index gains a card whenever anything is published.
+      changeFrequency: "weekly",
+      priority: 0.7,
+    },
+    ...articles.map((article) => ({
+      url: `${SITE.url}/articles/${article.slug}`,
+      lastModified: now,
+      // Written once and corrected, not rewritten. The index above is where a
+      // crawler finds the new ones.
+      changeFrequency: "monthly" as const,
+      priority: 0.6,
     })),
   ];
 }

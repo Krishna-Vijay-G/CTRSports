@@ -33,8 +33,19 @@ import { Hint } from "@/admin/components/Fields";
  * another record's redirects on the way past.
  */
 
-const PREFIX: Record<SlugKind, string> = { form: "/register/", deck: "/deck/" };
-const THING: Record<SlugKind, string> = { form: "form", deck: "deck" };
+const PREFIX: Record<SlugKind, string> = {
+  form: "/register/",
+  deck: "/deck/",
+  article: "/articles/",
+};
+const THING: Record<SlugKind, string> = { form: "form", deck: "deck", article: "article" };
+
+/** What an address of this kind tends to look like, when nothing suggests one. */
+const PLACEHOLDER: Record<SlugKind, string> = {
+  form: "2026-entry",
+  deck: "entry-pack",
+  article: "season-opener",
+};
 
 /** Long enough that typing an address is one request, not fifteen. */
 const CHECK_DELAY = 350;
@@ -196,7 +207,7 @@ export function SlugField({
           maxLength={SLUG_MAX}
           disabled={disabled}
           autoFocus={autoFocus}
-          placeholder={suggestion || (kind === "form" ? "2026-entry" : "entry-pack")}
+          placeholder={suggestion || PLACEHOLDER[kind]}
           className="h-9 min-w-0 flex-1 rounded-e-md border-0 bg-transparent px-1 text-sm text-foreground outline-none placeholder:text-muted-fg/60 disabled:opacity-50"
         />
 

@@ -67,6 +67,14 @@ const TARGETS: Target[] = [
   { table: "tracks", columns: [{ name: "photo_url" }, { name: "map_url" }] },
   { table: "track_links", columns: [{ name: "href" }] },
   { table: "forms", columns: [{ name: "fields", json: true }, { name: "sections", json: true }] },
+  /*
+   * An article's cover is a plain column; its body is a document holding the
+   * addresses of every picture dropped into the middle of the text. Without the
+   * second one, renaming an article moves its folder and leaves every inline
+   * image pointing at a key that no longer exists — the article would still load
+   * and every picture in it would be broken.
+   */
+  { table: "articles", columns: [{ name: "cover_image" }, { name: "body", json: true }] },
 ];
 
 /** `strpos`, not LIKE: the needle is a literal and `%` and `_` are not wildcards in it. */

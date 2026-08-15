@@ -22,7 +22,11 @@ import { Hint } from "@/admin/components/Fields";
  * on `updateForm`.
  */
 
-const PREFIX: Record<SlugKind, string> = { form: "/register/", deck: "/deck/" };
+const PREFIX: Record<SlugKind, string> = {
+  form: "/register/",
+  deck: "/deck/",
+  article: "/articles/",
+};
 
 export function FormerSlugs({
   kind,

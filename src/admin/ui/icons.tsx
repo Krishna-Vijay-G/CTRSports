@@ -330,3 +330,91 @@ export const PencilIcon = (p: IconProps) => (
     <path d="M13.2 3.3a1.7 1.7 0 0 1 2.4 2.4L7 14.3l-3.2.9.9-3.2 8.5-8.7Z" />
   </Icon>
 );
+
+/* ── Writing ── */
+
+/*
+ * The article editor's toolbar.
+ *
+ * These are the only glyphs in this file that stand for a LETTERFORM rather than
+ * an object, which is why the three below are drawn as filled text rather than
+ * strokes: a 1.5px outline of the letter B at 16px is a smudge. They set
+ * `fill="currentColor"` and `stroke="none"` on the path, overriding the shared
+ * Icon defaults for themselves alone.
+ */
+
+export const BoldIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path
+      fill="currentColor"
+      stroke="none"
+      d="M5.8 3.6h4.6a3.4 3.4 0 0 1 2.4 5.8 3.6 3.6 0 0 1-1.8 6.6H5.8Zm2.3 2v3.2h2.3a1.6 1.6 0 0 0 0-3.2Zm0 5.2V14h2.9a1.6 1.6 0 0 0 0-3.2Z"
+    />
+  </Icon>
+);
+
+export const ItalicIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M12.4 3.9H8.2M11.8 16.1H7.6M11 3.9 9 16.1" />
+  </Icon>
+);
+
+export const UnderlineIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M5.6 3.4v5.9a4.4 4.4 0 0 0 8.8 0V3.4M4.6 16.6h10.8" />
+  </Icon>
+);
+
+/** A heading. The bar under it is what separates it from the bold A. */
+export const HeadingIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4.6 4v9M11.6 4v9M4.6 8.5h7M4.6 16.4h10.8" />
+  </Icon>
+);
+
+export const LinkIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M8.4 11.6a2.9 2.9 0 0 0 4.3.3l2.3-2.3a2.9 2.9 0 0 0-4.1-4.1l-1.3 1.3" />
+    <path d="M11.6 8.4a2.9 2.9 0 0 0-4.3-.3L5 10.4a2.9 2.9 0 0 0 4.1 4.1l1.3-1.3" />
+  </Icon>
+);
+
+/** Removes a link without removing the words it was on. */
+export const UnlinkIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M9.3 6.6 10.6 5.3a2.9 2.9 0 0 1 4.1 4.1l-1.3 1.3" />
+    <path d="M10.7 13.4 9.4 14.7a2.9 2.9 0 0 1-4.1-4.1l1.3-1.3" />
+    <path d="M3.2 3.2l13.6 13.6" />
+  </Icon>
+);
+
+export const QuoteIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4 4.4v11.2" />
+    <path d="M8 6.6h8.4M8 10h8.4M8 13.4h5.4" />
+  </Icon>
+);
+
+export const BulletListIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M7.4 5.4h9M7.4 10h9M7.4 14.6h9" />
+    <circle cx="4.2" cy="5.4" r="0.9" fill="currentColor" stroke="none" />
+    <circle cx="4.2" cy="10" r="0.9" fill="currentColor" stroke="none" />
+    <circle cx="4.2" cy="14.6" r="0.9" fill="currentColor" stroke="none" />
+  </Icon>
+);
+
+export const NumberListIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M7.8 5.4h8.6M7.8 10h8.6M7.8 14.6h8.6" />
+    <path d="M3.2 4.6l1.1-.6v2.9M3.1 8.9a1.1 1.1 0 0 1 1.9.8c0 .8-1.9 1.5-1.9 2.2h2M3.2 13.5h1.8l-1 1.2a1 1 0 1 1-.8 1.5" />
+  </Icon>
+);
+
+/** A rule across the article. */
+export const RuleIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M3.2 10h13.6" />
+    <path d="M5.6 5.6h8.8M5.6 14.4h8.8" opacity="0.4" />
+  </Icon>
+);

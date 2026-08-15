@@ -23,8 +23,22 @@ export type AdminsRow = {
   id: string;
   username: string;
   password_hash: string;
-  created_at: Date;
   role: string;
+  created_at: Date;
+};
+
+export type ArticlesRow = {
+  id: string;
+  page_key: string | null;
+  title: string;
+  subtext: string;
+  cover_image: string;
+  body: unknown;
+  status: string;
+  published_at: string | null;
+  sort_order: number;
+  created_at: Date;
+  updated_at: Date;
 };
 
 export type BannersRow = {
@@ -130,13 +144,13 @@ export type FormsRow = {
   closed_note: string;
   notify_to: string;
   fields: unknown;
-  sort_order: number;
-  created_at: Date;
-  updated_at: Date;
+  sections: unknown;
   opens_at: Date | null;
   closes_at: Date | null;
   max_entries: number;
-  sections: unknown;
+  sort_order: number;
+  created_at: Date;
+  updated_at: Date;
 };
 
 export type PageSectionsRow = {
@@ -174,6 +188,13 @@ export type PostsRow = {
   href: string;
 };
 
+export type SchemaMigrationsRow = {
+  version: string;
+  name: string;
+  checksum: string;
+  applied_at: Date;
+};
+
 export type SessionsRow = {
   token_hash: string;
   admin_id: string;
@@ -195,12 +216,12 @@ export type SportsRow = {
   text: string;
   details: string;
   logo_url: string;
+  photo_url: string;
+  href: string;
   sort_order: number;
   is_visible: boolean;
   created_at: Date;
   updated_at: Date;
-  photo_url: string;
-  href: string;
 };
 
 export type TrackLinksRow = {
@@ -214,28 +235,28 @@ export type TracksRow = {
   id: string;
   name: string;
   location: string;
-  map_url: string;
-  length: string;
-  turns: string;
-  note: string;
-  sort_order: number;
-  created_at: Date;
-  updated_at: Date;
   photo_url: string;
+  map_url: string;
   svg_path: string;
   svg_view_box: string;
-  former_names: string;
-  owner: string;
-  fia_grade: string;
+  length: string;
+  turns: string;
   direction: string;
   opened: string;
   broke_ground: string;
+  former_names: string;
+  owner: string;
+  fia_grade: string;
   coordinates: string;
   capacity: string;
   major_events: string;
   lap_record_time: string;
   lap_record_year: string;
   races_held: number;
+  note: string;
+  sort_order: number;
+  created_at: Date;
+  updated_at: Date;
   slug: string;
 };
 
@@ -243,6 +264,7 @@ export type TracksRow = {
 export type CtrTables = {
   admin_pages: AdminPagesRow;
   admins: AdminsRow;
+  articles: ArticlesRow;
   banners: BannersRow;
   calendar_rounds: CalendarRoundsRow;
   deck_pages: DeckPagesRow;
@@ -257,6 +279,7 @@ export type CtrTables = {
   pages: PagesRow;
   partners: PartnersRow;
   posts: PostsRow;
+  schema_migrations: SchemaMigrationsRow;
   sessions: SessionsRow;
   slugs: SlugsRow;
   sports: SportsRow;

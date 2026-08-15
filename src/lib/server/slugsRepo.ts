@@ -31,7 +31,7 @@ import { getSql } from "@/lib/server/db";
  * job is addresses somebody else could claim.
  */
 
-export type SlugEntity = "deck" | "form";
+export type SlugEntity = "deck" | "form" | "article";
 
 /** Deleting the row cleans these up — see the trigger in migrations/0002. */
 
@@ -52,6 +52,12 @@ export async function findSlugOwner(
   const sql = getSql();
   const except = exceptId || "00000000-0000-0000-0000-000000000000";
 
+  /*
+   * Three branches, spelled out. An article's readable name is its `title`, so it
+   * is aliased to `name` here rather than the caller learning a third column —
+   * `SlugHolder` says "name" because that is what the sentence under the address
+   * box prints.
+   */
   const rows = (
     entity === "deck"
       ? await sql`
@@ -60,12 +66,19 @@ export async function findSlugOwner(
            WHERE s.entity_type = 'deck' AND s.slug = ${slug} AND d.id <> ${except}
            LIMIT 1
         `
-      : await sql`
-          SELECT f.id, f.name, s.is_current
-            FROM ctr.slugs s JOIN ctr.forms f ON f.id = s.entity_id
-           WHERE s.entity_type = 'form' AND s.slug = ${slug} AND f.id <> ${except}
-           LIMIT 1
-        `
+      : entity === "article"
+        ? await sql`
+            SELECT a.id, a.title AS name, s.is_current
+              FROM ctr.slugs s JOIN ctr.articles a ON a.id = s.entity_id
+             WHERE s.entity_type = 'article' AND s.slug = ${slug} AND a.id <> ${except}
+             LIMIT 1
+          `
+        : await sql`
+            SELECT f.id, f.name, s.is_current
+              FROM ctr.slugs s JOIN ctr.forms f ON f.id = s.entity_id
+             WHERE s.entity_type = 'form' AND s.slug = ${slug} AND f.id <> ${except}
+             LIMIT 1
+          `
   ) as { id: string; name: string; is_current: boolean }[];
 
   const row = rows[0];

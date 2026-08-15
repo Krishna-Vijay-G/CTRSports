@@ -21,7 +21,7 @@ import { getSql } from "@/lib/server/db";
  * The obvious shape is a `LIKE` per key, UNION'd. That is one round trip per
  * key through the Neon HTTP driver, so deleting a folder of two hundred files
  * would be two hundred round trips. Inverted here: pull the candidate columns
- * once, match in memory, resolve ids to names in the same pass. **Seven queries
+ * once, match in memory, resolve ids to names in the same pass. **Eight queries
  * total, however many keys are asked about.**
  *
  * Safe HERE AND ONLY HERE because these tables are tiny by construction —
@@ -46,6 +46,7 @@ import { getSql } from "@/lib/server/db";
  *   sports               logo_url and photo_url, as before
  *   tracks               photo_url and map_url; links moved to track_links.href
  *   forms                fields and sections stay JSONB, so still text
+ *   articles             cover_image is a column, body is a document
  *
  * The originally-stated reasoning — "pull the text once, match in memory" —
  * therefore only applies to the three that are still documents. The rest are
@@ -68,7 +69,7 @@ import { getSql } from "@/lib/server/db";
  */
 
 export type UsageRef = {
-  kind: "content" | "deck" | "sport" | "track" | "form" | "source";
+  kind: "content" | "deck" | "sport" | "track" | "form" | "article" | "source";
   label: string;
   /**
    * The page editor this reference belongs to, or null for one that belongs to
@@ -102,7 +103,8 @@ let warned = false;
  * this", which makes it overridable by an owner alone. Unknown means stricter,
  * never looser — the same posture `normaliseRole` takes.
  */
-function pageKeyOf(value: string): PageKey | null {
+function pageKeyOf(value: string | null): PageKey | null {
+  if (value === null) return null;
   return (PAGE_KEYS as readonly string[]).includes(value) ? (value as PageKey) : null;
 }
 
@@ -147,7 +149,8 @@ export async function findUsage(keys: string[]): Promise<KeyUsage[]> {
   const sql = getSql();
   const encoded = wanted.map((key) => encodeURI(key));
 
-  const [sections, banners, posts, partners, deckPages, columns, documents] = await Promise.all([
+  const [sections, banners, posts, partners, deckPages, columns, documents, articles] =
+    await Promise.all([
     sql`SELECT page_key, section_id, data::text AS blob FROM ctr.page_sections`,
 
     sql`SELECT b.page_key, b.image AS url FROM ctr.banners b
@@ -186,6 +189,24 @@ export async function findUsage(keys: string[]): Promise<KeyUsage[]> {
     // written and read as one atomic unit — so a URL pasted into a question's
     // help text is inside a document and has to be matched as text.
     sql`SELECT name, fields::text || ' ' || sections::text AS blob FROM ctr.forms`,
+
+    /*
+     * An article is both shapes at once: `cover_image` is a plain column and
+     * `body` is a document holding every picture dropped into the middle of the
+     * text. Both go into one blob and are matched in memory, because the body has
+     * to be and splitting them would be two queries to answer one question.
+     *
+     * Unlike the three documents above, this one is FILTERED in SQL first. An
+     * article body is far larger than a section's, and there is no reason to pull
+     * the complete text of every article ever written in order to report on the
+     * handful that mention these keys.
+     */
+    sql`SELECT a.title, a.page_key,
+               coalesce(a.cover_image, '') || ' ' || a.body::text AS blob
+          FROM ctr.articles a
+         WHERE EXISTS (SELECT 1 FROM unnest(${wanted}::text[]) AS k(key)
+                        WHERE position(k.key in coalesce(a.cover_image, '')) > 0
+                           OR position(k.key in a.body::text) > 0)`,
   ]);
 
   const sectionRows = sections as { page_key: string; section_id: string; blob: string }[];
@@ -234,6 +255,20 @@ export async function findUsage(keys: string[]): Promise<KeyUsage[]> {
   // so there is no page editor who can be said to own one.
   for (const row of formRows) {
     scan(row.blob, () => ({ kind: "form", label: `Form: ${row.name}`, page: null }));
+  }
+
+  /*
+   * An article's page is the page whose editors wrote it — and NULL for one
+   * written for the whole site, which makes it overridable by an owner alone.
+   * That is the right answer for the same reason it is the right answer on the
+   * article itself: nobody but an owner can see every page it appears on.
+   */
+  for (const row of articles as { title: string; page_key: string | null; blob: string }[]) {
+    scan(row.blob, () => ({
+      kind: "article",
+      label: `Article: ${row.title || "Untitled"}`,
+      page: pageKeyOf(row.page_key),
+    }));
   }
 
   for (const row of columns as { kind: string; label: string; blob: string }[]) {

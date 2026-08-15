@@ -63,8 +63,8 @@ export function fallbackSlug(prefix: string): string {
 
 /* ─────────────────────────── Who holds one ─────────────────────────── */
 
-/** The two things that publish at an address. Decides which table is asked. */
-export type SlugKind = "form" | "deck";
+/** The things that publish at an address. Decides which table is asked. */
+export type SlugKind = "form" | "deck" | "article";
 
 /**
  * Whatever already answers to an address.

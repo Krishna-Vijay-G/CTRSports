@@ -21,6 +21,7 @@ import {
   FolderIcon,
   ImagesIcon,
   MapIcon,
+  NewsIcon,
   PanelIcon,
   SignOutIcon,
   StackIcon,
@@ -92,6 +93,16 @@ const NAV: NavItem[] = [
   { href: "/incrc", label: "INCRC", icon: FlagIcon, page: "incrc" },
   { href: "/tracks", label: "Circuits", icon: MapIcon, page: "circuits" },
   { href: "/decks", label: "Decks", icon: StackIcon, page: "decks" },
+  /*
+   * `anyPage` rather than a `page` of its own, on purpose.
+   *
+   * Articles are scoped BY the four pages above, not alongside them: an INCRC
+   * editor writes the INCRC articles and the owner writes the ones that belong to
+   * the whole site. There is no fifth `PageKey` to grant, so the door is the same
+   * one the media library uses, and what narrows the screen is the list it draws —
+   * `listArticles` returns only the articles this account may open.
+   */
+  { href: "/articles", label: "Articles", icon: NewsIcon, needs: "anyPage" },
   /*
    * `FolderIcon` rather than `ImagesIcon`: the latter is already the landing
    * page's glyph and two rows sharing one shape defeats the point of the rail.

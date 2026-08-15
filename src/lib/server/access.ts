@@ -111,6 +111,26 @@ export function guardOwner(): Promise<NextResponse | null> {
   return guard(canManageAdmins);
 }
 
+/**
+ * One article, which is guarded by the page it belongs to.
+ *
+ * An article belonging to NO page belongs to every page, so it takes the owner.
+ * That is the same strict reading of null that `canOverrideUsage` applies to a
+ * media reference, and for the same reason: a thing that is not one page's
+ * business can only be judged by the account that can see every page it affects.
+ *
+ * ── The half that is easy to miss ─────────────────────────────────────────
+ *
+ * A save has TWO pages to ask about — the one the article is on now and the one
+ * the request wants it on — and both have to pass. Guarding only the requested
+ * page lets a circuits editor take over an INCRC article by claiming it as their
+ * own; guarding only the stored page lets them push their own article onto a page
+ * they do not administer. The routes call this twice, on purpose.
+ */
+export function guardArticle(page: PageKey | null): Promise<NextResponse | null> {
+  return page === null ? guardOwner() : guardPage(page);
+}
+
 /* ─────────────────────────── Screens ──────────────────────────── */
 
 /**

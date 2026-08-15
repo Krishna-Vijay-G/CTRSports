@@ -79,6 +79,17 @@ export const CIRCUIT_UPLOAD_FOLDER = "circuits";
 export const SPORTS_UPLOAD_FOLDER = "landing/sports";
 
 /**
+ * Where an article's pictures go when the article belongs to no page.
+ *
+ * A page article nests under its page — `incrc/articles/<slug>` — so the first
+ * segment is the page key and `pageOfFolder` scopes it with no further change. An
+ * ALL-PAGES article has no page to nest under, so it takes a root of its own,
+ * which is shared for the same reason `uploads` is: it is cross-cutting by
+ * construction and cannot belong to one page. See `folderForArticle`.
+ */
+export const ARTICLES_UPLOAD_FOLDER = "articles";
+
+/**
  * Names that would be confusing, dangerous or both.
  *
  * `entries` because a folder of that name under media reads exactly like the
@@ -280,7 +291,7 @@ export function folderOfKey(key: string): string {
  * file is rescued to when the entity owning its folder is deleted. It is
  * cross-cutting by construction, so it cannot belong to one page.
  */
-export const SHARED_ROOTS: string[] = [DEFAULT_UPLOAD_FOLDER];
+export const SHARED_ROOTS: string[] = [DEFAULT_UPLOAD_FOLDER, ARTICLES_UPLOAD_FOLDER];
 
 /**
  * Which page editor a folder belongs to, or null for one that belongs to none.
@@ -400,4 +411,27 @@ export function entitySegment(slug: string, id: string): string {
 /** `decks/world-of-ctr`. The root is the page key; see the note above. */
 export function folderForEntity(page: PageKey, slug: string, id: string): string {
   return `${page}/${entitySegment(slug, id)}`;
+}
+
+/**
+ * `incrc/articles/season-opener`, or `articles/season-opener` for an all-pages one.
+ *
+ * Three segments rather than two, deliberately. A page's root is where that
+ * screen's own uploads land, and articles would otherwise fill it with a folder
+ * per article; nesting them under `articles/` keeps the page's own pictures
+ * findable. Three is inside `MAX_FOLDER_DEPTH`, and the FIRST segment is still the
+ * page key, so `pageOfFolder` scopes it exactly as it scopes a deck.
+ *
+ * An article with no page has no page key to lead with, so it takes
+ * `ARTICLES_UPLOAD_FOLDER`, which is a shared root. Note what that means: a page
+ * editor can write into it. That is the same access they already have to
+ * `uploads/`, and it is not a way to reach the article — writing the ROW is
+ * guarded separately, by `guardArticle`, and an all-pages article takes the owner.
+ *
+ * Deterministic, like `folderForEntity`: called once to place an upload and again
+ * later to find that folder to move or delete it.
+ */
+export function folderForArticle(page: PageKey | null, slug: string, id: string): string {
+  const segment = entitySegment(slug, id);
+  return page ? `${page}/${ARTICLES_UPLOAD_FOLDER}/${segment}` : `${ARTICLES_UPLOAD_FOLDER}/${segment}`;
 }
