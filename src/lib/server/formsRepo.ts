@@ -114,11 +114,11 @@ export const listForms = cache(async (pages?: readonly string[]): Promise<Form[]
            submit_label, success_title, success_body, closed_note, notify_to,
            opens_at, closes_at, max_entries,
            fields, sections, sort_order,
-           (SELECT s.slug FROM slugs s
+           (SELECT s.slug FROM ctr.slugs s
              WHERE s.entity_type = 'form' AND s.entity_id = f.id AND s.is_current) AS slug,
-           (SELECT coalesce(jsonb_agg(s.slug ORDER BY s.created_at), '[]'::jsonb) FROM slugs s
+           (SELECT coalesce(jsonb_agg(s.slug ORDER BY s.created_at), '[]'::jsonb) FROM ctr.slugs s
              WHERE s.entity_type = 'form' AND s.entity_id = f.id AND NOT s.is_current) AS former_slugs
-      FROM forms f
+      FROM ctr.forms f
      WHERE ${wanted}::text[] IS NULL OR f.page_key = ANY(${wanted}::text[])
      ORDER BY f.sort_order ASC, f.name ASC
   `) as Form[];
@@ -142,10 +142,10 @@ export async function listFormsForPage(page: FormPageKey): Promise<FormSummary[]
   const rows = (await sql`
     SELECT f.id, f.name, f.page_key, f.status, f.blurb, f.sort_order,
            f.opens_at, f.closes_at, f.max_entries,
-           (SELECT s.slug FROM slugs s
+           (SELECT s.slug FROM ctr.slugs s
              WHERE s.entity_type = 'form' AND s.entity_id = f.id AND s.is_current) AS slug,
-           (SELECT count(*)::int FROM form_entries e WHERE e.form_id = f.id) AS entries
-      FROM forms f
+           (SELECT count(*)::int FROM ctr.form_entries e WHERE e.form_id = f.id) AS entries
+      FROM ctr.forms f
      WHERE f.page_key = ${page}
        AND f.status <> 'draft'
      ORDER BY f.sort_order ASC, f.name ASC
@@ -183,11 +183,11 @@ export async function getForm(id: string): Promise<Form | null> {
            submit_label, success_title, success_body, closed_note, notify_to,
            opens_at, closes_at, max_entries,
            fields, sections, sort_order,
-           (SELECT s.slug FROM slugs s
+           (SELECT s.slug FROM ctr.slugs s
              WHERE s.entity_type = 'form' AND s.entity_id = f.id AND s.is_current) AS slug,
-           (SELECT coalesce(jsonb_agg(s.slug ORDER BY s.created_at), '[]'::jsonb) FROM slugs s
+           (SELECT coalesce(jsonb_agg(s.slug ORDER BY s.created_at), '[]'::jsonb) FROM ctr.slugs s
              WHERE s.entity_type = 'form' AND s.entity_id = f.id AND NOT s.is_current) AS former_slugs
-      FROM forms f
+      FROM ctr.forms f
      WHERE f.id = ${id}
   `) as Form[];
 
@@ -311,7 +311,7 @@ async function insertForm(f: Omit<Form, "id">): Promise<Form> {
   const sql = getSql();
 
   const rows = (await sql`
-    INSERT INTO forms (
+    INSERT INTO ctr.forms (
       name, page_key, status, blurb, intro_title, intro_body,
       submit_label, success_title, success_body, closed_note, notify_to,
       opens_at, closes_at, max_entries, fields, sections, sort_order
@@ -400,7 +400,7 @@ export async function updateForm(
       : kept.filter((slug) => slug !== f.slug);
 
   const rows = (await sql`
-    UPDATE forms
+    UPDATE ctr.forms
        SET name          = ${f.name},
            page_key      = ${f.page_key},
            status        = ${f.status},
@@ -443,7 +443,7 @@ export async function reorderForms(ids: string[]): Promise<void> {
   const orders = ids.map((_, index) => (index + 1) * 10);
 
   await sql`
-    UPDATE forms f
+    UPDATE ctr.forms f
        SET sort_order = wanted.position, updated_at = now()
       FROM unnest(${ids}::uuid[], ${orders}::int[]) AS wanted(id, position)
      WHERE f.id = wanted.id
@@ -475,15 +475,15 @@ export async function deleteForm(id: string): Promise<boolean> {
    */
   const keys = (await sql`
     SELECT k.s3_key
-      FROM form_entry_files k
-      JOIN form_entries e ON e.id = k.entry_id
+      FROM ctr.form_entry_files k
+      JOIN ctr.form_entries e ON e.id = k.entry_id
      WHERE e.form_id = ${id}
   `) as { s3_key: string }[];
 
   const files = keys.map((row) => row.s3_key).filter(Boolean);
 
   const rows = (await sql`
-    DELETE FROM forms WHERE id = ${id} RETURNING id
+    DELETE FROM ctr.forms WHERE id = ${id} RETURNING id
   `) as { id: string }[];
 
   if (rows.length === 0) return false;

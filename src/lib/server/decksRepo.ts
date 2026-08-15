@@ -95,22 +95,22 @@ function hydrate(row: DeckRow): Deck {
 const PAGES = `
   (SELECT coalesce(jsonb_agg(jsonb_build_object('url', p.url, 'alt', p.alt)
             ORDER BY p.position), '[]'::jsonb)
-     FROM deck_pages p WHERE p.deck_id = d.id) AS pages`;
+     FROM ctr.deck_pages p WHERE p.deck_id = d.id) AS pages`;
 
 const SLUG = `
-  (SELECT s.slug FROM slugs s
+  (SELECT s.slug FROM ctr.slugs s
     WHERE s.entity_type = 'deck' AND s.entity_id = d.id AND s.is_current) AS slug`;
 
 const FORMER = `
   (SELECT coalesce(jsonb_agg(s.slug ORDER BY s.created_at), '[]'::jsonb)
-     FROM slugs s
+     FROM ctr.slugs s
     WHERE s.entity_type = 'deck' AND s.entity_id = d.id AND NOT s.is_current) AS former_slugs`;
 
 export const listDecks = cache(async (): Promise<Deck[]> => {
   const sql = getSql();
   const rows = (await sql.query(`
     SELECT ${COLUMNS}, ${SLUG}, ${FORMER}, ${PAGES}
-      FROM decks d
+      FROM ctr.decks d
      ORDER BY d.sort_order ASC, d.name ASC
   `)) as DeckRow[];
 
@@ -131,12 +131,12 @@ export const listDeckSummaries = cache(async (): Promise<DeckSummary[]> => {
 
   const rows = (await sql`
     SELECT d.id, d.name, d.blurb,
-           (SELECT s.slug FROM slugs s
+           (SELECT s.slug FROM ctr.slugs s
              WHERE s.entity_type = 'deck' AND s.entity_id = d.id AND s.is_current) AS slug,
-           (SELECT p.url FROM deck_pages p
+           (SELECT p.url FROM ctr.deck_pages p
              WHERE p.deck_id = d.id ORDER BY p.position LIMIT 1) AS cover,
-           (SELECT count(*)::int FROM deck_pages p WHERE p.deck_id = d.id) AS pages
-      FROM decks d
+           (SELECT count(*)::int FROM ctr.deck_pages p WHERE p.deck_id = d.id) AS pages
+      FROM ctr.decks d
      WHERE d.status = 'published'
      ORDER BY d.sort_order ASC, d.name ASC
   `) as { id: string; name: string; blurb: string; slug: string | null; cover: string | null; pages: number }[];
@@ -167,7 +167,7 @@ export async function listDeckSummariesSafe(): Promise<DeckSummary[]> {
 export async function getDeck(id: string): Promise<Deck | null> {
   const sql = getSql();
   const rows = (await sql.query(
-    `SELECT ${COLUMNS}, ${SLUG}, ${FORMER}, ${PAGES} FROM decks d WHERE d.id = $1`,
+    `SELECT ${COLUMNS}, ${SLUG}, ${FORMER}, ${PAGES} FROM ctr.decks d WHERE d.id = $1`,
     [id]
   )) as DeckRow[];
 
@@ -268,7 +268,7 @@ async function insertDeck(d: Omit<Deck, "id">): Promise<Deck> {
   const sql = getSql();
 
   const rows = (await sql`
-    INSERT INTO decks (name, status, blurb, show_heading, sort_order)
+    INSERT INTO ctr.decks (name, status, blurb, show_heading, sort_order)
     VALUES (${d.name}, ${d.status}, ${d.blurb}, ${d.show_heading}, ${d.sort_order})
     RETURNING id
   `) as { id: string }[];
@@ -294,10 +294,10 @@ async function writePages(id: string, pages: { url: string; alt: string }[]): Pr
   const sql = getSql();
 
   await sql.transaction([
-    sql`DELETE FROM deck_pages WHERE deck_id = ${id}`,
+    sql`DELETE FROM ctr.deck_pages WHERE deck_id = ${id}`,
     ...pages.map(
       (page, index) => sql`
-        INSERT INTO deck_pages (deck_id, position, url, alt)
+        INSERT INTO ctr.deck_pages (deck_id, position, url, alt)
         VALUES (${id}, ${index + 1}, ${page.url}, ${page.alt})
       `
     ),
@@ -366,7 +366,7 @@ export async function updateDeck(
   }
 
   const rows = (await sql`
-    UPDATE decks
+    UPDATE ctr.decks
        SET name         = ${d.name},
            status       = ${d.status},
            blurb        = ${d.blurb},
@@ -398,7 +398,7 @@ export async function reorderDecks(ids: string[]): Promise<void> {
   const orders = ids.map((_, index) => (index + 1) * 10);
 
   await sql`
-    UPDATE decks d
+    UPDATE ctr.decks d
        SET sort_order = wanted.position, updated_at = now()
       FROM unnest(${ids}::uuid[], ${orders}::int[]) AS wanted(id, position)
      WHERE d.id = wanted.id
@@ -423,7 +423,7 @@ export async function reorderDecks(ids: string[]): Promise<void> {
 export async function deleteDeck(id: string): Promise<boolean> {
   const sql = getSql();
   const rows = (await sql`
-    DELETE FROM decks WHERE id = ${id} RETURNING id
+    DELETE FROM ctr.decks WHERE id = ${id} RETURNING id
   `) as { id: string }[];
 
   return rows.length > 0;

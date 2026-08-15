@@ -72,8 +72,8 @@ const ANSWERS = `
               CASE WHEN bool_or(a.is_list)
                    THEN jsonb_agg(to_jsonb(shown.text) ORDER BY a.idx)
                    ELSE to_jsonb(min(shown.text)) END AS value
-         FROM form_entry_answers a
-         LEFT JOIN form_entry_files f
+         FROM ctr.form_entry_answers a
+         LEFT JOIN ctr.form_entry_files f
                 ON f.entry_id = a.entry_id AND f.field_id = a.field_id AND f.idx = a.idx
          CROSS JOIN LATERAL (
            SELECT CASE
@@ -167,11 +167,11 @@ function writeAnswers(id: string, answers: Submission) {
   const rows = rowsOf(answers);
 
   return [
-    sql`DELETE FROM form_entry_answers WHERE entry_id = ${id}`,
-    sql`DELETE FROM form_entry_files WHERE entry_id = ${id}`,
+    sql`DELETE FROM ctr.form_entry_answers WHERE entry_id = ${id}`,
+    sql`DELETE FROM ctr.form_entry_files WHERE entry_id = ${id}`,
     ...rows.map(
       (row) => sql`
-        INSERT INTO form_entry_answers (entry_id, field_id, idx, is_list, value_text, value_num, value_date)
+        INSERT INTO ctr.form_entry_answers (entry_id, field_id, idx, is_list, value_text, value_num, value_date)
         VALUES (${id}, ${row.field}, ${row.idx}, ${row.isList}, ${row.text},
                 ${row.num}, ${row.date})
       `
@@ -180,7 +180,7 @@ function writeAnswers(id: string, answers: Submission) {
       .filter((row) => row.file)
       .map(
         (row) => sql`
-          INSERT INTO form_entry_files (entry_id, field_id, idx, s3_key, file_name, size_bytes)
+          INSERT INTO ctr.form_entry_files (entry_id, field_id, idx, s3_key, file_name, size_bytes)
           VALUES (${id}, ${row.field}, ${row.idx}, ${row.file!.key}, ${row.file!.name},
                   ${row.file!.size})
         `
@@ -197,7 +197,7 @@ export async function createEntry(
   const sql = getSql();
 
   const rows = (await sql`
-    INSERT INTO form_entries (form_id, ip, user_agent)
+    INSERT INTO ctr.form_entries (form_id, ip, user_agent)
     VALUES (${formId}, ${ip.slice(0, IP_MAX)}, ${userAgent.slice(0, AGENT_MAX)})
     RETURNING id
   `) as { id: string }[];
@@ -239,9 +239,9 @@ export async function createEntryWithinCap(
   const sql = getSql();
 
   const rows = (await sql`
-    INSERT INTO form_entries (form_id, ip, user_agent)
+    INSERT INTO ctr.form_entries (form_id, ip, user_agent)
     SELECT ${formId}, ${ip.slice(0, IP_MAX)}, ${userAgent.slice(0, AGENT_MAX)}
-     WHERE (SELECT count(*) FROM form_entries WHERE form_id = ${formId}) < ${cap}
+     WHERE (SELECT count(*) FROM ctr.form_entries WHERE form_id = ${formId}) < ${cap}
     RETURNING id
   `) as { id: string }[];
 
@@ -293,7 +293,7 @@ export async function listEntries(
   if (sort?.key === CREATED_KEY) {
     const rows = (await sql.query(
       `SELECT ${COLUMNS}, ${ANSWERS}
-         FROM form_entries e
+         FROM ctr.form_entries e
         WHERE e.form_id = $1
         ORDER BY e.created_at ${sort.dir === "asc" ? "ASC" : "DESC"},
                  e.id ${sort.dir === "asc" ? "ASC" : "DESC"}
@@ -330,8 +330,8 @@ export async function listEntries(
 
     const rows = (await sql.query(
       `SELECT ${COLUMNS}, ${ANSWERS}
-         FROM form_entries e
-         LEFT JOIN form_entry_answers a
+         FROM ctr.form_entries e
+         LEFT JOIN ctr.form_entry_answers a
                 ON a.entry_id = e.id AND a.field_id = $2 AND a.idx = 0
         WHERE e.form_id = $1
         ORDER BY a.value_num ${direction} NULLS LAST,
@@ -347,7 +347,7 @@ export async function listEntries(
   const rows = before
     ? ((await sql.query(
         `SELECT ${COLUMNS}, ${ANSWERS}
-           FROM form_entries e
+           FROM ctr.form_entries e
           WHERE e.form_id = $1
             -- Both halves, compared as a row: this is the tie-break the note
             -- above promises, and without it rows sharing a timestamp with the
@@ -359,7 +359,7 @@ export async function listEntries(
       )) as FormEntry[])
     : ((await sql.query(
         `SELECT ${COLUMNS}, ${ANSWERS}
-           FROM form_entries e
+           FROM ctr.form_entries e
           WHERE e.form_id = $1
           ORDER BY e.created_at DESC, e.id DESC
           LIMIT $2`,
@@ -374,7 +374,7 @@ export async function getEntry(formId: string, entryId: string): Promise<FormEnt
   const sql = getSql();
   const rows = (await sql.query(
     `SELECT ${COLUMNS}, ${ANSWERS}
-       FROM form_entries e
+       FROM ctr.form_entries e
       WHERE e.id = $1 AND e.form_id = $2`,
     [entryId, formId]
   )) as FormEntry[];
@@ -400,7 +400,7 @@ export async function updateEntry(
   // form_id of its own, so this is what stops an id from one screen reaching
   // into another form's entries.
   const rows = (await sql`
-    SELECT id FROM form_entries WHERE id = ${entryId} AND form_id = ${formId}
+    SELECT id FROM ctr.form_entries WHERE id = ${entryId} AND form_id = ${formId}
   `) as { id: string }[];
 
   if (rows.length === 0) return null;
@@ -429,7 +429,7 @@ export async function countEntriesSafe(formId: string): Promise<number> {
 export async function countEntries(formId: string): Promise<number> {
   const sql = getSql();
   const rows = (await sql`
-    SELECT count(*)::int AS count FROM form_entries WHERE form_id = ${formId}
+    SELECT count(*)::int AS count FROM ctr.form_entries WHERE form_id = ${formId}
   `) as { count: number }[];
 
   return rows[0]?.count ?? 0;
@@ -455,7 +455,7 @@ export async function countRecentEntries(
 
   const rows = (await sql`
     SELECT count(*)::int AS count
-      FROM form_entries
+      FROM ctr.form_entries
      WHERE form_id = ${formId}
        AND ip = ${ip.slice(0, IP_MAX)}
        AND created_at > ${since}
@@ -468,7 +468,7 @@ export async function countRecentEntries(
 export async function deleteEntry(formId: string, entryId: string): Promise<boolean> {
   const sql = getSql();
   const rows = (await sql`
-    DELETE FROM form_entries
+    DELETE FROM ctr.form_entries
      WHERE id = ${entryId} AND form_id = ${formId}
     RETURNING id
   `) as { id: string }[];
@@ -494,7 +494,7 @@ export async function deleteEntries(formId: string, ids: string[]): Promise<numb
   const wanted = ids.slice(0, MAX_BULK_DELETE);
 
   const rows = (await sql`
-    DELETE FROM form_entries
+    DELETE FROM ctr.form_entries
      WHERE form_id = ${formId} AND id = ANY(${wanted}::uuid[])
     RETURNING id
   `) as { id: string }[];

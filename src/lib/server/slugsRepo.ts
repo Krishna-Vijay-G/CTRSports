@@ -56,13 +56,13 @@ export async function findSlugOwner(
     entity === "deck"
       ? await sql`
           SELECT d.id, d.name, s.is_current
-            FROM slugs s JOIN decks d ON d.id = s.entity_id
+            FROM ctr.slugs s JOIN ctr.decks d ON d.id = s.entity_id
            WHERE s.entity_type = 'deck' AND s.slug = ${slug} AND d.id <> ${except}
            LIMIT 1
         `
       : await sql`
           SELECT f.id, f.name, s.is_current
-            FROM slugs s JOIN forms f ON f.id = s.entity_id
+            FROM ctr.slugs s JOIN ctr.forms f ON f.id = s.entity_id
            WHERE s.entity_type = 'form' AND s.slug = ${slug} AND f.id <> ${except}
            LIMIT 1
         `
@@ -86,7 +86,7 @@ export async function resolveSlug(
   const sql = getSql();
 
   const rows = (await sql`
-    SELECT entity_id, is_current FROM slugs
+    SELECT entity_id, is_current FROM ctr.slugs
      WHERE entity_type = ${entity} AND slug = ${slug}
      LIMIT 1
   `) as { entity_id: string; is_current: boolean }[];
@@ -103,7 +103,7 @@ export async function listSlugs(
   const sql = getSql();
 
   const rows = (await sql`
-    SELECT slug, is_current FROM slugs
+    SELECT slug, is_current FROM ctr.slugs
      WHERE entity_type = ${entity} AND entity_id = ${id}
      ORDER BY is_current DESC, created_at ASC
   `) as { slug: string; is_current: boolean }[];
@@ -142,17 +142,17 @@ export async function writeSlugs(
   await sql.transaction([
     // Addresses this thing no longer answers to at all.
     sql`
-      DELETE FROM slugs
+      DELETE FROM ctr.slugs
        WHERE entity_type = ${entity} AND entity_id = ${id}
          AND NOT (slug = ANY(${keep}::text[]))
     `,
     sql`
-      UPDATE slugs SET is_current = false
+      UPDATE ctr.slugs SET is_current = false
        WHERE entity_type = ${entity} AND entity_id = ${id} AND is_current
     `,
     ...former.map(
       (slug) => sql`
-        INSERT INTO slugs (entity_type, slug, entity_id, is_current)
+        INSERT INTO ctr.slugs (entity_type, slug, entity_id, is_current)
         VALUES (${entity}, ${slug}, ${id}, false)
         ON CONFLICT (entity_type, slug) DO UPDATE
           SET entity_id = EXCLUDED.entity_id, is_current = false
@@ -160,7 +160,7 @@ export async function writeSlugs(
       `
     ),
     sql`
-      INSERT INTO slugs (entity_type, slug, entity_id, is_current)
+      INSERT INTO ctr.slugs (entity_type, slug, entity_id, is_current)
       VALUES (${entity}, ${current}, ${id}, true)
       ON CONFLICT (entity_type, slug) DO UPDATE
         SET entity_id = EXCLUDED.entity_id, is_current = true
@@ -184,7 +184,7 @@ export async function releaseFormerSlug(
   const sql = getSql();
 
   const rows = (await sql`
-    DELETE FROM slugs
+    DELETE FROM ctr.slugs
      WHERE entity_type = ${entity} AND slug = ${slug}
        AND entity_id = ${fromId} AND NOT is_current
     RETURNING slug

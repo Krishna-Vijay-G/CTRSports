@@ -7,6 +7,8 @@ import {
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { MAX_FOLDER_DEPTH, folderSegments, isMediaKey } from "@/lib/mediaPaths";
 
 /**
  * Everything this project writes lives under one prefix, which is what keeps
@@ -97,30 +99,276 @@ export type MediaObject = {
 };
 
 /**
+ * The cache header every uploaded object carries.
+ *
+ * Honest only because keys carry a full uuid and are never reused — see the
+ * note on the key format in src/lib/mediaPaths.ts. It was an inline literal in
+ * two places; it is one constant now because `presignUpload` has to SIGN the
+ * exact same string, and two copies of a signed value is a bug waiting for the
+ * day somebody edits one.
+ */
+const IMMUTABLE = "public, max-age=31536000, immutable";
+
+/** A folder, as the browser needs to draw one. */
+export type MediaFolder = { path: string; name: string };
+
+export type MediaListing = {
+  folder: string;
+  folders: MediaFolder[];
+  files: MediaObject[];
+  /** The cap was hit. The screen says so rather than implying it saw everything. */
+  truncated: boolean;
+};
+
+/** `""` → the prefix itself; `"decks/2025"` → `ctr-unified/media/decks/2025/`. */
+function prefixFor(folder: string): string {
+  return folder ? `${MEDIA_PREFIX}${folder}/` : MEDIA_PREFIX;
+}
+
+/**
+ * The second lock, and the one that is here rather than at the edge.
+ *
+ * Every route already validates through `src/lib/mediaPaths.ts` before it gets
+ * this far. This throws instead of trusting that, because the cost is a string
+ * comparison and the thing on the other side of a mistake is somebody's licence
+ * scan under `ctr-unified/entries/` — a sibling prefix, one character of
+ * carelessness away.
+ */
+function assertUnderMedia(keyOrPrefix: string): void {
+  if (!keyOrPrefix.startsWith(MEDIA_PREFIX)) {
+    throw new Error(`Refusing to touch "${keyOrPrefix}" — it is not under the media prefix.`);
+  }
+
+  if (keyOrPrefix.includes("..") || keyOrPrefix.includes("%")) {
+    throw new Error(`Refusing to touch "${keyOrPrefix}".`);
+  }
+}
+
+/**
+ * The three fields of an S3 object this file reads.
+ *
+ * Written out rather than imported from the SDK: `send()` is typed as a union
+ * across every command it can take, so `Awaited<ReturnType<…>>` includes `void`
+ * and nothing can be read off it. Three fields is a smaller lie than a cast.
+ */
+type S3Object = { Key?: string; Size?: number; LastModified?: Date };
+
+/**
+ * Every object under a prefix, following the continuation token.
+ *
+ * S3 returns at most 1000 keys per request and a token for the rest. The old
+ * code sent one request with `MaxKeys: 1000` and no token, so on a bucket with
+ * more than a thousand objects it saw the first thousand IN LEXICOGRAPHIC ORDER
+ * and then sorted those by date — which looks exactly like a working
+ * newest-first list right up until the newest upload is not in it.
+ */
+async function listAll(
+  prefix: string,
+  cap: number,
+  delimiter?: string
+): Promise<{ contents: S3Object[]; prefixes: string[]; truncated: boolean }> {
+  assertUnderMedia(prefix);
+
+  const contents: S3Object[] = [];
+  const prefixes: string[] = [];
+  let token: string | undefined;
+  let truncated = false;
+
+  do {
+    const page = await getClient().send(
+      new ListObjectsV2Command({
+        Bucket: BUCKET,
+        Prefix: prefix,
+        Delimiter: delimiter,
+        MaxKeys: 1000,
+        ContinuationToken: token,
+      })
+    );
+
+    contents.push(...(page.Contents ?? []));
+    for (const common of page.CommonPrefixes ?? []) {
+      if (common.Prefix) prefixes.push(common.Prefix);
+    }
+
+    token = page.IsTruncated ? page.NextContinuationToken : undefined;
+    if (contents.length >= cap) truncated = Boolean(token);
+  } while (token && contents.length < cap);
+
+  return { contents: contents.slice(0, cap), prefixes, truncated };
+}
+
+const toMedia = (object: S3Object): MediaObject => ({
+  key: object.Key ?? "",
+  url: publicUrl(object.Key ?? ""),
+  size: object.Size ?? 0,
+  uploadedAt: (object.LastModified ?? new Date(0)).toISOString(),
+});
+
+/**
  * Everything under MEDIA_PREFIX, newest first.
  *
- * S3 returns keys in lexicographic order and ours are uuids, so the ordering
- * that comes back is effectively random — the sort here is what makes the
- * library show the thing you just uploaded at the top. One page of up to
- * `limit` is plenty for a media picker; there is no paging UI to drive more.
+ * Signature and return shape unchanged, deliberately: this is the only contract
+ * `GET /api/admin/media` and `MediaPicker` have, and the folder work must not
+ * touch it. Two facts make that free — the `endsWith("/")` filter already drops
+ * directory markers, and there is no `Delimiter`, so it already returns keys
+ * from every folder flat, which is exactly what a "Recent" view wants.
  */
 export async function listMedia(limit = 200): Promise<MediaObject[]> {
-  const response = await getClient().send(
-    new ListObjectsV2Command({ Bucket: BUCKET, Prefix: MEDIA_PREFIX, MaxKeys: 1000 })
-  );
+  const { contents } = await listAll(MEDIA_PREFIX, 5000);
 
-  return (response.Contents ?? [])
+  return contents
     .filter((object): object is typeof object & { Key: string } => Boolean(object.Key))
     // A "directory marker" is a zero-byte object ending in / — not an image.
     .filter((object) => !object.Key.endsWith("/"))
     .sort((a, b) => (b.LastModified?.getTime() ?? 0) - (a.LastModified?.getTime() ?? 0))
     .slice(0, limit)
-    .map((object) => ({
-      key: object.Key,
-      url: publicUrl(object.Key),
-      size: object.Size ?? 0,
-      uploadedAt: (object.LastModified ?? new Date(0)).toISOString(),
-    }));
+    .map(toMedia);
+}
+
+/**
+ * One level of the tree: the folders directly inside, and the files.
+ *
+ * `Delimiter: "/"` is what makes S3 collapse everything below this level into
+ * `CommonPrefixes` instead of returning it — the difference between listing a
+ * folder and listing a subtree.
+ *
+ * Folders sort A→Z and files sort newest-first, which is two different natural
+ * orders on one screen and is deliberate: a folder is a place and you look for
+ * it by name, a file is a thing you just uploaded and you look for it at the
+ * top.
+ */
+export async function listFolder(folder: string, cap = 2000): Promise<MediaListing> {
+  const prefix = prefixFor(folder);
+  const { contents, prefixes, truncated } = await listAll(prefix, cap, "/");
+
+  const folders: MediaFolder[] = prefixes
+    .map((full) => {
+      const path = full.slice(MEDIA_PREFIX.length).replace(/\/$/, "");
+      return { path, name: path.split("/").pop() ?? path };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const files = contents
+    .filter((object) => object.Key && object.Key !== prefix && !object.Key.endsWith("/"))
+    .sort((a, b) => (b.LastModified?.getTime() ?? 0) - (a.LastModified?.getTime() ?? 0))
+    .map(toMedia);
+
+  return { folder, folders, files, truncated };
+}
+
+/**
+ * Every object below a folder, at any depth, split into files and markers.
+ *
+ * No delimiter, so this is the whole subtree. The `cap` is what makes deleting
+ * a folder a bounded operation rather than an open-ended one — a folder too big
+ * to walk is one the route refuses and asks to be emptied in batches, which is
+ * a worse experience than the alternative only if you have never watched a
+ * delete run for four minutes and then fail.
+ */
+export async function listFolderDeep(
+  folder: string,
+  cap = 5000
+): Promise<{ files: MediaObject[]; markers: string[]; truncated: boolean }> {
+  const { contents, truncated } = await listAll(prefixFor(folder), cap);
+
+  const files: MediaObject[] = [];
+  const markers: string[] = [];
+
+  for (const object of contents) {
+    if (!object.Key) continue;
+    if (object.Key.endsWith("/")) markers.push(object.Key);
+    else files.push(toMedia(object));
+  }
+
+  files.sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt));
+  return { files, markers, truncated };
+}
+
+/**
+ * A zero-byte marker per level, so an intermediate folder is browsable before
+ * anything has been put in it.
+ *
+ * `no-store` and NOT the immutable header, which is the one place in this file
+ * where that would be a lie: a marker can legitimately be deleted and recreated
+ * at the same key, which is exactly what `immutable` promises never happens.
+ */
+export async function createFolder(folder: string): Promise<void> {
+  const segments = folderSegments(folder);
+  if (segments.length === 0 || segments.length > MAX_FOLDER_DEPTH) {
+    throw new Error(`"${folder}" is not a folder this library can create.`);
+  }
+
+  for (let depth = 1; depth <= segments.length; depth += 1) {
+    const key = `${MEDIA_PREFIX}${segments.slice(0, depth).join("/")}/`;
+    assertUnderMedia(key);
+
+    await getClient().send(
+      new PutObjectCommand({
+        Bucket: BUCKET,
+        Key: key,
+        Body: "",
+        ContentType: "application/x-directory",
+        CacheControl: "no-store",
+      })
+    );
+  }
+}
+
+/**
+ * Whether anything is there — a marker, or children without one.
+ *
+ * `MaxKeys: 1` rather than `HeadObject`, which is both cheaper and, unlike it,
+ * correct for a folder that has children but whose marker was deleted by hand.
+ */
+export async function folderExists(folder: string): Promise<boolean> {
+  if (!folder) return true;
+
+  const prefix = prefixFor(folder);
+  assertUnderMedia(prefix);
+
+  const page = await getClient().send(
+    new ListObjectsV2Command({ Bucket: BUCKET, Prefix: prefix, MaxKeys: 1 })
+  );
+
+  return (page.KeyCount ?? 0) > 0;
+}
+
+/**
+ * A URL the browser can PUT one file to, directly.
+ *
+ * This is what lifts the 4 MB ceiling: the bytes never pass through the server,
+ * so a 25 MB PDF is not a request body Next has to buffer.
+ *
+ * `CacheControl` is SIGNED along with `ContentType`, which is what keeps the
+ * immutable header on an object the server never touched. The client has to
+ * echo both headers back exactly or S3 rejects the PUT — that is not a quirk to
+ * work around, it is the signature doing its job.
+ *
+ * Honest limitation: a presigned PUT enforces the signed content type but NOT
+ * the size the caller declared, so an authenticated admin could upload
+ * something larger than they said. Acceptable — the caller is a trusted admin,
+ * not the public. `@aws-sdk/s3-presigned-post` supports a `content-length-range`
+ * condition if that ever stops being true.
+ */
+export async function presignUpload(
+  key: string,
+  contentType: string
+): Promise<{ uploadUrl: string; headers: Record<string, string> }> {
+  if (!isMediaKey(key)) throw new Error(`Refusing to sign "${key}".`);
+  assertUnderMedia(key);
+
+  const uploadUrl = await getSignedUrl(
+    getClient(),
+    new PutObjectCommand({
+      Bucket: BUCKET,
+      Key: key,
+      ContentType: contentType,
+      CacheControl: IMMUTABLE,
+    }),
+    { expiresIn: 60 }
+  );
+
+  return { uploadUrl, headers: { "Content-Type": contentType, "Cache-Control": IMMUTABLE } };
 }
 
 export async function uploadObject(key: string, body: Buffer, contentType: string): Promise<string> {
@@ -130,7 +378,7 @@ export async function uploadObject(key: string, body: Buffer, contentType: strin
       Key: key,
       Body: body,
       ContentType: contentType,
-      CacheControl: "public, max-age=31536000, immutable",
+      CacheControl: IMMUTABLE,
     })
   );
 

@@ -71,14 +71,14 @@ export async function readPage(key: string): Promise<unknown> {
   const rows = (await sql`
     WITH base AS (
       SELECT jsonb_object_agg(section_id, data) AS doc
-        FROM page_sections WHERE page_key = ${key}
+        FROM ctr.page_sections WHERE page_key = ${key}
     ), with_banners AS (
       SELECT base.doc || jsonb_build_object('banners', (
         SELECT coalesce(jsonb_agg(jsonb_build_object(
           'id', banner_id, 'template', template, 'image', image, 'fit', fit,
           'focus', focus, 'overlay', overlay, 'title', title, 'subtitle', subtitle,
           'ctaLabel', cta_label, 'ctaHref', cta_href) ORDER BY position), '[]'::jsonb)
-          FROM banners WHERE page_key = ${key})) AS doc
+          FROM ctr.banners WHERE page_key = ${key})) AS doc
         FROM base
     ), with_rounds AS (
       SELECT CASE WHEN doc ? 'calendar' THEN jsonb_set(doc, '{calendar,rounds}', (
@@ -88,27 +88,27 @@ export async function readPage(key: string): Promise<unknown> {
           'end', coalesce(to_char(date_to, 'YYYY-MM-DD'), ''),
           'dates', dates, 'trackId', coalesce(track_id::text, ''),
           'venue', venue, 'city', city, 'status', status) ORDER BY position), '[]'::jsonb)
-          FROM calendar_rounds WHERE page_key = ${key})) ELSE doc END AS doc
+          FROM ctr.calendar_rounds WHERE page_key = ${key})) ELSE doc END AS doc
         FROM with_banners
     ), with_posts AS (
       SELECT CASE WHEN doc ? 'posts' THEN jsonb_set(doc, '{posts,items}', (
         SELECT coalesce(jsonb_agg(jsonb_build_object(
           'id', post_id, 'image', image, 'category', category, 'date', date,
           'title', title, 'excerpt', excerpt, 'href', href) ORDER BY position), '[]'::jsonb)
-          FROM posts WHERE page_key = ${key})) ELSE doc END AS doc
+          FROM ctr.posts WHERE page_key = ${key})) ELSE doc END AS doc
         FROM with_rounds
     ), with_partners AS (
       SELECT CASE WHEN doc ? 'intro' THEN jsonb_set(doc, '{intro,partners}', (
         SELECT coalesce(jsonb_agg(jsonb_build_object(
           'name', name, 'logo', logo, 'href', href) ORDER BY position), '[]'::jsonb)
-          FROM partners WHERE page_key = ${key})) ELSE doc END AS doc
+          FROM ctr.partners WHERE page_key = ${key})) ELSE doc END AS doc
         FROM with_posts
     )
     SELECT CASE WHEN ${Boolean(RUNNING_ORDER[key])}
                 THEN doc || jsonb_build_object('sections', coalesce((
                   SELECT jsonb_agg(jsonb_build_object('id', section_id, 'visible', visible)
                            ORDER BY position)
-                    FROM page_sections
+                    FROM ctr.page_sections
                    WHERE page_key = ${key} AND position IS NOT NULL), '[]'::jsonb))
                 ELSE doc END AS document
       FROM with_partners
@@ -187,7 +187,7 @@ export async function writePage(key: string, document: unknown): Promise<void> {
   await sql.transaction([
     ...sections.map(
       (id) => sql`
-        INSERT INTO page_sections (page_key, section_id, position, visible, data, updated_at)
+        INSERT INTO ctr.page_sections (page_key, section_id, position, visible, data, updated_at)
         VALUES (${key}, ${id}, ${positionOf(id)}, ${visibleOf(id)},
                 ${JSON.stringify(dataOf(id) ?? {})}::jsonb, now())
         ON CONFLICT (page_key, section_id) DO UPDATE
@@ -206,14 +206,14 @@ export async function writePage(key: string, document: unknown): Promise<void> {
     // A section removed from the document — a retired one, or a page saved by
     // an older build. Its row goes, and the default renders in its place.
     sql`
-      DELETE FROM page_sections
+      DELETE FROM ctr.page_sections
        WHERE page_key = ${key} AND NOT (section_id = ANY(${sections}::text[]))
     `,
 
-    sql`DELETE FROM banners WHERE page_key = ${key}`,
+    sql`DELETE FROM ctr.banners WHERE page_key = ${key}`,
     ...banners.map(
       (banner, index) => sql`
-        INSERT INTO banners (page_key, banner_id, position, template, image, fit, focus,
+        INSERT INTO ctr.banners (page_key, banner_id, position, template, image, fit, focus,
                              overlay, title, subtitle, cta_label, cta_href)
         VALUES (${key}, ${text(banner.id) || `${key}-banner-${index + 1}`}, ${index + 1},
                 ${text(banner.template) || "spotlight"}, ${text(banner.image)},
@@ -223,10 +223,10 @@ export async function writePage(key: string, document: unknown): Promise<void> {
       `
     ),
 
-    sql`DELETE FROM calendar_rounds WHERE page_key = ${key}`,
+    sql`DELETE FROM ctr.calendar_rounds WHERE page_key = ${key}`,
     ...rounds.map(
       (round, index) => sql`
-        INSERT INTO calendar_rounds (page_key, position, round, venue, city,
+        INSERT INTO ctr.calendar_rounds (page_key, position, round, venue, city,
                                      date_from, date_to, dates, status, track_id)
         VALUES (${key}, ${index + 1}, ${text(round.round)}, ${text(round.venue)},
                 ${text(round.city)}, ${date(round.start)}, ${date(round.end)},
@@ -234,14 +234,14 @@ export async function writePage(key: string, document: unknown): Promise<void> {
                 -- A circuit that has since been deleted resolves to NULL rather
                 -- than failing the foreign key. The card falls back to the venue
                 -- and city beside it, which is what the renderer already does.
-                (SELECT id FROM tracks WHERE id::text = ${text(round.trackId)}))
+                (SELECT id FROM ctr.tracks WHERE id::text = ${text(round.trackId)}))
       `
     ),
 
-    sql`DELETE FROM posts WHERE page_key = ${key}`,
+    sql`DELETE FROM ctr.posts WHERE page_key = ${key}`,
     ...posts.map(
       (post, index) => sql`
-        INSERT INTO posts (page_key, post_id, position, image, category, date,
+        INSERT INTO ctr.posts (page_key, post_id, position, image, category, date,
                            title, excerpt, href)
         VALUES (${key}, ${text(post.id) || `${key}-post-${index + 1}`}, ${index + 1},
                 ${text(post.image)}, ${text(post.category)}, ${text(post.date)},
@@ -249,10 +249,10 @@ export async function writePage(key: string, document: unknown): Promise<void> {
       `
     ),
 
-    sql`DELETE FROM partners WHERE page_key = ${key}`,
+    sql`DELETE FROM ctr.partners WHERE page_key = ${key}`,
     ...partners.map(
       (partner, index) => sql`
-        INSERT INTO partners (page_key, position, name, logo, href)
+        INSERT INTO ctr.partners (page_key, position, name, logo, href)
         VALUES (${key}, ${index + 1}, ${text(partner.name)}, ${text(partner.logo)},
                 ${text(partner.href)})
       `

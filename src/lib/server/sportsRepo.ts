@@ -41,7 +41,7 @@ export const listAllSports = cache(async (): Promise<Sport[]> => {
   const sql = getSql();
   const rows = (await sql`
     SELECT id, title, text, details, logo_url, photo_url, href, sort_order, is_visible
-      FROM sports
+      FROM ctr.sports
      ORDER BY sort_order ASC, title ASC
   `) as Row[];
 
@@ -53,7 +53,7 @@ export const listVisibleSports = cache(async (): Promise<Sport[]> => {
   const sql = getSql();
   const rows = (await sql`
     SELECT id, title, text, details, logo_url, photo_url, href, sort_order, is_visible
-      FROM sports
+      FROM ctr.sports
      WHERE is_visible = true
      ORDER BY sort_order ASC, title ASC
   `) as Row[];
@@ -80,7 +80,7 @@ export async function createSport(input: unknown): Promise<Sport> {
   const sport = normaliseSportInput(input);
 
   const rows = (await sql`
-    INSERT INTO sports (title, text, details, logo_url, photo_url, href, sort_order, is_visible)
+    INSERT INTO ctr.sports (title, text, details, logo_url, photo_url, href, sort_order, is_visible)
     VALUES (${sport.title}, ${sport.text}, ${sport.details}, ${sport.logo_url},
             ${sport.photo_url}, ${sport.href}, ${sport.sort_order}, ${sport.is_visible})
     RETURNING id, title, text, details, logo_url, photo_url, href, sort_order, is_visible
@@ -101,7 +101,7 @@ export async function updateSport(id: string, input: unknown): Promise<Sport | n
   const sport = normaliseSportInput(input);
 
   const rows = (await sql`
-    UPDATE sports
+    UPDATE ctr.sports
        SET title      = ${sport.title},
            text       = ${sport.text},
            details    = ${sport.details},
@@ -134,7 +134,7 @@ export async function reorderSports(ids: string[]): Promise<void> {
   await sql.transaction(
     ids.map(
       (id, index) => sql`
-        UPDATE sports
+        UPDATE ctr.sports
            SET sort_order = ${(index + 1) * 10}, updated_at = now()
          WHERE id = ${id}
       `
@@ -145,7 +145,7 @@ export async function reorderSports(ids: string[]): Promise<void> {
 export async function deleteSport(id: string): Promise<boolean> {
   const sql = getSql();
   const rows = (await sql`
-    DELETE FROM sports WHERE id = ${id} RETURNING id
+    DELETE FROM ctr.sports WHERE id = ${id} RETURNING id
   `) as { id: string }[];
 
   return rows.length > 0;

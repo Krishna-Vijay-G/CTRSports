@@ -40,7 +40,7 @@ export async function createEnquiry(
   const sql = getSql();
 
   const rows = (await sql`
-    INSERT INTO enquiries (name, email, message, ip, user_agent)
+    INSERT INTO ctr.enquiries (name, email, message, ip, user_agent)
     VALUES (
       ${values.name}, ${values.email}, ${values.message},
       ${ip.slice(0, IP_MAX)}, ${userAgent.slice(0, AGENT_MAX)}
@@ -64,7 +64,7 @@ export async function countRecentEnquiries(ip: string, hours = 1): Promise<numbe
 
   const rows = (await sql`
     SELECT count(*)::int AS total
-      FROM enquiries
+      FROM ctr.enquiries
      WHERE ip = ${ip.slice(0, IP_MAX)}
        AND created_at > now() - (${hours} * interval '1 hour')
   `) as { total: number }[];

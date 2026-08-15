@@ -24,7 +24,7 @@ export async function POST(request: Request) {
   try {
     const sql = getSql();
     const rows = (await sql`
-      SELECT id, password_hash FROM admins WHERE username = ${username}
+      SELECT id, password_hash FROM ctr.admins WHERE username = ${username}
     `) as { id: string; password_hash: string }[];
 
     const admin = rows[0];

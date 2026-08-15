@@ -33,8 +33,8 @@ export const listTracks = cache(async (): Promise<Track[]> => {
            lap_record_time, lap_record_year, note, sort_order,
            (SELECT coalesce(jsonb_agg(jsonb_build_object('label', l.label, 'href', l.href)
                      ORDER BY l.position), '[]'::jsonb)
-             FROM track_links l WHERE l.track_id = t.id) AS links
-      FROM tracks t
+             FROM ctr.track_links l WHERE l.track_id = t.id) AS links
+      FROM ctr.tracks t
      ORDER BY t.sort_order ASC, t.name ASC
   `) as Track[];
 
@@ -51,8 +51,8 @@ export async function getTrack(id: string): Promise<Track | null> {
            lap_record_time, lap_record_year, note, sort_order,
            (SELECT coalesce(jsonb_agg(jsonb_build_object('label', l.label, 'href', l.href)
                      ORDER BY l.position), '[]'::jsonb)
-             FROM track_links l WHERE l.track_id = t.id) AS links
-      FROM tracks t WHERE t.id = ${id}
+             FROM ctr.track_links l WHERE l.track_id = t.id) AS links
+      FROM ctr.tracks t WHERE t.id = ${id}
   `) as Track[];
 
   return rows[0] ?? null;
@@ -67,12 +67,12 @@ async function writeLinks(id: string, links: TrackLink[]): Promise<void> {
   const sql = getSql();
 
   await sql.transaction([
-    sql`DELETE FROM track_links WHERE track_id = ${id}`,
+    sql`DELETE FROM ctr.track_links WHERE track_id = ${id}`,
     ...links
       .filter((link) => link.href)
       .map(
         (link, index) => sql`
-          INSERT INTO track_links (track_id, position, label, href)
+          INSERT INTO ctr.track_links (track_id, position, label, href)
           VALUES (${id}, ${index + 1}, ${link.label}, ${link.href})
         `
       ),
@@ -93,7 +93,7 @@ async function freeSlug(name: string): Promise<string> {
   const wanted = trackSlug({ id: "", name }) || "circuit";
 
   const taken = (await sql`
-    SELECT slug FROM tracks WHERE slug = ${wanted} OR slug LIKE ${wanted + "-%"}
+    SELECT slug FROM ctr.tracks WHERE slug = ${wanted} OR slug LIKE ${wanted + "-%"}
   `) as { slug: string }[];
 
   const used = new Set(taken.map((row) => row.slug));
@@ -127,7 +127,7 @@ export async function createTrack(input: unknown): Promise<Track> {
   const t = normaliseTrackInput(input);
 
   const rows = (await sql`
-    INSERT INTO tracks (
+    INSERT INTO ctr.tracks (
       name, slug, location, photo_url, map_url, svg_path, svg_view_box,
       length, turns, direction, opened, broke_ground, former_names, owner,
       fia_grade, coordinates, capacity, major_events, races_held,
@@ -163,7 +163,7 @@ export async function updateTrack(id: string, input: unknown): Promise<Track | n
   const t = normaliseTrackInput(input);
 
   const rows = (await sql`
-    UPDATE tracks
+    UPDATE ctr.tracks
        SET name            = ${t.name},
            location        = ${t.location},
            photo_url       = ${t.photo_url},
@@ -205,7 +205,7 @@ export async function reorderTracks(ids: string[]): Promise<void> {
   const orders = ids.map((_, index) => (index + 1) * 10);
 
   await sql`
-    UPDATE tracks t
+    UPDATE ctr.tracks t
        SET sort_order = wanted.position, updated_at = now()
       FROM unnest(${ids}::uuid[], ${orders}::int[]) AS wanted(id, position)
      WHERE t.id = wanted.id
@@ -220,7 +220,7 @@ export async function reorderTracks(ids: string[]): Promise<void> {
 export async function deleteTrack(id: string): Promise<boolean> {
   const sql = getSql();
   const rows = (await sql`
-    DELETE FROM tracks WHERE id = ${id} RETURNING id
+    DELETE FROM ctr.tracks WHERE id = ${id} RETURNING id
   `) as { id: string }[];
 
   return rows.length > 0;

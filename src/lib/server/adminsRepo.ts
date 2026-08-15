@@ -28,9 +28,9 @@ export async function listAdmins(): Promise<AdminAccount[]> {
   const rows = (await sql`
     SELECT a.id, a.username, a.role, a.created_at,
            (SELECT coalesce(jsonb_agg(p.page_key ORDER BY k.sort_order), '[]'::jsonb)
-             FROM admin_pages p JOIN pages k ON k.key = p.page_key
+             FROM ctr.admin_pages p JOIN ctr.pages k ON k.key = p.page_key
             WHERE p.admin_id = a.id) AS pages
-      FROM admins a
+      FROM ctr.admins a
      ORDER BY a.username ASC
   `) as AdminAccount[];
 
@@ -42,9 +42,9 @@ export async function getAdmin(id: string): Promise<AdminAccount | null> {
   const rows = (await sql`
     SELECT a.id, a.username, a.role, a.created_at,
            (SELECT coalesce(jsonb_agg(p.page_key ORDER BY k.sort_order), '[]'::jsonb)
-             FROM admin_pages p JOIN pages k ON k.key = p.page_key
+             FROM ctr.admin_pages p JOIN ctr.pages k ON k.key = p.page_key
             WHERE p.admin_id = a.id) AS pages
-      FROM admins a
+      FROM ctr.admins a
      WHERE a.id = ${id}
   `) as AdminAccount[];
 
@@ -62,10 +62,10 @@ async function writePages(id: string, pages: readonly string[]): Promise<void> {
   const sql = getSql();
 
   await sql.transaction([
-    sql`DELETE FROM admin_pages WHERE admin_id = ${id}`,
+    sql`DELETE FROM ctr.admin_pages WHERE admin_id = ${id}`,
     ...pages.map(
       (page) => sql`
-        INSERT INTO admin_pages (admin_id, page_key) VALUES (${id}, ${page})
+        INSERT INTO ctr.admin_pages (admin_id, page_key) VALUES (${id}, ${page})
         ON CONFLICT DO NOTHING
       `
     ),
@@ -82,7 +82,7 @@ async function writePages(id: string, pages: readonly string[]): Promise<void> {
 export async function countOwners(): Promise<number> {
   const sql = getSql();
   const rows = (await sql`
-    SELECT count(*)::int AS count FROM admins WHERE role = 'owner'
+    SELECT count(*)::int AS count FROM ctr.admins WHERE role = 'owner'
   `) as { count: number }[];
 
   return rows[0]?.count ?? 0;
@@ -94,7 +94,7 @@ export async function createAdmin(input: unknown, password: string): Promise<Adm
   const hash = await hashPassword(password);
 
   const rows = (await sql`
-    INSERT INTO admins (username, password_hash, role)
+    INSERT INTO ctr.admins (username, password_hash, role)
     VALUES (${account.username}, ${hash}, ${account.role})
     RETURNING id
   `) as { id: string }[];
@@ -122,7 +122,7 @@ export async function updateAdmin(
   const account = normaliseAdminInput(input);
 
   const rows = (await sql`
-    UPDATE admins
+    UPDATE ctr.admins
        SET username = ${account.username},
            role     = ${account.role}
      WHERE id = ${id}
@@ -137,8 +137,8 @@ export async function updateAdmin(
   if (!updated || !password) return updated;
 
   const hash = await hashPassword(password);
-  await sql`UPDATE admins SET password_hash = ${hash} WHERE id = ${id}`;
-  await sql`DELETE FROM sessions WHERE admin_id = ${id}`;
+  await sql`UPDATE ctr.admins SET password_hash = ${hash} WHERE id = ${id}`;
+  await sql`DELETE FROM ctr.sessions WHERE admin_id = ${id}`;
 
   return updated;
 }
@@ -147,7 +147,7 @@ export async function updateAdmin(
 export async function deleteAdmin(id: string): Promise<boolean> {
   const sql = getSql();
   const rows = (await sql`
-    DELETE FROM admins WHERE id = ${id} RETURNING id
+    DELETE FROM ctr.admins WHERE id = ${id} RETURNING id
   `) as { id: string }[];
 
   return rows.length > 0;
@@ -157,7 +157,7 @@ export async function deleteAdmin(id: string): Promise<boolean> {
 export async function usernameTaken(username: string, exceptId?: string): Promise<boolean> {
   const sql = getSql();
   const rows = (await sql`
-    SELECT id FROM admins
+    SELECT id FROM ctr.admins
      WHERE username = ${username}
        AND id <> ${exceptId ?? "00000000-0000-0000-0000-000000000000"}
   `) as { id: string }[];
