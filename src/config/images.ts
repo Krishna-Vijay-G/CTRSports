@@ -13,38 +13,41 @@
  * Unsplash stadium stock on the front page, and one missing field in an
  * otherwise good document used to put a stock sprinter between two real ones.
  *
- * FOUR hosts appear below, and the difference matters when one of them moves:
+ * NOTHING HERE IS SERVED FROM THE MEDIA BUCKET, and that is the point.
+ *
+ * These four used to be uploads — `${MEDIA_BASE_URL}/…/<uuid>.webp`. They are
+ * repo files now, because a fallback that depends on the bucket is a fallback
+ * that fails in exactly the situation it exists for. An S3 outage, a bucket
+ * renamed, a policy that stopped being public: every one of those is a moment
+ * when the defaults are what is rendering, and every one of them takes the
+ * bucket with it. A file under /public is served by the same deployment that is
+ * already answering the request.
+ *
+ * It also means these cannot rot. When the bucket changed name and prefix, four
+ * URLs here silently pointed at nothing; a path under /public cannot do that
+ * without the build noticing.
+ *
+ * Three hosts remain, and the difference matters when one of them moves:
  *
  *   /images/…    in this repo, under /public. Covered by the immutable cache
  *                header in next.config.js. Nothing to go wrong.
- *   media.ctrsports.in  uploaded through the admin's own media library, served
- *                through CloudFront. Not written down here: the host comes from
- *                MEDIA_BASE_URL (src/config/media.ts), which is the only place
- *                that decides it. As permanent as the bucket behind it.
  *   raw.githubusercontent.com/…/asset-temp  a separate repository holding
- *                artwork that has not been through the media library. Live uses
- *                these today, so they are what a fallback has to match.
+ *                banner artwork that has not been through the media library.
+ *                Live uses these today, so they are what a fallback has to
+ *                match — and they are the one remaining external dependency in
+ *                the defaults worth removing next.
  *   www.evoindia.com  exactly one photograph — ABOUT_PHOTOS[0], the touring-car
  *                shot. Somebody else's server, and the one URL here that nothing
- *                we run can keep alive. Re-hosting it through the media library
- *                would put it on the line above and end the exception; until
- *                then it is named so nobody assumes the media-domain work
- *                touched it. It did not, and could not: not S3, not our prefix.
+ *                we run can keep alive.
  *
  * The site draws all of these with plain <img>, so nothing here needs a
- * next.config entry — only the preconnect in src/app/layout.tsx, which points at
- * whichever host the first paint needs. That is the media host and the artwork
- * repository; the evoindia photograph is below the fold, where a preconnect
- * would spend a connection to save nothing.
+ * next.config entry. The preconnect in src/app/layout.tsx still points at the
+ * media host, which is correct: no DEFAULT is served from there, but every
+ * uploaded banner is, and that is the first paint once real content is saved.
  */
-
-import { MEDIA_BASE_URL, MEDIA_KEY_PREFIX } from "@/config/media";
 
 /** Artwork kept beside the code rather than in the bucket. */
 const ASSETS = "https://raw.githubusercontent.com/Krishna-Vijay-G/asset-temp/refs/heads/main";
-
-/** Uploaded through the admin. The prefix the media library writes under. */
-const MEDIA = `${MEDIA_BASE_URL}/${MEDIA_KEY_PREFIX}`;
 
 /**
  * The landing page's banner photographs, in the order its banners use them.
@@ -68,7 +71,7 @@ export const ABOUT_PHOTOS = [
     src: "https://www.evoindia.com/evoindia/2024-02/1dc1ca47-79c5-49e0-b10c-3bfb59652723/Deepak_Ravikumar__winner_of_the_Touring_Cars_Race_1__July_22_.jpg",
     label: "Track & Field",
   },
-  { src: `${MEDIA}/bdfa54cd-ce60-4347-940d-85b2a84b534c.webp`, label: "Endurance" },
+  { src: "/images/hero/background.webp", label: "Endurance" },
 ];
 
 /**
@@ -89,11 +92,18 @@ export const INCRC_PHOTOS = {
     `${ASSETS}/chairman%20JK%20TYRES%20(Medium).png`,
     `${ASSETS}/MAKAPA%20(Medium).png`,
   ],
-  /** One per newsroom card, uploaded through the media library. */
+  /**
+   * One per newsroom card.
+   *
+   * The championship's own artwork rather than three uploads, for the reason at
+   * the top of this file. They double as the `artwork` entries below, which is
+   * fine: a default only renders until somebody writes a real post, and a
+   * picture the site already uses beats a broken one.
+   */
   posts: [
-    `${MEDIA}/37d7578e-1b72-4c6e-b326-863b2bb2b3b1.webp`,
-    `${MEDIA}/e7722247-977f-48af-a641-7dd04d021b7a.webp`,
-    `${MEDIA}/62a1551c-34a4-46d3-a675-2cef692a0789.webp`,
+    "/images/incrc/cars-lineup.webp",
+    "/images/incrc/one-nation.webp",
+    "/images/incrc/signing-1.webp",
   ],
   artwork: {
     circuit: "/images/incrc/one-nation.webp",

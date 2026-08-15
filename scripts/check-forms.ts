@@ -1174,7 +1174,7 @@ section("Page surgery never costs a question");
 
 section("An attachment is a note saying where the bytes are");
 {
-  const stored = encodeFile({ key: "ctr-unified/entries/f1/abc.pdf", name: "licence.pdf", size: 2048 });
+  const stored = encodeFile({ key: "ctr-sports/entries/f1/abc.pdf", name: "licence.pdf", size: 2048 });
 
   check("it round-trips", fileOf(stored)?.name, "licence.pdf");
   check("and prints as its name", answerText(stored), "licence.pdf");

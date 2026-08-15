@@ -12,8 +12,8 @@
  * S3 does not normalise `..`. `a/../b` is a literal object name, not `b`, so
  * there is no filesystem to escape from and no directory to climb out of. The
  * real risk is narrower and worse: naming a key under a DIFFERENT prefix.
- * `ENTRY_PREFIX` (`ctr-unified/entries/`) holds licence scans and passport
- * photographs, and it is a SIBLING of `MEDIA_PREFIX` (`ctr-unified/media/`),
+ * `ENTRY_PREFIX` (`ctr-sports/entries/`) holds licence scans and passport
+ * photographs, and it is a SIBLING of `MEDIA_PREFIX` (`ctr-sports/media/`),
  * not a child. So `startsWith(MEDIA_PREFIX)` is the whole defence, and no key
  * that passes `isMediaKey` can reach a registration attachment.
  *
@@ -21,8 +21,19 @@
  * anywhere later in the stack can turn a stored name back into `..` or `/`.
  */
 
-/** The prefix everything this project uploads lives under. */
-const MEDIA_PREFIX = "ctr-unified/media/";
+/**
+ * The prefix everything this project uploads lives under.
+ *
+ * Defined HERE, and re-exported by `src/lib/server/s3.ts` for the server code
+ * that has always imported it from there. It lived in three places until the
+ * bucket was renamed and one of them was missed — which broke four images and
+ * silently disabled the source-pin protection in the usage scan. One literal
+ * cannot drift from itself.
+ *
+ * This file is the right home for it because it is the only one of the three
+ * that is neither `server-only` nor client-only.
+ */
+export const MEDIA_PREFIX = "ctr-sports/media/";
 
 /**
  * Four levels, and the depth is what makes folder delete bounded: creating one
@@ -45,7 +56,7 @@ export const DECK_UPLOAD_FOLDER = "decks";
  *
  * `entries` because a folder of that name under media reads exactly like the
  * private attachment prefix and is not it; `media` because
- * `ctr-unified/media/media/…` is nobody's intention. The rest are Windows
+ * `ctr-sports/media/media/…` is nobody's intention. The rest are Windows
  * device names, which are not a problem for S3 and are a problem for anyone who
  * ever syncs the bucket to a disk.
  */

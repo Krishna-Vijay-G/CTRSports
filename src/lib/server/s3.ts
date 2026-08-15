@@ -8,13 +8,17 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { MAX_FOLDER_DEPTH, folderSegments, isMediaKey } from "@/lib/mediaPaths";
+import { MAX_FOLDER_DEPTH, MEDIA_PREFIX, folderSegments, isMediaKey } from "@/lib/mediaPaths";
 
 /**
  * Everything this project writes lives under one prefix, which is what keeps
- * the media library from listing another site's uploads — the bucket is shared.
+ * the media library from listing another site's uploads.
+ *
+ * Re-exported rather than declared: it is defined once in src/lib/mediaPaths.ts,
+ * which the browser can import too. Every server module that already says
+ * `import { MEDIA_PREFIX } from "@/lib/server/s3"` keeps working.
  */
-export const MEDIA_PREFIX = "ctr-unified/media/";
+export { MEDIA_PREFIX };
 
 /**
  * Where a registration attachment goes. A different prefix, deliberately.
@@ -29,7 +33,7 @@ export const MEDIA_PREFIX = "ctr-unified/media/";
  * Separate prefixes are also what makes deleting a form's files possible
  * without touching anything else.
  */
-export const ENTRY_PREFIX = "ctr-unified/entries/";
+export const ENTRY_PREFIX = "ctr-sports/entries/";
 
 const BUCKET = process.env.S3_BUCKET;
 const REGION = process.env.S3_REGION;
@@ -120,7 +124,7 @@ export type MediaListing = {
   truncated: boolean;
 };
 
-/** `""` → the prefix itself; `"decks/2025"` → `ctr-unified/media/decks/2025/`. */
+/** `""` → the prefix itself; `"decks/2025"` → `ctr-sports/media/decks/2025/`. */
 function prefixFor(folder: string): string {
   return folder ? `${MEDIA_PREFIX}${folder}/` : MEDIA_PREFIX;
 }
@@ -131,7 +135,7 @@ function prefixFor(folder: string): string {
  * Every route already validates through `src/lib/mediaPaths.ts` before it gets
  * this far. This throws instead of trusting that, because the cost is a string
  * comparison and the thing on the other side of a mistake is somebody's licence
- * scan under `ctr-unified/entries/` — a sibling prefix, one character of
+ * scan under `ctr-sports/entries/` — a sibling prefix, one character of
  * carelessness away.
  */
 function assertUnderMedia(keyOrPrefix: string): void {

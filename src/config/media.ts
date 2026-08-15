@@ -20,16 +20,5 @@
  */
 export const MEDIA_BASE_URL = (
   process.env.NEXT_PUBLIC_MEDIA_BASE_URL ||
-  "https://ctr-unified-media-storage.s3.ap-south-1.amazonaws.com"
+  "https://ctrsports-media-storage.s3.us-east-1.amazonaws.com"
 ).replace(/\/+$/, "");
-
-/**
- * Where the library writes. Part of the KEY, not of the host — which is why the
- * CloudFront distribution has no origin path: `publicUrl()` appends the whole
- * key, prefix included.
- *
- * Kept here rather than imported from `src/lib/server/s3.ts` because that module
- * is `server-only` and this one is not. The two are the same string on purpose;
- * `npm run check:source` will not catch them drifting, so change both together.
- */
-export const MEDIA_KEY_PREFIX = "ctr-unified/media";
