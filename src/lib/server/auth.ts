@@ -89,7 +89,10 @@ export const getSession = cache(async (): Promise<AdminSession | null> => {
   try {
     const sql = getSql();
     const rows = (await sql`
-      SELECT a.id AS admin_id, a.username, a.role, a.pages
+      SELECT a.id AS admin_id, a.username, a.role,
+             (SELECT coalesce(jsonb_agg(p.page_key ORDER BY k.sort_order), '[]'::jsonb)
+                FROM admin_pages p JOIN pages k ON k.key = p.page_key
+               WHERE p.admin_id = a.id) AS pages
         FROM sessions s
         JOIN admins a ON a.id = s.admin_id
        WHERE s.token_hash = ${hashToken(token)}

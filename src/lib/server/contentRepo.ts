@@ -1,6 +1,7 @@
 import "server-only";
 
-import { getSql } from "@/lib/server/db";
+import { cache } from "react";
+import { readPage, writePage } from "@/lib/server/sectionsRepo";
 import {
   DEFAULT_INCRC_CONTENT,
   normaliseIncrcContent,
@@ -23,9 +24,9 @@ export const INCRC_KEY = "incrc";
  *
  * A database that is down is the caller's problem to catch.
  */
-export async function getLandingContent(): Promise<LandingContent> {
+export const getLandingContent = cache(async (): Promise<LandingContent> => {
   return normaliseLandingContent(await read(LANDING_KEY));
-}
+});
 
 /**
  * Same, but never throws — for the public page, which must always render.
@@ -50,9 +51,9 @@ export async function saveLandingContent(input: unknown): Promise<LandingContent
    rather than made generic over the normaliser: two pages is not enough
    repetition to be worth a layer of indirection, and each one is four lines. */
 
-export async function getIncrcContent(): Promise<IncrcContent> {
+export const getIncrcContent = cache(async (): Promise<IncrcContent> => {
   return normaliseIncrcContent(await read(INCRC_KEY));
-}
+});
 
 export async function getIncrcContentSafe(): Promise<IncrcContent> {
   try {
@@ -67,27 +68,27 @@ export async function saveIncrcContent(input: unknown): Promise<IncrcContent> {
   return write(INCRC_KEY, normaliseIncrcContent(input));
 }
 
-/* ─────────────────────────────── The row ─────────────────────────────── */
+/* ────────────────────────────── The rows ────────────────────────────── */
+/*
+ * There is no `content` table any more. A page is a row per section in
+ * `page_sections`, plus four promoted tables — see sectionsRepo, which is where
+ * the taking-apart and putting-back-together lives.
+ *
+ * These two stay because the six functions above are a contract: everything
+ * that edits a page calls them, and none of it knows or needs to know that the
+ * document stopped being one column.
+ *
+ * The reads are wrapped in React `cache()`. Every page here is read twice per
+ * request — once by `generateMetadata` and once by the component — and that was
+ * two identical round trips on every page load. `cache()` dedupes within a
+ * single request and nothing wider, so an edit is still visible immediately.
+ */
 
 async function read(key: string): Promise<unknown> {
-  const sql = getSql();
-  const rows = (await sql`SELECT content FROM content WHERE key = ${key}`) as {
-    content: unknown;
-  }[];
-
-  return rows[0]?.content;
+  return readPage(key);
 }
 
 async function write<T>(key: string, normalised: T): Promise<T> {
-  const sql = getSql();
-
-  await sql`
-    INSERT INTO content (key, content, updated_at)
-    VALUES (${key}, ${JSON.stringify(normalised)}::jsonb, now())
-    ON CONFLICT (key) DO UPDATE
-      SET content    = EXCLUDED.content,
-          updated_at = now()
-  `;
-
+  await writePage(key, normalised);
   return normalised;
 }

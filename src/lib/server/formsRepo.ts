@@ -1,8 +1,8 @@
 import "server-only";
 
+import { cache } from "react";
 import {
   FORM_STATUSES,
-  fileOf,
   normaliseFormFields,
   normaliseFormInput,
   normaliseSections,
@@ -11,9 +11,15 @@ import {
 } from "@/lib/forms";
 import { oneOf } from "@/lib/normalise";
 import { FORM_PAGE_KEYS, type FormPageKey } from "@/lib/roles";
-import { isUsableSlug, type SlugHolder } from "@/lib/slug";
+import { type SlugHolder } from "@/lib/slug";
 import { getSql } from "@/lib/server/db";
 import { deleteObjects } from "@/lib/server/s3";
+import {
+  findSlugOwner as findOwner,
+  releaseFormerSlug as releaseFormer,
+  resolveSlug,
+  writeSlugs,
+} from "@/lib/server/slugsRepo";
 
 /**
  * Every read and write of ctr.forms.
@@ -56,6 +62,8 @@ function asIso(value: unknown): string {
 }
 
 function hydrate(row: Form): Form {
+  const sections = normaliseSections(row.sections, row.fields);
+
   return {
     ...row,
     // `status` and `page_key` are plain text columns with no CHECK constraint —
@@ -72,26 +80,51 @@ function hydrate(row: Form): Form {
     closes_at: asIso(row.closes_at),
     max_entries: Number(row.max_entries) || 0,
     page_key: oneOf(row.page_key, FORM_PAGE_KEYS, "" as FormPageKey | ""),
-    // Both together: the questions are sorted into section order, so reading
-    // one without the other would put them back out of it.
-    sections: normaliseSections(row.sections, row.fields),
-    fields: normaliseFormFields(row.fields, undefined, normaliseSections(row.sections, row.fields)),
+    slug: row.slug ?? "",
+    former_slugs: row.former_slugs ?? [],
+    // Both together: the questions are sorted into section order, so reading one
+    // without the other would put them back out of it.
+    //
+    // Computed ONCE. It used to be called twice per row with identical
+    // arguments — once for `sections` and again inside the `fields` call — and
+    // it is O(sections x fields), so every read of every form did that work
+    // twice for nothing.
+    sections,
+    fields: normaliseFormFields(row.fields, undefined, sections),
   };
 }
 
-export async function listForms(): Promise<Form[]> {
+/**
+ * Every form, or only the ones on the given pages.
+ *
+ * The filter is a `WHERE` rather than a `.filter()` on the way out. The admin
+ * route fetched every form and dropped the ones the signed-in account could not
+ * see, in JavaScript, on both the list and the count — so a `pages` admin scoped
+ * to one page still paid for every form in the database, and the rows they were
+ * not allowed to see travelled to the server that was about to discard them.
+ *
+ * No argument means no filter, which is what an owner gets.
+ */
+export const listForms = cache(async (pages?: readonly string[]): Promise<Form[]> => {
   const sql = getSql();
+  const wanted = pages ? [...pages] : null;
+
   const rows = (await sql`
-    SELECT id, name, slug, page_key, status, blurb, intro_title, intro_body,
+    SELECT id, name, page_key, status, blurb, intro_title, intro_body,
            submit_label, success_title, success_body, closed_note, notify_to,
            opens_at, closes_at, max_entries,
-           fields, sections, former_slugs, sort_order
-      FROM forms
-     ORDER BY sort_order ASC, name ASC
+           fields, sections, sort_order,
+           (SELECT s.slug FROM slugs s
+             WHERE s.entity_type = 'form' AND s.entity_id = f.id AND s.is_current) AS slug,
+           (SELECT coalesce(jsonb_agg(s.slug ORDER BY s.created_at), '[]'::jsonb) FROM slugs s
+             WHERE s.entity_type = 'form' AND s.entity_id = f.id AND NOT s.is_current) AS former_slugs
+      FROM forms f
+     WHERE ${wanted}::text[] IS NULL OR f.page_key = ANY(${wanted}::text[])
+     ORDER BY f.sort_order ASC, f.name ASC
   `) as Form[];
 
   return rows.map(hydrate);
-}
+});
 
 /**
  * The forms on one page, for the site and for the picker.
@@ -107,8 +140,10 @@ export async function listFormsForPage(page: FormPageKey): Promise<FormSummary[]
   // cannot say "full" without knowing it, and a page with six forms should not
   // be seven round trips.
   const rows = (await sql`
-    SELECT f.id, f.name, f.slug, f.page_key, f.status, f.blurb, f.sort_order,
+    SELECT f.id, f.name, f.page_key, f.status, f.blurb, f.sort_order,
            f.opens_at, f.closes_at, f.max_entries,
+           (SELECT s.slug FROM slugs s
+             WHERE s.entity_type = 'form' AND s.entity_id = f.id AND s.is_current) AS slug,
            (SELECT count(*)::int FROM form_entries e WHERE e.form_id = f.id) AS entries
       FROM forms f
      WHERE f.page_key = ${page}
@@ -118,6 +153,7 @@ export async function listFormsForPage(page: FormPageKey): Promise<FormSummary[]
 
   return rows.map((row) => ({
     ...row,
+    slug: row.slug ?? "",
     opens_at: asIso(row.opens_at),
     closes_at: asIso(row.closes_at),
     max_entries: Number(row.max_entries) || 0,
@@ -143,33 +179,32 @@ export async function listFormsForPageSafe(page: FormPageKey): Promise<FormSumma
 export async function getForm(id: string): Promise<Form | null> {
   const sql = getSql();
   const rows = (await sql`
-    SELECT id, name, slug, page_key, status, blurb, intro_title, intro_body,
+    SELECT id, name, page_key, status, blurb, intro_title, intro_body,
            submit_label, success_title, success_body, closed_note, notify_to,
            opens_at, closes_at, max_entries,
-           fields, sections, former_slugs, sort_order
-      FROM forms
-     WHERE id = ${id}
+           fields, sections, sort_order,
+           (SELECT s.slug FROM slugs s
+             WHERE s.entity_type = 'form' AND s.entity_id = f.id AND s.is_current) AS slug,
+           (SELECT coalesce(jsonb_agg(s.slug ORDER BY s.created_at), '[]'::jsonb) FROM slugs s
+             WHERE s.entity_type = 'form' AND s.entity_id = f.id AND NOT s.is_current) AS former_slugs
+      FROM forms f
+     WHERE f.id = ${id}
   `) as Form[];
 
   return rows[0] ? hydrate(rows[0]) : null;
 }
 
-/** The current slug first, then the former ones — see the note at the top. */
+/**
+ * The form at an address, current or former.
+ *
+ * One indexed lookup in `slugs` and then the row, instead of the old
+ * `slug = $1 OR former_slugs @> $2::jsonb` over an unindexed JSONB column. The
+ * page turns a former match into a permanent redirect, so a printed link or a
+ * QR code corrects itself in the address bar.
+ */
 export async function getFormBySlug(slug: string): Promise<Form | null> {
-  const sql = getSql();
-  const rows = (await sql`
-    SELECT id, name, slug, page_key, status, blurb, intro_title, intro_body,
-           submit_label, success_title, success_body, closed_note, notify_to,
-           opens_at, closes_at, max_entries,
-           fields, sections, former_slugs, sort_order
-      FROM forms
-     WHERE slug = ${slug}
-        OR former_slugs @> ${JSON.stringify([slug])}::jsonb
-     ORDER BY (slug = ${slug}) DESC
-     LIMIT 1
-  `) as Form[];
-
-  return rows[0] ? hydrate(rows[0]) : null;
+  const found = await resolveSlug("form", slug);
+  return found ? getForm(found.id) : null;
 }
 
 /** Postgres' unique violation, which on this table can only be the slug. */
@@ -257,46 +292,19 @@ function heldBy(slug: string, holder: SlugHolder): string {
  * whether the address can be handed over at all — see `SlugHolder`.
  */
 export async function findSlugOwner(slug: string, exceptId = ""): Promise<SlugHolder | null> {
-  if (!isUsableSlug(slug)) return null;
-
-  const sql = getSql();
-  const rows = (await sql`
-    SELECT id, name, (slug = ${slug}) AS is_current
-      FROM forms
-     WHERE (slug = ${slug} OR former_slugs @> ${JSON.stringify([slug])}::jsonb)
-       AND id <> ${exceptId || NO_FORM}
-     ORDER BY (slug = ${slug}) DESC
-     LIMIT 1
-  `) as { id: string; name: string; is_current: boolean }[];
-
-  const row = rows[0];
-  return row ? { id: row.id, name: row.name, held: row.is_current ? "current" : "former" } : null;
+  return findOwner("form", slug, exceptId);
 }
 
 /**
  * Drops one address out of a form's history, so another form may take it.
  *
  * Only ever a FORMER address. A form's current slug is not removable here at
- * all — the `WHERE` sees only the JSONB column — because a form with no address
- * is not a form, and "reassign" would mean deleting somebody's live page as a
- * side effect of typing in a box on a different screen.
- *
- * `jsonb - text` removes every matching element from the array. The cast is not
- * decoration: without it Postgres cannot tell that operator from `jsonb - int`,
- * which would take the element at an index.
+ * all — see the guard in slugsRepo — because a form with no address is not a
+ * form, and "reassign" would mean deleting somebody's live page as a side
+ * effect of typing in a box on a different screen.
  */
 export async function releaseFormerSlug(slug: string, fromId: string): Promise<boolean> {
-  const sql = getSql();
-  const rows = (await sql`
-    UPDATE forms
-       SET former_slugs = former_slugs - ${slug}::text,
-           updated_at   = now()
-     WHERE id = ${fromId}
-       AND former_slugs @> ${JSON.stringify([slug])}::jsonb
-    RETURNING id
-  `) as { id: string }[];
-
-  return rows.length > 0;
+  return releaseFormer("form", slug, fromId);
 }
 
 async function insertForm(f: Omit<Form, "id">): Promise<Form> {
@@ -304,26 +312,26 @@ async function insertForm(f: Omit<Form, "id">): Promise<Form> {
 
   const rows = (await sql`
     INSERT INTO forms (
-      name, slug, page_key, status, blurb, intro_title, intro_body,
+      name, page_key, status, blurb, intro_title, intro_body,
       submit_label, success_title, success_body, closed_note, notify_to,
-      opens_at, closes_at, max_entries,
-      fields, sections, former_slugs, sort_order
+      opens_at, closes_at, max_entries, fields, sections, sort_order
     )
     VALUES (
-      ${f.name}, ${f.slug}, ${f.page_key}, ${f.status}, ${f.blurb},
+      ${f.name}, ${f.page_key}, ${f.status}, ${f.blurb},
       ${f.intro_title}, ${f.intro_body}, ${f.submit_label}, ${f.success_title},
       ${f.success_body}, ${f.closed_note}, ${f.notify_to},
       ${f.opens_at || null}, ${f.closes_at || null}, ${f.max_entries},
       ${JSON.stringify(f.fields)}::jsonb, ${JSON.stringify(f.sections)}::jsonb,
-      '[]'::jsonb, ${f.sort_order}
+      ${f.sort_order}
     )
-    RETURNING id, name, slug, page_key, status, blurb, intro_title, intro_body,
-              submit_label, success_title, success_body, closed_note, notify_to,
-              opens_at, closes_at, max_entries,
-              fields, sections, former_slugs, sort_order
-  `) as Form[];
+    RETURNING id
+  `) as { id: string }[];
 
-  return hydrate(rows[0]);
+  await writeSlugs("form", rows[0].id, f.slug, []);
+
+  const created = await getForm(rows[0].id);
+  if (!created) throw new Error("The form was not written.");
+  return created;
 }
 
 /**
@@ -394,7 +402,6 @@ export async function updateForm(
   const rows = (await sql`
     UPDATE forms
        SET name          = ${f.name},
-           slug          = ${f.slug},
            page_key      = ${f.page_key},
            status        = ${f.status},
            blurb         = ${f.blurb},
@@ -410,33 +417,37 @@ export async function updateForm(
            max_entries   = ${f.max_entries},
            fields        = ${JSON.stringify(f.fields)}::jsonb,
            sections      = ${JSON.stringify(f.sections)}::jsonb,
-           former_slugs  = ${JSON.stringify(formerSlugs)}::jsonb,
            updated_at    = now()
      WHERE id = ${id}
-    RETURNING id, name, slug, page_key, status, blurb, intro_title, intro_body,
-              submit_label, success_title, success_body, closed_note, notify_to,
-              opens_at, closes_at, max_entries,
-              fields, sections, former_slugs, sort_order
-  `) as Form[];
+    RETURNING id
+  `) as { id: string }[];
 
-  return rows[0] ? hydrate(rows[0]) : null;
+  if (rows.length === 0) return null;
+
+  await writeSlugs("form", id, f.slug, formerSlugs);
+
+  return getForm(id);
 }
 
-/** Spaced by ten, one transaction — the same rule the circuits list follows. */
+/**
+ * Spaced by ten, in one statement.
+ *
+ * `unnest` over two arrays rather than a statement per form: reordering a list
+ * of twenty was twenty round trips inside a transaction, and every position is
+ * already known before any of them is sent.
+ */
 export async function reorderForms(ids: string[]): Promise<void> {
   if (ids.length === 0) return;
 
   const sql = getSql();
+  const orders = ids.map((_, index) => (index + 1) * 10);
 
-  await sql.transaction(
-    ids.map(
-      (id, index) => sql`
-        UPDATE forms
-           SET sort_order = ${(index + 1) * 10}, updated_at = now()
-         WHERE id = ${id}
-      `
-    )
-  );
+  await sql`
+    UPDATE forms f
+       SET sort_order = wanted.position, updated_at = now()
+      FROM unnest(${ids}::uuid[], ${orders}::int[]) AS wanted(id, position)
+     WHERE f.id = wanted.id
+  `;
 }
 
 /**
@@ -463,13 +474,13 @@ export async function deleteForm(id: string): Promise<boolean> {
    * failure here leaves the form intact and nothing lost.
    */
   const keys = (await sql`
-    SELECT answers FROM form_entries WHERE form_id = ${id}
-  `) as { answers: Record<string, unknown> }[];
+    SELECT k.s3_key
+      FROM form_entry_files k
+      JOIN form_entries e ON e.id = k.entry_id
+     WHERE e.form_id = ${id}
+  `) as { s3_key: string }[];
 
-  const files = keys
-    .flatMap((row) => Object.values(row.answers ?? {}))
-    .map((value) => fileOf(value)?.key)
-    .filter((key): key is string => Boolean(key));
+  const files = keys.map((row) => row.s3_key).filter(Boolean);
 
   const rows = (await sql`
     DELETE FROM forms WHERE id = ${id} RETURNING id

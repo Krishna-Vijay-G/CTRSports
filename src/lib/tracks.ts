@@ -401,7 +401,14 @@ export function findTrack(tracks: Track[], id: string): Track | undefined {
  * and nothing 404s; a name that produces no letters at all (only punctuation)
  * falls back to the id outright.
  */
-export function trackSlug(track: Pick<Track, "id" | "name">): string {
+export function trackSlug(track: Pick<Track, "id" | "name"> & { slug?: string }): string {
+  // The STORED address wins wherever there is one. It is a unique column now, so
+  // it is the only answer that cannot collide — and it means renaming a circuit
+  // no longer silently changes its address, the way renaming a form or a deck
+  // has never been allowed to. Derivation stays for a Track built in the browser
+  // from a form that has not been saved yet, which has no slug to prefer.
+  if (track.slug) return track.slug;
+
   const slug = track.name
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -413,7 +420,7 @@ export function trackSlug(track: Pick<Track, "id" | "name">): string {
 }
 
 /** Where a link to this circuit points. */
-export function trackHref(track: Pick<Track, "id" | "name">): string {
+export function trackHref(track: Pick<Track, "id" | "name"> & { slug?: string }): string {
   return `/circuits/${trackSlug(track)}`;
 }
 

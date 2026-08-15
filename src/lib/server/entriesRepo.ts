@@ -1,6 +1,12 @@
 import "server-only";
 
-import { CREATED_COLUMN, type EntryCursor, type FormEntry, type Submission } from "@/lib/forms";
+import {
+  CREATED_COLUMN,
+  fileOf,
+  type EntryCursor,
+  type FormEntry,
+  type Submission,
+} from "@/lib/forms";
 import { getSql } from "@/lib/server/db";
 
 /**
@@ -33,7 +39,55 @@ import { getSql } from "@/lib/server/db";
  *
  * Converting here rather than at the two places that broke: the type says
  * `string` and this is the only boundary that can make that true.
+ *
+ * ── The answers are rows now ──────────────────────────────────────────────
+ *
+ * `answers` was a flat JSONB map on this table. It is `form_entry_answers`, one
+ * row per answer, and `Submission` — the shape everything above this file reads
+ * — is rebuilt from it on the way out. That is the whole trade: nothing outside
+ * this repo learns that the storage changed, and sorting by an answer stops
+ * being an unindexable regex-and-cast over `answers->>key`.
+ *
+ * A file answer keeps its encoded `file::{…}` form in the assembled map, so
+ * `fileOf`, the CSV writer and the entries table are untouched — but the S3 key
+ * now also lives in a column of its own, which is what lets `deleteForm` find
+ * every attachment with one indexed select instead of parsing every answer of
+ * every entry.
  */
+
+/**
+ * `Submission`, rebuilt out of the answer rows.
+ *
+ * `is_list` and not `count(*) > 1`, because a checkbox group with one box
+ * ticked is `["yes"]` and not `"yes"`, and row count cannot tell those apart.
+ *
+ * The LEFT JOIN is what re-encodes a file. An answer with a row in
+ * `form_entry_files` reads back as the same `file::{…}` string it was stored
+ * as, so nothing above this file has to know the difference.
+ */
+const ANSWERS = `
+  (SELECT coalesce(jsonb_object_agg(field_id, value), '{}'::jsonb)
+     FROM (
+       SELECT a.field_id,
+              CASE WHEN bool_or(a.is_list)
+                   THEN jsonb_agg(to_jsonb(shown.text) ORDER BY a.idx)
+                   ELSE to_jsonb(min(shown.text)) END AS value
+         FROM form_entry_answers a
+         LEFT JOIN form_entry_files f
+                ON f.entry_id = a.entry_id AND f.field_id = a.field_id AND f.idx = a.idx
+         CROSS JOIN LATERAL (
+           SELECT CASE
+             WHEN f.s3_key IS NOT NULL
+             THEN 'file::' || jsonb_build_object(
+                    'key', f.s3_key, 'name', f.file_name, 'size', f.size_bytes)::text
+             ELSE a.value_text END AS text
+         ) AS shown
+        WHERE a.entry_id = e.id
+        GROUP BY a.field_id
+     ) AS one_answer) AS answers`;
+
+/** Every column of the entry itself. The answers are joined on. */
+const COLUMNS = `e.id, e.form_id, e.ip, e.user_agent, e.created_at`;
 
 /** A header is somebody's to write. Neither of these is ever trusted for length. */
 const IP_MAX = 60;
@@ -64,6 +118,76 @@ function hydrate(row: FormEntry): FormEntry {
  */
 export const CREATED_KEY = CREATED_COLUMN;
 
+/**
+ * The rows one submission becomes.
+ *
+ * `value_num` and `value_date` are decided HERE, once, rather than on every
+ * read: that is what turns sorting the entries table from a regex and a cast
+ * per row into an index scan. An answer that is not a number leaves `value_num`
+ * NULL, and NULLs sort last whichever way round the column is ordered.
+ */
+function rowsOf(answers: Submission): {
+  field: string;
+  idx: number;
+  isList: boolean;
+  text: string;
+  num: number | null;
+  date: string | null;
+  file: { key: string; name: string; size: number } | null;
+}[] {
+  const NUMBER = /^-?[0-9]+([.][0-9]+)?$/;
+  const DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+  return Object.entries(answers).flatMap(([field, value]) => {
+    const many = Array.isArray(value);
+    const list = many ? value : [value];
+
+    return list.map((entry, idx) => {
+      const text = typeof entry === "string" ? entry : "";
+      const file = fileOf(text);
+
+      return {
+        field,
+        idx,
+        isList: many,
+        // A file's own name is what the table and the CSV print. The key is in
+        // its own column beside it rather than encoded into this one.
+        text: file ? file.name : text,
+        num: !file && NUMBER.test(text) ? Number(text) : null,
+        date: !file && DATE.test(text) ? text : null,
+        file,
+      };
+    });
+  });
+}
+
+/** Writes one entry's answers. Called inside the same transaction as the row. */
+function writeAnswers(id: string, answers: Submission) {
+  const sql = getSql();
+  const rows = rowsOf(answers);
+
+  return [
+    sql`DELETE FROM form_entry_answers WHERE entry_id = ${id}`,
+    sql`DELETE FROM form_entry_files WHERE entry_id = ${id}`,
+    ...rows.map(
+      (row) => sql`
+        INSERT INTO form_entry_answers (entry_id, field_id, idx, is_list, value_text, value_num, value_date)
+        VALUES (${id}, ${row.field}, ${row.idx}, ${row.isList}, ${row.text},
+                ${row.num}, ${row.date})
+      `
+    ),
+    ...rows
+      .filter((row) => row.file)
+      .map(
+        (row) => sql`
+          INSERT INTO form_entry_files (entry_id, field_id, idx, s3_key, file_name, size_bytes)
+          VALUES (${id}, ${row.field}, ${row.idx}, ${row.file!.key}, ${row.file!.name},
+                  ${row.file!.size})
+        `
+      ),
+  ];
+}
+
 export async function createEntry(
   formId: string,
   answers: Submission,
@@ -73,22 +197,21 @@ export async function createEntry(
   const sql = getSql();
 
   const rows = (await sql`
-    INSERT INTO form_entries (form_id, answers, ip, user_agent)
-    VALUES (
-      ${formId},
-      ${JSON.stringify(answers)}::jsonb,
-      ${ip.slice(0, IP_MAX)},
-      ${userAgent.slice(0, AGENT_MAX)}
-    )
-    RETURNING id, form_id, answers, ip, user_agent, created_at
-  `) as FormEntry[];
+    INSERT INTO form_entries (form_id, ip, user_agent)
+    VALUES (${formId}, ${ip.slice(0, IP_MAX)}, ${userAgent.slice(0, AGENT_MAX)})
+    RETURNING id
+  `) as { id: string }[];
 
   // An INSERT … RETURNING that comes back empty is not a row we can pretend to
   // have: returning `undefined` here made the caller's notification throw AFTER
   // the entry was already committed.
   if (!rows[0]) throw new Error("The entry was not written.");
 
-  return hydrate(rows[0]);
+  await sql.transaction(writeAnswers(rows[0].id, answers));
+
+  const written = await getEntry(formId, rows[0].id);
+  if (!written) throw new Error("The entry was not written.");
+  return written;
 }
 
 /**
@@ -116,14 +239,17 @@ export async function createEntryWithinCap(
   const sql = getSql();
 
   const rows = (await sql`
-    INSERT INTO form_entries (form_id, answers, ip, user_agent)
-    SELECT ${formId}, ${JSON.stringify(answers)}::jsonb,
-           ${ip.slice(0, IP_MAX)}, ${userAgent.slice(0, AGENT_MAX)}
+    INSERT INTO form_entries (form_id, ip, user_agent)
+    SELECT ${formId}, ${ip.slice(0, IP_MAX)}, ${userAgent.slice(0, AGENT_MAX)}
      WHERE (SELECT count(*) FROM form_entries WHERE form_id = ${formId}) < ${cap}
-    RETURNING id, form_id, answers, ip, user_agent, created_at
-  `) as FormEntry[];
+    RETURNING id
+  `) as { id: string }[];
 
-  return rows[0] ? hydrate(rows[0]) : null;
+  if (!rows[0]) return null;
+
+  await sql.transaction(writeAnswers(rows[0].id, answers));
+
+  return getEntry(formId, rows[0].id);
 }
 
 /**
@@ -165,77 +291,80 @@ export async function listEntries(
   const skip = Math.max(offset, 0);
 
   if (sort?.key === CREATED_KEY) {
-    const rows =
-      sort.dir === "asc"
-        ? ((await sql`
-            SELECT id, form_id, answers, ip, user_agent, created_at
-              FROM form_entries
-             WHERE form_id = ${formId}
-             ORDER BY created_at ASC, id ASC
-             LIMIT ${take} OFFSET ${skip}
-          `) as FormEntry[])
-        : ((await sql`
-            SELECT id, form_id, answers, ip, user_agent, created_at
-              FROM form_entries
-             WHERE form_id = ${formId}
-             ORDER BY created_at DESC, id DESC
-             LIMIT ${take} OFFSET ${skip}
-          `) as FormEntry[]);
+    const rows = (await sql.query(
+      `SELECT ${COLUMNS}, ${ANSWERS}
+         FROM form_entries e
+        WHERE e.form_id = $1
+        ORDER BY e.created_at ${sort.dir === "asc" ? "ASC" : "DESC"},
+                 e.id ${sort.dir === "asc" ? "ASC" : "DESC"}
+        LIMIT $2 OFFSET $3`,
+      [formId, take, skip]
+    )) as FormEntry[];
 
     return rows.map(hydrate);
   }
 
   if (sort) {
-    const key = sort.key;
+    /*
+     * The sort terms are a LEFT JOIN on to the answer rows rather than an
+     * expression over a JSONB blob, which is the whole point of the entries
+     * table having become a table:
+     *
+     *   was   ORDER BY (CASE WHEN answers->>$k ~ '^-?[0-9]+…$'
+     *                        THEN (answers->>$k)::numeric END), lower(answers->>$k)
+     *   now   ORDER BY a.value_num, lower(a.value_text)
+     *
+     * with an index on each of `(field_id, value_num)` and
+     * `(field_id, lower(value_text))`. The regex and the cast decided, per row
+     * on every read, something that is now decided once when the entry is
+     * written.
+     *
+     * Numbers first and words after, so an age column sorts 9 before 10 rather
+     * than the other way round. An entry that did not answer this question has
+     * no row to join to, and NULLs go last whichever direction is asked for.
+     *
+     * OFFSET rather than a cursor, unchanged: a keyset needs the thing it points
+     * at to be unique, and "Priya" is not.
+     */
+    const direction = sort.dir === "asc" ? "ASC" : "DESC";
 
-    // Two whole queries rather than one with the direction interpolated: a sort
-    // direction cannot be a bind parameter, and building SQL by concatenation
-    // is the habit this file does not want to start.
-    const rows =
-      sort.dir === "asc"
-        ? ((await sql`
-            SELECT id, form_id, answers, ip, user_agent, created_at
-              FROM form_entries
-             WHERE form_id = ${formId}
-             ORDER BY (CASE WHEN NULLIF(answers->>${key}, '') ~ '^-?[0-9]+([.][0-9]+)?$'
-                            THEN (answers->>${key})::numeric END) ASC NULLS LAST,
-                      lower(NULLIF(answers->>${key}, '')) ASC NULLS LAST,
-                      created_at DESC, id DESC
-             LIMIT ${take} OFFSET ${skip}
-          `) as FormEntry[])
-        : ((await sql`
-            SELECT id, form_id, answers, ip, user_agent, created_at
-              FROM form_entries
-             WHERE form_id = ${formId}
-             ORDER BY (CASE WHEN NULLIF(answers->>${key}, '') ~ '^-?[0-9]+([.][0-9]+)?$'
-                            THEN (answers->>${key})::numeric END) DESC NULLS LAST,
-                      lower(NULLIF(answers->>${key}, '')) DESC NULLS LAST,
-                      created_at DESC, id DESC
-             LIMIT ${take} OFFSET ${skip}
-          `) as FormEntry[]);
+    const rows = (await sql.query(
+      `SELECT ${COLUMNS}, ${ANSWERS}
+         FROM form_entries e
+         LEFT JOIN form_entry_answers a
+                ON a.entry_id = e.id AND a.field_id = $2 AND a.idx = 0
+        WHERE e.form_id = $1
+        ORDER BY a.value_num ${direction} NULLS LAST,
+                 lower(nullif(a.value_text, '')) ${direction} NULLS LAST,
+                 e.created_at DESC, e.id DESC
+        LIMIT $3 OFFSET $4`,
+      [formId, sort.key, take, skip]
+    )) as FormEntry[];
 
     return rows.map(hydrate);
   }
 
   const rows = before
-    ? ((await sql`
-        SELECT id, form_id, answers, ip, user_agent, created_at
-          FROM form_entries
-         WHERE form_id = ${formId}
-           -- Both halves, compared as a row: this is the tie-break the note
-           -- above promises, and without it rows sharing a timestamp with the
-           -- last one on screen were skipped for good.
-           AND (created_at, id) < (${before.at}::timestamptz, ${before.id}::uuid)
-         ORDER BY created_at DESC, id DESC
-         LIMIT ${take}
-      `) as FormEntry[])
-    : ((await sql`
-        SELECT id, form_id, answers, ip, user_agent, created_at
-          FROM form_entries
-         WHERE form_id = ${formId}
-         ORDER BY created_at DESC, id DESC
-         LIMIT ${take}
-      `) as FormEntry[]);
+    ? ((await sql.query(
+        `SELECT ${COLUMNS}, ${ANSWERS}
+           FROM form_entries e
+          WHERE e.form_id = $1
+            -- Both halves, compared as a row: this is the tie-break the note
+            -- above promises, and without it rows sharing a timestamp with the
+            -- last one on screen were skipped for good.
+            AND (e.created_at, e.id) < ($2::timestamptz, $3::uuid)
+          ORDER BY e.created_at DESC, e.id DESC
+          LIMIT $4`,
+        [formId, before.at, before.id, take]
+      )) as FormEntry[])
+    : ((await sql.query(
+        `SELECT ${COLUMNS}, ${ANSWERS}
+           FROM form_entries e
+          WHERE e.form_id = $1
+          ORDER BY e.created_at DESC, e.id DESC
+          LIMIT $2`,
+        [formId, take]
+      )) as FormEntry[]);
 
   return rows.map(hydrate);
 }
@@ -243,11 +372,12 @@ export async function listEntries(
 /** One entry, scoped by form. Read before an edit, to keep what it already holds. */
 export async function getEntry(formId: string, entryId: string): Promise<FormEntry | null> {
   const sql = getSql();
-  const rows = (await sql`
-    SELECT id, form_id, answers, ip, user_agent, created_at
-      FROM form_entries
-     WHERE id = ${entryId} AND form_id = ${formId}
-  `) as FormEntry[];
+  const rows = (await sql.query(
+    `SELECT ${COLUMNS}, ${ANSWERS}
+       FROM form_entries e
+      WHERE e.id = $1 AND e.form_id = $2`,
+    [entryId, formId]
+  )) as FormEntry[];
 
   return rows[0] ? hydrate(rows[0]) : null;
 }
@@ -266,14 +396,18 @@ export async function updateEntry(
 ): Promise<FormEntry | null> {
   const sql = getSql();
 
+  // Scoped by form before anything is written: the answers table has no
+  // form_id of its own, so this is what stops an id from one screen reaching
+  // into another form's entries.
   const rows = (await sql`
-    UPDATE form_entries
-       SET answers = ${JSON.stringify(answers)}::jsonb
-     WHERE id = ${entryId} AND form_id = ${formId}
-    RETURNING id, form_id, answers, ip, user_agent, created_at
-  `) as FormEntry[];
+    SELECT id FROM form_entries WHERE id = ${entryId} AND form_id = ${formId}
+  `) as { id: string }[];
 
-  return rows[0] ? hydrate(rows[0]) : null;
+  if (rows.length === 0) return null;
+
+  await sql.transaction(writeAnswers(entryId, answers));
+
+  return getEntry(formId, entryId);
 }
 
 /**
@@ -343,30 +477,27 @@ export async function deleteEntry(formId: string, entryId: string): Promise<bool
 }
 
 /**
- * Several at once, in one transaction — all of them or none.
+ * Several at once, in one statement — all of them or none.
  *
- * A statement per id, the way `reorderForms` does it, rather than one `= ANY`:
- * the ids arrive one to a row from a set of ticked boxes, and this driver takes
- * a list of statements far more comfortably than an array bind.
+ * `= ANY` over an array rather than a statement per id inside a transaction:
+ * five hundred ticked boxes were five hundred round trips, and the answers and
+ * the files go with each row on the foreign key regardless.
  *
- * Every one is scoped by form, so a list of ids gathered from one screen cannot
- * reach into another form's entries. Returns how many actually went, which is
- * not always how many were named — somebody else may have deleted one already.
+ * Scoped by form, so a list of ids gathered from one screen cannot reach into
+ * another form's entries. Returns how many actually went, which is not always
+ * how many were named — somebody else may have deleted one already.
  */
 export async function deleteEntries(formId: string, ids: string[]): Promise<number> {
   if (ids.length === 0) return 0;
 
   const sql = getSql();
+  const wanted = ids.slice(0, MAX_BULK_DELETE);
 
-  const results = await sql.transaction(
-    ids.slice(0, MAX_BULK_DELETE).map(
-      (entryId) => sql`
-        DELETE FROM form_entries
-         WHERE id = ${entryId} AND form_id = ${formId}
-        RETURNING id
-      `
-    )
-  );
+  const rows = (await sql`
+    DELETE FROM form_entries
+     WHERE form_id = ${formId} AND id = ANY(${wanted}::uuid[])
+    RETURNING id
+  `) as { id: string }[];
 
-  return results.reduce((gone, rows) => gone + (rows as { id: string }[]).length, 0);
+  return rows.length;
 }

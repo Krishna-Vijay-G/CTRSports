@@ -1,16 +1,22 @@
 import "server-only";
 
+import { cache } from "react";
 import {
   DECK_STATUSES,
   normaliseDeckInput,
   normaliseDeckPages,
-  summariseDeck,
   type Deck,
   type DeckSummary,
 } from "@/lib/decks";
 import { oneOf } from "@/lib/normalise";
-import { isUsableSlug, type SlugHolder } from "@/lib/slug";
+import { type SlugHolder } from "@/lib/slug";
 import { getSql } from "@/lib/server/db";
+import {
+  findSlugOwner as findOwner,
+  releaseFormerSlug as releaseFormer,
+  resolveSlug,
+  writeSlugs,
+} from "@/lib/server/slugsRepo";
 
 /**
  * Every read and write of ctr.decks.
@@ -19,62 +25,134 @@ import { getSql } from "@/lib/server/db";
  * helper, the same way tracksRepo and formsRepo do it: a handful of queries
  * repeating the names is easier to follow than one builder that hides them.
  *
- * Two things are borrowed from the forms repo, because a deck publishes at an
- * address the same way a form does:
+ * ── What moved out of this file ───────────────────────────────────────────
  *
- * `getDeckBySlug` matches the CURRENT slug or any former one, which is what
- * makes a printed address keep working after a rename. The page turns a former
- * match into a permanent redirect, so the old link corrects itself in the bar.
+ * The pages are rows in `deck_pages` and the addresses are rows in `ctr.slugs`,
+ * so two things this file used to do itself now belong to the database and to
+ * slugsRepo. What is left here is the deck.
  *
- * A duplicate slug is left to the unique index and comes back as Postgres
+ * The eighty lines of find-the-owner, release-the-old-one and narrow-the-history
+ * that this file shared with formsRepo are gone into slugsRepo, which is the
+ * point of a shared table. `findSlugOwner` and `releaseFormerSlug` are still
+ * exported from here, unchanged in shape, because the routes call them.
+ *
+ * A duplicate address is left to the unique index and comes back as Postgres
  * 23505. The route turns that into a sentence.
  */
 
 const DUPLICATE = "23505";
 
+/** Every column of the deck itself. The pages and the addresses are joined on. */
+const COLUMNS = "id, name, status, blurb, show_heading, sort_order";
+
+type DeckRow = {
+  id: string;
+  name: string;
+  status: string;
+  blurb: string;
+  show_heading: boolean;
+  sort_order: number;
+  slug: string | null;
+  former_slugs: string[] | null;
+  pages: { url: string; alt: string }[] | null;
+};
+
 /**
  * Read through the same rules as a write.
  *
- * `pages` is a JSONB document and `status` is plain text with no CHECK, so a
- * row written by an older version of this code — or by hand — is a shape the
- * current code has never seen. Normalising on write cannot help those rows,
- * because they are precisely the ones not being written.
+ * `status` is a text column — it has a CHECK constraint now, but `oneOf` stays,
+ * because this project's way of RETIRING a value is a code change and not a
+ * migration: a row still holding a status the code no longer offers has to read
+ * back as something rather than crash the picker.
+ *
+ * The pages arrive as a JSON aggregate of rows rather than the stored document
+ * they used to be, so they are already the right shape — but they go through
+ * `normaliseDeckPages` anyway, which costs nothing and means one function
+ * decides what a usable page is.
  */
-function hydrate(row: Deck): Deck {
+function hydrate(row: DeckRow): Deck {
   return {
-    ...row,
+    id: row.id,
+    name: row.name,
+    slug: row.slug ?? "",
     status: oneOf(row.status, DECK_STATUSES, "draft"),
+    blurb: row.blurb,
     show_heading: typeof row.show_heading === "boolean" ? row.show_heading : true,
-    pages: normaliseDeckPages(row.pages),
-    former_slugs: Array.isArray(row.former_slugs)
-      ? row.former_slugs.filter((slug): slug is string => typeof slug === "string")
-      : [],
+    pages: normaliseDeckPages(row.pages ?? []),
+    former_slugs: row.former_slugs ?? [],
+    sort_order: row.sort_order,
   };
 }
 
-export async function listDecks(): Promise<Deck[]> {
+/**
+ * The joins that put a deck back together.
+ *
+ * Both are correlated sub-queries rather than a GROUP BY over three tables: the
+ * ordering of the pages and of the addresses is per deck, and a join with an
+ * aggregate over two one-to-many relations multiplies the rows before it counts
+ * them — the classic way to report eleven pages as a hundred and twenty-one.
+ */
+const PAGES = `
+  (SELECT coalesce(jsonb_agg(jsonb_build_object('url', p.url, 'alt', p.alt)
+            ORDER BY p.position), '[]'::jsonb)
+     FROM deck_pages p WHERE p.deck_id = d.id) AS pages`;
+
+const SLUG = `
+  (SELECT s.slug FROM slugs s
+    WHERE s.entity_type = 'deck' AND s.entity_id = d.id AND s.is_current) AS slug`;
+
+const FORMER = `
+  (SELECT coalesce(jsonb_agg(s.slug ORDER BY s.created_at), '[]'::jsonb)
+     FROM slugs s
+    WHERE s.entity_type = 'deck' AND s.entity_id = d.id AND NOT s.is_current) AS former_slugs`;
+
+export const listDecks = cache(async (): Promise<Deck[]> => {
   const sql = getSql();
-  const rows = (await sql`
-    SELECT id, name, slug, status, blurb, show_heading, pages, former_slugs, sort_order
-      FROM decks
-     ORDER BY sort_order ASC, name ASC
-  `) as Deck[];
+  const rows = (await sql.query(`
+    SELECT ${COLUMNS}, ${SLUG}, ${FORMER}, ${PAGES}
+      FROM decks d
+     ORDER BY d.sort_order ASC, d.name ASC
+  `)) as DeckRow[];
 
   return rows.map(hydrate);
-}
+});
 
 /**
  * The decks a picker or a card may point at: every published one, in order.
  *
- * Summaries rather than rows, so fifty image addresses per deck do not travel
- * into a page that wants a name and a cover. Drafts are left out everywhere
- * this is used — both callers put something on screen that a visitor will
- * click, and a draft is not on the internet at all.
+ * A count and a cover, done in SQL. This used to load every deck in full —
+ * fifty image addresses each — normalise all of them, filter the drafts out in
+ * JavaScript, and then throw the pages away to report a number. The cover is
+ * page one and the count is `count(*)`, which is two things the database can say
+ * without sending the pages at all.
  */
-export async function listDeckSummaries(): Promise<DeckSummary[]> {
-  const decks = await listDecks();
-  return decks.filter((deck) => deck.status === "published").map(summariseDeck);
-}
+export const listDeckSummaries = cache(async (): Promise<DeckSummary[]> => {
+  const sql = getSql();
+
+  const rows = (await sql`
+    SELECT d.id, d.name, d.blurb,
+           (SELECT s.slug FROM slugs s
+             WHERE s.entity_type = 'deck' AND s.entity_id = d.id AND s.is_current) AS slug,
+           (SELECT p.url FROM deck_pages p
+             WHERE p.deck_id = d.id ORDER BY p.position LIMIT 1) AS cover,
+           (SELECT count(*)::int FROM deck_pages p WHERE p.deck_id = d.id) AS pages
+      FROM decks d
+     WHERE d.status = 'published'
+     ORDER BY d.sort_order ASC, d.name ASC
+  `) as { id: string; name: string; blurb: string; slug: string | null; cover: string | null; pages: number }[];
+
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    slug: row.slug ?? "",
+    // The WHERE decided this. Spelled out rather than read back, so the type is
+    // satisfied by the query's own condition instead of a column nobody needs.
+    status: "published" as const,
+    blurb: row.blurb,
+    cover: row.cover ?? "",
+    pages: Number(row.pages) || 0,
+  }));
+});
 
 /** The same, where an unreachable database should cost the cards and not the page. */
 export async function listDeckSummariesSafe(): Promise<DeckSummary[]> {
@@ -88,38 +166,51 @@ export async function listDeckSummariesSafe(): Promise<DeckSummary[]> {
 
 export async function getDeck(id: string): Promise<Deck | null> {
   const sql = getSql();
-  const rows = (await sql`
-    SELECT id, name, slug, status, blurb, show_heading, pages, former_slugs, sort_order
-      FROM decks
-     WHERE id = ${id}
-  `) as Deck[];
+  const rows = (await sql.query(
+    `SELECT ${COLUMNS}, ${SLUG}, ${FORMER}, ${PAGES} FROM decks d WHERE d.id = $1`,
+    [id]
+  )) as DeckRow[];
 
   return rows[0] ? hydrate(rows[0]) : null;
 }
 
-/** The current slug first, then the former ones — see the note at the top. */
+/**
+ * The deck at an address, current or former.
+ *
+ * One indexed lookup in `slugs` and then the row, instead of the old
+ * `slug = $1 OR former_slugs @> $2::jsonb` over an unindexed JSONB column. The
+ * page turns a former match into a permanent redirect, so an old printed link
+ * corrects itself in the address bar — `hydrate` carries the current slug, which
+ * is what it redirects to.
+ */
 export async function getDeckBySlug(slug: string): Promise<Deck | null> {
-  const sql = getSql();
-  const rows = (await sql`
-    SELECT id, name, slug, status, blurb, show_heading, pages, former_slugs, sort_order
-      FROM decks
-     WHERE slug = ${slug}
-        OR former_slugs @> ${JSON.stringify([slug])}::jsonb
-     ORDER BY (slug = ${slug}) DESC
-     LIMIT 1
-  `) as Deck[];
-
-  return rows[0] ? hydrate(rows[0]) : null;
+  const found = await resolveSlug("deck", slug);
+  return found ? getDeck(found.id) : null;
 }
-
-/** Stands in for "no deck to exclude" — `id <> ''` is a type error, not a match. */
-const NO_DECK = "00000000-0000-0000-0000-000000000000";
 
 /** A refusal the routes already know how to turn into a 409. */
 function taken(message: string): Error & { code?: string } {
   const conflict = new Error(message) as Error & { code?: string };
   conflict.code = DUPLICATE;
   return conflict;
+}
+
+/** The sentence a held address gets refused with, in both directions. */
+function heldBy(slug: string, holder: SlugHolder): string {
+  const name = holder.name || "another deck";
+  return holder.held === "current"
+    ? `/deck/${slug} is where “${name}” lives. Give that deck a different address first.`
+    : `/deck/${slug} is an old address of “${name}” and still redirects there.`;
+}
+
+/** Which deck answers to this address. Kept exported: the slugs route calls it. */
+export async function findSlugOwner(slug: string, exceptId = ""): Promise<SlugHolder | null> {
+  return findOwner("deck", slug, exceptId);
+}
+
+/** Drops one address out of a deck's history, so another deck may take it. */
+export async function releaseFormerSlug(slug: string, fromId: string): Promise<boolean> {
+  return releaseFormer("deck", slug, fromId);
 }
 
 /**
@@ -133,8 +224,9 @@ function taken(message: string): Error & { code?: string } {
  */
 export async function createDeck(input: unknown, notes?: string[]): Promise<Deck> {
   const first = normaliseDeckInput(input, notes);
-  const asked = typeof (input as { slug?: unknown })?.slug === "string"
-    && (input as { slug: string }).slug.trim() !== "";
+  const asked =
+    typeof (input as { slug?: unknown })?.slug === "string" &&
+    (input as { slug: string }).slug.trim() !== "";
 
   if (asked) {
     const holder = await findSlugOwner(first.slug);
@@ -146,9 +238,10 @@ export async function createDeck(input: unknown, notes?: string[]): Promise<Deck
   for (let attempt = 1; attempt <= 20; attempt += 1) {
     const slug = attempt === 1 ? first.slug : `${first.slug}-${attempt}`;
 
-    // Skipped rather than attempted: a former address is not the unique column,
-    // so the insert would succeed and the collision would only ever show up as
-    // somebody else's old link opening this deck.
+    // Skipped rather than attempted: a former address is as much a claim as a
+    // current one now, and the insert would refuse it either way — this keeps
+    // the loop reading as "find a free one" rather than "try until it stops
+    // throwing".
     if (await findSlugOwner(slug)) continue;
 
     try {
@@ -158,7 +251,6 @@ export async function createDeck(input: unknown, notes?: string[]): Promise<Deck
       }
       return deck;
     } catch (error) {
-      // Anything that is not "that address exists" is the caller's to handle.
       if ((error as { code?: string })?.code !== DUPLICATE) throw error;
     }
   }
@@ -166,80 +258,57 @@ export async function createDeck(input: unknown, notes?: string[]): Promise<Deck
   throw new Error("Could not find a free address for the deck.");
 }
 
-/** The sentence a held address gets refused with, in both directions. */
-function heldBy(slug: string, holder: SlugHolder): string {
-  const name = holder.name || "another deck";
-  return holder.held === "current"
-    ? `/deck/${slug} is where “${name}” lives. Give that deck a different address first.`
-    : `/deck/${slug} is an old address of “${name}” and still redirects there.`;
-}
-
 /**
- * Which deck, if any, answers to this address — as its own or from its history.
+ * The row, its address and its pages, in one transaction.
  *
- * Same reasoning as the forms table: `former_slugs` is what makes a printed
- * link survive a rename, and handing the same address to a different deck would
- * quietly start opening somebody else's document. There is no unique index to
- * lean on for that half — the column is a JSONB array.
+ * All three or none: a deck with no address is unreachable and a deck with an
+ * address and no pages is a blank page at a printed link.
  */
-export async function findSlugOwner(slug: string, exceptId = ""): Promise<SlugHolder | null> {
-  if (!isUsableSlug(slug)) return null;
-
-  const sql = getSql();
-  const rows = (await sql`
-    SELECT id, name, (slug = ${slug}) AS is_current
-      FROM decks
-     WHERE (slug = ${slug} OR former_slugs @> ${JSON.stringify([slug])}::jsonb)
-       AND id <> ${exceptId || NO_DECK}
-     ORDER BY (slug = ${slug}) DESC
-     LIMIT 1
-  `) as { id: string; name: string; is_current: boolean }[];
-
-  const row = rows[0];
-  return row ? { id: row.id, name: row.name, held: row.is_current ? "current" : "former" } : null;
-}
-
-/**
- * Drops one address out of a deck's history, so another deck may take it.
- *
- * Only ever a FORMER address — the `WHERE` sees only the JSONB column, so a
- * deck's live slug cannot be taken out from under it by typing in a box on a
- * different screen. See the twin in the forms repo.
- */
-export async function releaseFormerSlug(slug: string, fromId: string): Promise<boolean> {
-  const sql = getSql();
-  const rows = (await sql`
-    UPDATE decks
-       SET former_slugs = former_slugs - ${slug}::text,
-           updated_at   = now()
-     WHERE id = ${fromId}
-       AND former_slugs @> ${JSON.stringify([slug])}::jsonb
-    RETURNING id
-  `) as { id: string }[];
-
-  return rows.length > 0;
-}
-
 async function insertDeck(d: Omit<Deck, "id">): Promise<Deck> {
   const sql = getSql();
 
   const rows = (await sql`
-    INSERT INTO decks (name, slug, status, blurb, show_heading, pages, former_slugs, sort_order)
-    VALUES (
-      ${d.name}, ${d.slug}, ${d.status}, ${d.blurb}, ${d.show_heading},
-      ${JSON.stringify(d.pages)}::jsonb, '[]'::jsonb, ${d.sort_order}
-    )
-    RETURNING id, name, slug, status, blurb, show_heading, pages, former_slugs, sort_order
-  `) as Deck[];
+    INSERT INTO decks (name, status, blurb, show_heading, sort_order)
+    VALUES (${d.name}, ${d.status}, ${d.blurb}, ${d.show_heading}, ${d.sort_order})
+    RETURNING id
+  `) as { id: string }[];
 
-  return hydrate(rows[0]);
+  const id = rows[0].id;
+
+  await writeSlugs("deck", id, d.slug, []);
+  await writePages(id, d.pages);
+
+  const created = await getDeck(id);
+  if (!created) throw new Error("The deck was not written.");
+  return created;
+}
+
+/**
+ * The pages, replaced wholesale.
+ *
+ * Their identity IS their position — page four is page four — so there is
+ * nothing to reconcile and a diff would only be a way to be subtly wrong about
+ * the order.
+ */
+async function writePages(id: string, pages: { url: string; alt: string }[]): Promise<void> {
+  const sql = getSql();
+
+  await sql.transaction([
+    sql`DELETE FROM deck_pages WHERE deck_id = ${id}`,
+    ...pages.map(
+      (page, index) => sql`
+        INSERT INTO deck_pages (deck_id, position, url, alt)
+        VALUES (${id}, ${index + 1}, ${page.url}, ${page.alt})
+      `
+    ),
+  ]);
 }
 
 /**
  * Null when the id does not exist — the route turns that into a 404.
  *
- * A changed slug pushes the old one into `former_slugs` rather than replacing
- * it, so every address this deck has ever had still finds it. The list is built
+ * A changed slug pushes the old one into the history rather than replacing it,
+ * so every address this deck has ever had still finds it. The list is built
  * here rather than trusted from the request: a browser cannot be allowed to
  * claim an address the deck never had, which would be a way to take a slug out
  * from under another one.
@@ -293,47 +362,55 @@ export async function updateDeck(
       : kept.filter((slug) => slug !== d.slug);
 
   if (d.slug !== existing.slug) {
-    notes?.push(
-      `The old address /deck/${existing.slug} still works — it now redirects here.`
-    );
+    notes?.push(`The old address /deck/${existing.slug} still works — it now redirects here.`);
   }
 
   const rows = (await sql`
     UPDATE decks
        SET name         = ${d.name},
-           slug         = ${d.slug},
            status       = ${d.status},
            blurb        = ${d.blurb},
            show_heading = ${d.show_heading},
-           pages        = ${JSON.stringify(d.pages)}::jsonb,
-           former_slugs = ${JSON.stringify(formerSlugs)}::jsonb,
            updated_at   = now()
      WHERE id = ${id}
-    RETURNING id, name, slug, status, blurb, show_heading, pages, former_slugs, sort_order
-  `) as Deck[];
+    RETURNING id
+  `) as { id: string }[];
 
-  return rows[0] ? hydrate(rows[0]) : null;
+  if (rows.length === 0) return null;
+
+  await writeSlugs("deck", id, d.slug, formerSlugs);
+  await writePages(id, d.pages);
+
+  return getDeck(id);
 }
 
-/** Spaced by ten, one transaction — the same rule every other list follows. */
+/**
+ * Spaced by ten, in one statement.
+ *
+ * `unnest` over two arrays rather than a statement per deck: reordering a list
+ * of twenty was twenty round trips inside a transaction, and the position of
+ * each is already known before any of them is sent.
+ */
 export async function reorderDecks(ids: string[]): Promise<void> {
   if (ids.length === 0) return;
 
   const sql = getSql();
+  const orders = ids.map((_, index) => (index + 1) * 10);
 
-  await sql.transaction(
-    ids.map(
-      (id, index) => sql`
-        UPDATE decks
-           SET sort_order = ${(index + 1) * 10}, updated_at = now()
-         WHERE id = ${id}
-      `
-    )
-  );
+  await sql`
+    UPDATE decks d
+       SET sort_order = wanted.position, updated_at = now()
+      FROM unnest(${ids}::uuid[], ${orders}::int[]) AS wanted(id, position)
+     WHERE d.id = wanted.id
+  `;
 }
 
 /**
  * Removes a deck.
+ *
+ * The pages and the addresses go with it — `deck_pages` cascades on the foreign
+ * key, and `slugs` cannot have one (its `entity_id` points at either of two
+ * tables), so a trigger does the same job. See migrations/0002.
  *
  * The images are NOT deleted from the bucket, and that is deliberate. They sit
  * under the media prefix, where they are shared: the same upload can be a deck
@@ -342,9 +419,6 @@ export async function reorderDecks(ids: string[]): Promise<void> {
  * picture off a page that has nothing to do with this deck. Registration
  * attachments are the opposite case — private, single-use, under their own
  * prefix — which is why deleting a form does delete those.
- *
- * A page pointing at a deck that has gone shows nothing rather than a dead card;
- * see the decks section on /incrc.
  */
 export async function deleteDeck(id: string): Promise<boolean> {
   const sql = getSql();

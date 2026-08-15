@@ -51,6 +51,14 @@ CREATE TABLE ctr.form_entry_answers (
   field_id   text NOT NULL,
   /* Which of several answers to one question. 0 unless it is a multiselect. */
   idx        smallint NOT NULL DEFAULT 0,
+  /*
+   * Whether the answer was a LIST, as opposed to one value that happens to be
+   * alone. `Submission` is `Record<string, string | string[]>` and the two are
+   * different things to everything that reads one: a checkbox group with a
+   * single box ticked is `["yes"]`, not `"yes"`. Without this, row count would
+   * be the only evidence and a one-element list would come back as a scalar.
+   */
+  is_list    boolean NOT NULL DEFAULT false,
   value_text text NOT NULL DEFAULT '',
   /* Set only when the answer parses as one. NULL is "not a number", which is
      what makes the sort below an index scan rather than a cast per row. */

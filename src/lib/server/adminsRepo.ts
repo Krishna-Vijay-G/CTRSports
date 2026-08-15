@@ -15,14 +15,23 @@ import { getSql } from "@/lib/server/db";
  * as the change. Anything else would leave a browser signed in with a password
  * that no longer exists, which is exactly the situation someone is trying to
  * end when they change one.
+ *
+ * `pages` — which editors a scoped account may open — is a join table now
+ * rather than a JSONB array on the row, so a page key is a real foreign key
+ * into `ctr.pages`. A key that is not a page cannot be granted, and retiring a
+ * page takes its grants with it instead of leaving them to be filtered out on
+ * every read. It still reads back as the same array of strings.
  */
 
 export async function listAdmins(): Promise<AdminAccount[]> {
   const sql = getSql();
   const rows = (await sql`
-    SELECT id, username, role, pages, created_at
-      FROM admins
-     ORDER BY username ASC
+    SELECT a.id, a.username, a.role, a.created_at,
+           (SELECT coalesce(jsonb_agg(p.page_key ORDER BY k.sort_order), '[]'::jsonb)
+             FROM admin_pages p JOIN pages k ON k.key = p.page_key
+            WHERE p.admin_id = a.id) AS pages
+      FROM admins a
+     ORDER BY a.username ASC
   `) as AdminAccount[];
 
   return rows;
@@ -31,12 +40,36 @@ export async function listAdmins(): Promise<AdminAccount[]> {
 export async function getAdmin(id: string): Promise<AdminAccount | null> {
   const sql = getSql();
   const rows = (await sql`
-    SELECT id, username, role, pages, created_at
-      FROM admins
-     WHERE id = ${id}
+    SELECT a.id, a.username, a.role, a.created_at,
+           (SELECT coalesce(jsonb_agg(p.page_key ORDER BY k.sort_order), '[]'::jsonb)
+             FROM admin_pages p JOIN pages k ON k.key = p.page_key
+            WHERE p.admin_id = a.id) AS pages
+      FROM admins a
+     WHERE a.id = ${id}
   `) as AdminAccount[];
 
   return rows[0] ?? null;
+}
+
+/**
+ * The account's page grants, replaced wholesale.
+ *
+ * A key that is not a page is refused by the foreign key rather than silently
+ * dropped, which is the difference this table makes: `normalisePages` filtered
+ * unknown keys out on the way in, and nothing checked what was already stored.
+ */
+async function writePages(id: string, pages: readonly string[]): Promise<void> {
+  const sql = getSql();
+
+  await sql.transaction([
+    sql`DELETE FROM admin_pages WHERE admin_id = ${id}`,
+    ...pages.map(
+      (page) => sql`
+        INSERT INTO admin_pages (admin_id, page_key) VALUES (${id}, ${page})
+        ON CONFLICT DO NOTHING
+      `
+    ),
+  ]);
 }
 
 /**
@@ -61,12 +94,16 @@ export async function createAdmin(input: unknown, password: string): Promise<Adm
   const hash = await hashPassword(password);
 
   const rows = (await sql`
-    INSERT INTO admins (username, password_hash, role, pages)
-    VALUES (${account.username}, ${hash}, ${account.role}, ${JSON.stringify(account.pages)}::jsonb)
-    RETURNING id, username, role, pages, created_at
-  `) as AdminAccount[];
+    INSERT INTO admins (username, password_hash, role)
+    VALUES (${account.username}, ${hash}, ${account.role})
+    RETURNING id
+  `) as { id: string }[];
 
-  return rows[0];
+  await writePages(rows[0].id, account.pages);
+
+  const created = await getAdmin(rows[0].id);
+  if (!created) throw new Error("The account was not written.");
+  return created;
 }
 
 /**
@@ -87,13 +124,16 @@ export async function updateAdmin(
   const rows = (await sql`
     UPDATE admins
        SET username = ${account.username},
-           role     = ${account.role},
-           pages    = ${JSON.stringify(account.pages)}::jsonb
+           role     = ${account.role}
      WHERE id = ${id}
-    RETURNING id, username, role, pages, created_at
-  `) as AdminAccount[];
+    RETURNING id
+  `) as { id: string }[];
 
-  const updated = rows[0] ?? null;
+  if (rows.length === 0) return null;
+
+  await writePages(id, account.pages);
+
+  const updated = await getAdmin(id);
   if (!updated || !password) return updated;
 
   const hash = await hashPassword(password);

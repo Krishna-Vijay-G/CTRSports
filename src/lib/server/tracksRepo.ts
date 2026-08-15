@@ -1,7 +1,8 @@
 import "server-only";
 
+import { cache } from "react";
 import { getSql } from "@/lib/server/db";
-import { normaliseTrackInput, type Track } from "@/lib/tracks";
+import { normaliseTrackInput, trackSlug, type Track, type TrackLink } from "@/lib/tracks";
 
 /**
  * Every read and write of ctr.tracks.
@@ -11,18 +12,98 @@ import { normaliseTrackInput, type Track } from "@/lib/tracks";
  * names is easier to follow than one builder that hides them.
  */
 
-export async function listTracks(): Promise<Track[]> {
+/*
+ * Two things changed with the restructure. The related links are rows in
+ * `track_links` rather than a JSONB column — and that column was the one place
+ * in this project with NO read-side normaliser, so whatever shapes were in it
+ * came straight out as `Track[]`. They are columns now and cannot be anything
+ * else. And the slug is stored rather than derived on every render.
+ *
+ * `listTracks` is wrapped in React `cache()`. A circuit page asks for the
+ * circuits twice — once in `generateMetadata` and once in the component — and
+ * that was two full scans of the table on every request. `cache()` dedupes
+ * within one request and nothing wider, so an edit is still visible at once.
+ */
+export const listTracks = cache(async (): Promise<Track[]> => {
   const sql = getSql();
   const rows = (await sql`
-    SELECT id, name, location, photo_url, map_url, svg_path, svg_view_box,
+    SELECT id, name, slug, location, photo_url, map_url, svg_path, svg_view_box,
            length, turns, direction, opened, broke_ground, former_names, owner,
-           fia_grade, coordinates, capacity, links, major_events, races_held,
-           lap_record_time, lap_record_year, note, sort_order
-      FROM tracks
-     ORDER BY sort_order ASC, name ASC
+           fia_grade, coordinates, capacity, major_events, races_held,
+           lap_record_time, lap_record_year, note, sort_order,
+           (SELECT coalesce(jsonb_agg(jsonb_build_object('label', l.label, 'href', l.href)
+                     ORDER BY l.position), '[]'::jsonb)
+             FROM track_links l WHERE l.track_id = t.id) AS links
+      FROM tracks t
+     ORDER BY t.sort_order ASC, t.name ASC
   `) as Track[];
 
   return rows;
+});
+
+/** One circuit, put back together the same way. */
+export async function getTrack(id: string): Promise<Track | null> {
+  const sql = getSql();
+  const rows = (await sql`
+    SELECT id, name, slug, location, photo_url, map_url, svg_path, svg_view_box,
+           length, turns, direction, opened, broke_ground, former_names, owner,
+           fia_grade, coordinates, capacity, major_events, races_held,
+           lap_record_time, lap_record_year, note, sort_order,
+           (SELECT coalesce(jsonb_agg(jsonb_build_object('label', l.label, 'href', l.href)
+                     ORDER BY l.position), '[]'::jsonb)
+             FROM track_links l WHERE l.track_id = t.id) AS links
+      FROM tracks t WHERE t.id = ${id}
+  `) as Track[];
+
+  return rows[0] ?? null;
+}
+
+/**
+ * The related links, replaced wholesale. Their identity is their position, so
+ * there is nothing to reconcile and a diff would only be a way to be subtly
+ * wrong about the order.
+ */
+async function writeLinks(id: string, links: TrackLink[]): Promise<void> {
+  const sql = getSql();
+
+  await sql.transaction([
+    sql`DELETE FROM track_links WHERE track_id = ${id}`,
+    ...links
+      .filter((link) => link.href)
+      .map(
+        (link, index) => sql`
+          INSERT INTO track_links (track_id, position, label, href)
+          VALUES (${id}, ${index + 1}, ${link.label}, ${link.href})
+        `
+      ),
+  ]);
+}
+
+/**
+ * An address nothing else is using.
+ *
+ * The slug is a UNIQUE column now, so two circuits with the same name can no
+ * longer both derive `kari-motor-speedway` and have the second insert fail on a
+ * constraint the admin never mentioned. A suffix is appended until it is free —
+ * the same shape the forms and decks loops use, and for the same reason:
+ * something has to be invented, because nobody typed it.
+ */
+async function freeSlug(name: string): Promise<string> {
+  const sql = getSql();
+  const wanted = trackSlug({ id: "", name }) || "circuit";
+
+  const taken = (await sql`
+    SELECT slug FROM tracks WHERE slug = ${wanted} OR slug LIKE ${wanted + "-%"}
+  `) as { slug: string }[];
+
+  const used = new Set(taken.map((row) => row.slug));
+  if (!used.has(wanted)) return wanted;
+
+  for (let attempt = 2; attempt <= 50; attempt += 1) {
+    if (!used.has(`${wanted}-${attempt}`)) return `${wanted}-${attempt}`;
+  }
+
+  throw new Error("Could not find a free address for the circuit.");
 }
 
 /**
@@ -47,25 +128,27 @@ export async function createTrack(input: unknown): Promise<Track> {
 
   const rows = (await sql`
     INSERT INTO tracks (
-      name, location, photo_url, map_url, svg_path, svg_view_box,
+      name, slug, location, photo_url, map_url, svg_path, svg_view_box,
       length, turns, direction, opened, broke_ground, former_names, owner,
-      fia_grade, coordinates, capacity, links, major_events, races_held,
+      fia_grade, coordinates, capacity, major_events, races_held,
       lap_record_time, lap_record_year, note, sort_order
     )
     VALUES (
-      ${t.name}, ${t.location}, ${t.photo_url}, ${t.map_url}, ${t.svg_path}, ${t.svg_view_box},
+      ${t.name}, ${await freeSlug(t.name)}, ${t.location}, ${t.photo_url}, ${t.map_url},
+      ${t.svg_path}, ${t.svg_view_box},
       ${t.length}, ${t.turns}, ${t.direction}, ${t.opened}, ${t.broke_ground},
       ${t.former_names}, ${t.owner}, ${t.fia_grade}, ${t.coordinates}, ${t.capacity},
-      ${JSON.stringify(t.links)}::jsonb, ${t.major_events}, ${t.races_held},
+      ${t.major_events}, ${t.races_held},
       ${t.lap_record_time}, ${t.lap_record_year}, ${t.note}, ${t.sort_order}
     )
-    RETURNING id, name, location, photo_url, map_url, svg_path, svg_view_box,
-              length, turns, direction, opened, broke_ground, former_names, owner,
-              fia_grade, coordinates, capacity, links, major_events, races_held,
-              lap_record_time, lap_record_year, note, sort_order
-  `) as Track[];
+    RETURNING id
+  `) as { id: string }[];
 
-  return rows[0];
+  await writeLinks(rows[0].id, t.links);
+
+  const created = await getTrack(rows[0].id);
+  if (!created) throw new Error("The circuit was not written.");
+  return created;
 }
 
 /**
@@ -97,7 +180,6 @@ export async function updateTrack(id: string, input: unknown): Promise<Track | n
            fia_grade       = ${t.fia_grade},
            coordinates     = ${t.coordinates},
            capacity        = ${t.capacity},
-           links           = ${JSON.stringify(t.links)}::jsonb,
            major_events    = ${t.major_events},
            races_held      = ${t.races_held},
            lap_record_time = ${t.lap_record_time},
@@ -105,30 +187,29 @@ export async function updateTrack(id: string, input: unknown): Promise<Track | n
            note            = ${t.note},
            updated_at      = now()
      WHERE id = ${id}
-    RETURNING id, name, location, photo_url, map_url, svg_path, svg_view_box,
-              length, turns, direction, opened, broke_ground, former_names, owner,
-              fia_grade, coordinates, capacity, links, major_events, races_held,
-              lap_record_time, lap_record_year, note, sort_order
-  `) as Track[];
+    RETURNING id
+  `) as { id: string }[];
 
-  return rows[0] ?? null;
+  if (rows.length === 0) return null;
+
+  await writeLinks(id, t.links);
+
+  return getTrack(id);
 }
 
-/** Spaced by ten, one transaction — the same rule the sports list follows. */
+/** Spaced by ten, in one statement rather than one round trip per circuit. */
 export async function reorderTracks(ids: string[]): Promise<void> {
   if (ids.length === 0) return;
 
   const sql = getSql();
+  const orders = ids.map((_, index) => (index + 1) * 10);
 
-  await sql.transaction(
-    ids.map(
-      (id, index) => sql`
-        UPDATE tracks
-           SET sort_order = ${(index + 1) * 10}, updated_at = now()
-         WHERE id = ${id}
-      `
-    )
-  );
+  await sql`
+    UPDATE tracks t
+       SET sort_order = wanted.position, updated_at = now()
+      FROM unnest(${ids}::uuid[], ${orders}::int[]) AS wanted(id, position)
+     WHERE t.id = wanted.id
+  `;
 }
 
 /**

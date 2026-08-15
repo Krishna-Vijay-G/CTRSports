@@ -43,41 +43,69 @@
  *
  * ── Life expectancy ───────────────────────────────────────────────────────
  *
- * One-shot, and it outlived the schema it was written against: 0001 moved these
- * tables into the `ctr` schema and dropped the prefix while this had not yet
- * been run. So each table is looked up at run time and answers to either name —
- * `ctr.content` if the baseline has been applied, `public.ctr_content` if not.
+ * One-shot, and it has now outlived two schema changes without being run.
+ * It copes with both:
  *
- * That is the whole of the accommodation. Once this has run against production
- * it is spent: delete it rather than leaving a one-shot lying around looking
- * like a tool.
+ *   the NAME    0001 moved these tables into a `ctr` schema and dropped the
+ *               prefix, so each is looked up through `to_regclass` and answers
+ *               to `ctr.decks` or `public.ctr_decks`, whichever is there.
+ *   the SHAPE   0006 took the page documents apart and 0008 dropped
+ *               `content` outright, so the column list is chosen from the
+ *               schema this database actually has — see SCHEMAS below.
+ *
+ * That is the whole of the accommodation, and it is more than a one-shot should
+ * need. Once this has run against production it is spent: delete it rather than
+ * leaving it lying around looking like a tool.
  */
 import { neon } from "@neondatabase/serverless";
 
-/** Every column that can hold one, and whether it has to go through ::text. */
-const TARGETS = [
-  {
-    table: "content",
-    what: "the landing and INCRC documents",
-    columns: [{ name: "content", json: true }],
-  },
-  { table: "decks", what: "deck page images", columns: [{ name: "pages", json: true }] },
-  {
-    table: "sports",
-    what: "sport logos and photos",
-    columns: [{ name: "logo_url" }, { name: "photo_url" }],
-  },
-  {
-    table: "tracks",
-    what: "circuit photos, layout maps and related links",
-    columns: [{ name: "photo_url" }, { name: "map_url" }, { name: "links", json: true }],
-  },
-  {
-    table: "forms",
-    what: "anything pasted into a form's questions or sections",
-    columns: [{ name: "fields", json: true }, { name: "sections", json: true }],
-  },
-];
+/**
+ * Every column that can hold one, in whichever schema this database has.
+ *
+ * The restructure moved these. Before it, the URLs sat in four JSONB documents
+ * and a handful of text columns; after it they are ordinary indexed columns in
+ * a dozen tables, and `ctr.content` — which held most of them — does not exist
+ * at all. This script had not been run when that landed, so it has to know both.
+ *
+ * `SCHEMAS.new` is chosen when `page_sections` exists, which is the marker that
+ * 0006 has been applied.
+ */
+const SCHEMAS = {
+  old: [
+    { table: "content", what: "the landing and INCRC documents", columns: [{ name: "content", json: true }] },
+    { table: "decks", what: "deck page images", columns: [{ name: "pages", json: true }] },
+    { table: "sports", what: "sport logos and photos", columns: [{ name: "logo_url" }, { name: "photo_url" }] },
+    {
+      table: "tracks",
+      what: "circuit photos, layout maps and related links",
+      columns: [{ name: "photo_url" }, { name: "map_url" }, { name: "links", json: true }],
+    },
+    {
+      table: "forms",
+      what: "anything pasted into a form's questions or sections",
+      columns: [{ name: "fields", json: true }, { name: "sections", json: true }],
+    },
+  ],
+  new: [
+    { table: "page_sections", what: "every section of both pages", columns: [{ name: "data", json: true }] },
+    { table: "banners", what: "banner photographs", columns: [{ name: "image" }] },
+    { table: "posts", what: "newsroom photographs", columns: [{ name: "image" }] },
+    { table: "partners", what: "partner marks", columns: [{ name: "logo" }] },
+    { table: "deck_pages", what: "deck page images", columns: [{ name: "url" }] },
+    { table: "sports", what: "sport logos and photos", columns: [{ name: "logo_url" }, { name: "photo_url" }] },
+    {
+      table: "tracks",
+      what: "circuit photos and layout maps",
+      columns: [{ name: "photo_url" }, { name: "map_url" }],
+    },
+    { table: "track_links", what: "related links on a circuit", columns: [{ name: "href" }] },
+    {
+      table: "forms",
+      what: "anything pasted into a form's questions or sections",
+      columns: [{ name: "fields", json: true }, { name: "sections", json: true }],
+    },
+  ],
+};
 
 const DRY_RUN = process.argv.includes("--dry-run");
 
@@ -143,6 +171,22 @@ if (TO.includes(FROM)) {
 const sql = neon(process.env.DATABASE_URL);
 
 /**
+ * Which restructure this database has had.
+ *
+ * `page_sections` is the marker: it is created by 0006 and by nothing else, so
+ * its presence says the documents have been taken apart, and its absence says
+ * the URLs are still in the JSONB they were written into.
+ */
+async function chooseSchema() {
+  const [row] = await sql.query(
+    `SELECT coalesce(to_regclass('ctr.page_sections'), to_regclass('public.page_sections'))
+              IS NOT NULL AS decomposed`
+  );
+
+  return row.decomposed ? "new" : "old";
+}
+
+/**
  * Whichever of the two names this database answers to, fully qualified.
  *
  * `to_regclass` returns null rather than raising for a name that is not there,
@@ -200,6 +244,10 @@ console.log(`  from  ${FROM}`);
 console.log(`  to    ${TO}\n`);
 
 try {
+  const shape = await chooseSchema();
+  const TARGETS = SCHEMAS[shape];
+  console.log(`  schema: ${shape === "new" ? "decomposed (0006 applied)" : "the original documents"}\n`);
+
   let pending = 0;
   let urls = 0;
   let written = 0;

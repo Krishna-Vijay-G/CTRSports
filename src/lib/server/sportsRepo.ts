@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import { getSql } from "@/lib/server/db";
 import { normaliseSportInput, type Sport } from "@/lib/sports";
 
@@ -36,7 +37,7 @@ function toSport(row: Row): Sport {
 }
 
 /** Everything, hidden cards included — this is the admin's list. */
-export async function listAllSports(): Promise<Sport[]> {
+export const listAllSports = cache(async (): Promise<Sport[]> => {
   const sql = getSql();
   const rows = (await sql`
     SELECT id, title, text, details, logo_url, photo_url, href, sort_order, is_visible
@@ -45,10 +46,10 @@ export async function listAllSports(): Promise<Sport[]> {
   `) as Row[];
 
   return rows.map(toSport);
-}
+});
 
 /** Only what the landing page should show. */
-export async function listVisibleSports(): Promise<Sport[]> {
+export const listVisibleSports = cache(async (): Promise<Sport[]> => {
   const sql = getSql();
   const rows = (await sql`
     SELECT id, title, text, details, logo_url, photo_url, href, sort_order, is_visible
@@ -58,7 +59,7 @@ export async function listVisibleSports(): Promise<Sport[]> {
   `) as Row[];
 
   return rows.map(toSport);
-}
+});
 
 /**
  * Same, but an unreachable database yields an empty list instead of throwing.

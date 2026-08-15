@@ -42,7 +42,19 @@ UPDATE ctr.tracks
          id::text
        );
 
-ALTER TABLE ctr.tracks ALTER COLUMN slug SET NOT NULL;
+/*
+ * NULLABLE, deliberately, and only until 0008.
+ *
+ * This phase expands and does not contract, which means the OLD `createTrack`
+ * is still the one running until phase 4 deploys — and it does not know this
+ * column exists. `NOT NULL` here would make adding a circuit through the admin
+ * fail with a constraint violation the moment this migration lands, which is
+ * precisely the breakage expanding first is meant to avoid.
+ *
+ * A unique index permits any number of NULLs, so a circuit added in that window
+ * simply has no slug yet. 0008 fills those in and adds the NOT NULL, in the same
+ * transaction as the repo cutover.
+ */
 ALTER TABLE ctr.tracks ADD CONSTRAINT tracks_slug_not_blank CHECK (slug <> '');
 CREATE UNIQUE INDEX tracks_slug_idx ON ctr.tracks (slug);
 
@@ -100,8 +112,11 @@ DECLARE
 BEGIN
   SELECT count(DISTINCT slug), count(*) INTO distinct_slugs, circuits FROM ctr.tracks;
 
+  -- Every circuit that exists right now must have got one. A NULL here means the
+  -- derivation produced nothing from a name AND the id fallback failed, which
+  -- cannot happen — so it is worth saying rather than assuming.
   IF distinct_slugs <> circuits THEN
-    RAISE EXCEPTION 'Circuit slugs are not unique: % slug(s) for % circuit(s).',
+    RAISE EXCEPTION 'Circuit slugs are not unique or complete: % slug(s) for % circuit(s).',
       distinct_slugs, circuits;
   END IF;
 

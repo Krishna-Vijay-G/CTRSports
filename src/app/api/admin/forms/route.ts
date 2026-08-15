@@ -26,18 +26,20 @@ export async function GET() {
   if (denied) return denied;
 
   try {
-    const forms = await listForms();
     const session = await getSession();
-    const allowed = visibleFormPages(session);
 
-    // An owner or a registrations admin gets everything, including the forms
-    // on no page at all. Anyone else gets their own pages and nothing else.
-    const mine =
+    // An owner or a registrations admin gets everything, including the forms on
+    // no page at all. Anyone else gets their own pages and nothing else — and
+    // the narrowing is a WHERE now rather than a filter on the way out, so a
+    // scoped account no longer pays for every form in the database and the rows
+    // it may not see never leave Postgres.
+    const everything = Boolean(
       session && (session.role === "owner" || session.role === "registrations")
-        ? forms
-        : forms.filter((form) => form.page_key !== "" && allowed.includes(form.page_key));
+    );
 
-    return NextResponse.json({ forms: mine });
+    const forms = everything ? await listForms() : await listForms(visibleFormPages(session));
+
+    return NextResponse.json({ forms });
   } catch (error) {
     console.error("[admin/forms] GET", error);
     return NextResponse.json({ error: "Could not load the forms." }, { status: 500 });
