@@ -593,17 +593,15 @@ export function normaliseIncrcContent(input: unknown): IncrcContent {
             note: optionalText(entry.note, 40),
             href: link(entry.href, "#"),
           }),
-          // No stored list at all is a document from before the chips: it gets
-          // the follow button it used to draw, pointed where it used to point.
-          [
-            {
-              id: "family-link-1",
-              icon: "instagram" as LinkIcon,
-              label: d.family.links[0].label,
-              note: identity.handle,
-              href: identity.instagram,
-            },
-          ]
+          // No stored list is no chips.
+          //
+          // This used to synthesise one Instagram button for a document written
+          // before the chips existed, taking its wording from the first default
+          // link. There are no defaults to take it from now, and inventing a
+          // label here would put a word on the page that nobody typed — the one
+          // thing this whole change was to stop. Every document that reaches
+          // this code has been through 0006 and carries its own list.
+          d.family.links
         ),
         "family-link"
       ),
