@@ -214,6 +214,13 @@ export type IncrcContent = {
     tagline: string;
     handle: string;
     instagram: string;
+    /**
+     * What the follow chip says. Blank leaves the chip off the introduction
+     * entirely, as does a blank address — the words on a button are the page's
+     * to choose, not this file's, and a chip nobody typed is a chip that came
+     * from here rather than from the championship.
+     */
+    followLabel: string;
   };
   /** The rotating panels at the top. Modelled in src/lib/banners.ts. */
   banners: Banner[];
@@ -240,12 +247,46 @@ export type IncrcContent = {
     insetAlt: string;
   };
   /**
-   * The heading only. The circuits themselves are rows of ctr.tracks — the
-   * section shows the first three and sends the reader to /circuits for the
-   * rest — so there is nothing about a venue to type in here.
+   * The heading and the section's own wording. The circuits themselves are rows
+   * of ctr.tracks — the section shows the first three and sends the reader to
+   * /circuits for the rest — so there is nothing about a venue to type in here.
+   *
+   * `cardLabel` is the word before each card's number ("Circuit 01"); the number
+   * is the card's position and is not stored. `cardCta` is the line at the foot
+   * of a card. Both blank simply leave that piece off the card.
    */
-  venues: { label: string; title: string };
-  calendar: { label: string; title: string; rounds: Round[] };
+  venues: {
+    label: string;
+    title: string;
+    ctaLabel: string;
+    ctaHref: string;
+    cardLabel: string;
+    cardCta: string;
+  };
+  /**
+   * The heading, the season, and the words the season is read with.
+   *
+   * The five wording fields are the ones the cards print around a round's own
+   * dates and circuit: what a round is called, what the featured one is called,
+   * what sits over the clock, what an unfixed weekend says, and what the link to
+   * a circuit's page says. A championship that runs "events" rather than
+   * "rounds" says so here rather than in a component.
+   */
+  calendar: {
+    label: string;
+    title: string;
+    /** The word before a round's number, on both the big card and the grid. */
+    roundLabel: string;
+    /** The chip on the round the season is heading towards. */
+    nextLabel: string;
+    /** The line over the countdown. */
+    countdownLabel: string;
+    /** What a round with no fixed date prints in place of one. */
+    tbcLabel: string;
+    /** The link to a round's circuit page. Blank leaves the link off. */
+    trackCtaLabel: string;
+    rounds: Round[];
+  };
   partnership: {
     label: string;
     title: string;
@@ -294,7 +335,7 @@ export type IncrcContent = {
  * scripts/seed-data/incrc.json. Nothing here is content.
  */
 export const BLANK_INCRC_CONTENT: IncrcContent = {
-  meta: { name: "", short: "", tagline: "", handle: "", instagram: "" },
+  meta: { name: "", short: "", tagline: "", handle: "", instagram: "", followLabel: "" },
   banners: [],
   marquee: { items: [] },
   intro: {
@@ -318,8 +359,17 @@ export const BLANK_INCRC_CONTENT: IncrcContent = {
     inset: "",
     insetAlt: "",
   },
-  venues: { label: "", title: "" },
-  calendar: { label: "", title: "", rounds: [] },
+  venues: { label: "", title: "", ctaLabel: "", ctaHref: "", cardLabel: "", cardCta: "" },
+  calendar: {
+    label: "",
+    title: "",
+    roundLabel: "",
+    nextLabel: "",
+    countdownLabel: "",
+    tbcLabel: "",
+    trackCtaLabel: "",
+    rounds: [],
+  },
   partnership: {
     label: "",
     title: "",
@@ -451,6 +501,7 @@ export function normaliseIncrcContent(input: unknown): IncrcContent {
     tagline: text(meta.tagline, d.meta.tagline),
     handle: text(meta.handle, d.meta.handle),
     instagram: link(meta.instagram, d.meta.instagram),
+    followLabel: text(meta.followLabel, d.meta.followLabel, 60),
   };
 
   return {
@@ -526,11 +577,20 @@ export function normaliseIncrcContent(input: unknown): IncrcContent {
     venues: {
       label: text(venues.label, d.venues.label),
       title: text(venues.title, d.venues.title),
+      ctaLabel: text(venues.ctaLabel, d.venues.ctaLabel, 60),
+      ctaHref: link(venues.ctaHref, d.venues.ctaHref),
+      cardLabel: text(venues.cardLabel, d.venues.cardLabel, 40),
+      cardCta: text(venues.cardCta, d.venues.cardCta, 40),
     },
 
     calendar: {
       label: text(calendar.label, d.calendar.label),
       title: text(calendar.title, d.calendar.title),
+      roundLabel: text(calendar.roundLabel, d.calendar.roundLabel, 40),
+      nextLabel: text(calendar.nextLabel, d.calendar.nextLabel, 40),
+      countdownLabel: text(calendar.countdownLabel, d.calendar.countdownLabel, 40),
+      tbcLabel: text(calendar.tbcLabel, d.calendar.tbcLabel, 40),
+      trackCtaLabel: text(calendar.trackCtaLabel, d.calendar.trackCtaLabel, 40),
       rounds: list(
         calendar.rounds,
         MAX_ROUNDS,
