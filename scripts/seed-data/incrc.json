@@ -363,6 +363,7 @@
       "date_to": "2026-09-13",
       "dates": "",
       "status": "Entries open",
+      "track_slug": "kari-motor-speedway",
       "track_id": ""
     },
     {
@@ -374,6 +375,7 @@
       "date_to": "2026-10-25",
       "dates": "",
       "status": "Entries open",
+      "track_slug": "kari-motor-speedway",
       "track_id": ""
     },
     {
@@ -385,6 +387,7 @@
       "date_to": "2026-11-15",
       "dates": "",
       "status": "Entries open",
+      "track_slug": "bren-raceway",
       "track_id": ""
     },
     {
@@ -396,6 +399,7 @@
       "date_to": "2026-12-13",
       "dates": "",
       "status": "Season finale",
+      "track_slug": "madras-international-circuit",
       "track_id": ""
     }
   ],

@@ -277,6 +277,25 @@ async function seedDecks() {
  * card appear. That is also why the entry forms below are NOT chosen this way:
  * every published form assigned to a page belongs on it, while a deck belongs
  * to nobody and somebody has to pick.
+ *
+ * ── Pointing a round at a circuit ─────────────────────────────────────────
+ *
+ * A round names its circuit with `track_slug`, which is SEED-ONLY and is not a
+ * field of the document. `writePage` stores `trackId`, the uuid the admin's
+ * picker chose — and a seed cannot name a uuid, because circuits get theirs
+ * from `gen_random_uuid()` in this same run and nothing written in advance
+ * could know one.
+ *
+ * Every round therefore carried `"track_id": ""`, which resolves to NULL. A
+ * round with no circuit still renders — on the venue and city typed beside it —
+ * so the gap was invisible while quietly costing each one its photograph, its
+ * length and corner count, and the link to the circuit's own page.
+ *
+ * The insert accepts either, so a document exported from a live database still
+ * seeds unchanged. Nothing has to be kept in step afterwards: the console
+ * rewrites these rows through `writePage` on the first save, which stores the
+ * real uuid and drops the slug. A slug naming no circuit lands as NULL — the
+ * same fallback `writePage` gives a circuit that has since been deleted.
  */
 async function seedPageContent() {
   const seeded = [];
@@ -313,10 +332,11 @@ async function seedPageContent() {
                                          date_from, date_to, dates, status, track_id)
         VALUES (${key}, ${round.position}, ${round.round}, ${round.venue}, ${round.city},
                 ${round.date_from}, ${round.date_to}, ${round.dates}, ${round.status},
-                -- Resolved the way writePage resolves it: a circuit that is not
-                -- there lands as NULL, and the card falls back to the venue and
-                -- city beside it.
-                (SELECT id FROM ctr.tracks WHERE id::text = ${round.track_id}))
+                -- By SLUG here, unlike writePage, which resolves the uuid the
+                -- admin's picker stored. See the note above this function.
+                (SELECT id FROM ctr.tracks
+                  WHERE slug = ${round.track_slug ?? ""}
+                     OR id::text = ${round.track_id ?? ""}))
       `;
     }
 
