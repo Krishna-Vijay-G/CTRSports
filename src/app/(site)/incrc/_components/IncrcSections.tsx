@@ -1,7 +1,9 @@
+import type { ArticleSummary } from "@/lib/articles";
 import type { DeckSummary } from "@/lib/decks";
 import type { FormSummary } from "@/lib/forms";
 import type { Track } from "@/lib/tracks";
 import type { IncrcContent, IncrcSectionId } from "@/lib/incrcContent";
+import { AnnouncementBand } from "./AnnouncementBand";
 import { CalendarSection } from "./CalendarSection";
 import { DecksSection } from "./DecksSection";
 import { FamilyBanner } from "./FamilyBanner";
@@ -35,6 +37,7 @@ export function IncrcSections({
   tracks,
   forms,
   decks,
+  articles,
 }: {
   content: IncrcContent;
   /**
@@ -52,6 +55,11 @@ export function IncrcSections({
    * address; a card naming one that is not here is dropped.
    */
   decks: DeckSummary[];
+  /**
+   * Every published article, from ctr.articles. The announcement card points at
+   * one by address and takes its cover, title and date from it.
+   */
+  articles: ArticleSummary[];
 }) {
   return (
     <>
@@ -59,7 +67,7 @@ export function IncrcSections({
         .filter((entry) => entry.visible)
         .map((entry) => (
           <div key={entry.id} data-preview={entry.id}>
-            {section(entry.id, content, tracks, forms, decks)}
+            {section(entry.id, content, tracks, forms, decks, articles)}
           </div>
         ))}
     </>
@@ -71,11 +79,20 @@ function section(
   content: IncrcContent,
   tracks: Track[],
   forms: FormSummary[],
-  decks: DeckSummary[]
+  decks: DeckSummary[],
+  articles: ArticleSummary[]
 ): React.ReactNode {
   switch (id) {
     case "marquee":
       return <Marquee marquee={content.marquee} />;
+    case "announcement":
+      return (
+        <AnnouncementBand
+          announcement={content.announcement}
+          articles={articles}
+          decks={decks}
+        />
+      );
     case "intro":
       return <IntroSection intro={content.intro} meta={content.meta} />;
     case "stats":

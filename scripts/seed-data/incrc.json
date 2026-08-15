@@ -30,8 +30,17 @@
       }
     },
     {
-      "section_id": "intro",
+      "section_id": "announcement",
       "position": 2,
+      "visible": true,
+      "data": {
+        "colour": "#F7D619",
+        "ink": "auto"
+      }
+    },
+    {
+      "section_id": "intro",
+      "position": 3,
       "visible": true,
       "data": {
         "kicker": "One Nation · One Championship",
@@ -44,7 +53,7 @@
     },
     {
       "section_id": "stats",
-      "position": 3,
+      "position": 4,
       "visible": true,
       "data": {
         "items": [
@@ -69,7 +78,7 @@
     },
     {
       "section_id": "vision",
-      "position": 4,
+      "position": 5,
       "visible": true,
       "data": {
         "label": "Our vision",
@@ -100,7 +109,7 @@
     },
     {
       "section_id": "grid",
-      "position": 5,
+      "position": 6,
       "visible": true,
       "data": {
         "label": "The grid",
@@ -115,7 +124,7 @@
     },
     {
       "section_id": "venues",
-      "position": 6,
+      "position": 7,
       "visible": true,
       "data": {
         "label": "Championship venues",
@@ -128,7 +137,7 @@
     },
     {
       "section_id": "calendar",
-      "position": 7,
+      "position": 8,
       "visible": true,
       "data": {
         "label": "FMSCI Indian National Car Racing Championship",
@@ -142,7 +151,7 @@
     },
     {
       "section_id": "partnership",
-      "position": 8,
+      "position": 9,
       "visible": true,
       "data": {
         "label": "Behind the grid",
@@ -167,7 +176,7 @@
     },
     {
       "section_id": "family",
-      "position": 9,
+      "position": 10,
       "visible": true,
       "data": {
         "image": "https://raw.githubusercontent.com/Krishna-Vijay-G/CTRSports/refs/heads/assets/incrc/family/family.webp",
@@ -187,7 +196,7 @@
     },
     {
       "section_id": "rows",
-      "position": 10,
+      "position": 11,
       "visible": true,
       "data": {
         "label": "Championship bulletin",
@@ -226,7 +235,7 @@
     },
     {
       "section_id": "posts",
-      "position": 11,
+      "position": 12,
       "visible": true,
       "data": {
         "label": "Newsroom",
@@ -237,7 +246,7 @@
     },
     {
       "section_id": "register",
-      "position": 12,
+      "position": 13,
       "visible": true,
       "data": {
         "kicker": "2026 season · registration open",
@@ -249,7 +258,7 @@
     },
     {
       "section_id": "registrations",
-      "position": 13,
+      "position": 14,
       "visible": true,
       "data": {
         "label": "Enter the championship",
@@ -260,7 +269,7 @@
     },
     {
       "section_id": "decks",
-      "position": 14,
+      "position": 15,
       "visible": true,
       "data": {
         "label": "Read more",

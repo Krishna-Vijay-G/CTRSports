@@ -73,10 +73,27 @@ type ArticleRow = {
  * column, and `<input type="date">` accepts exactly one of those. Normalised
  * through `isoDate` either way, so an unparseable value reads as "" rather than
  * as the string "Invalid Date".
+ *
+ * ── Why the Date branch is not toISOString() ──────────────────────────────
+ *
+ * It was, and it printed the wrong day. A `date` has no time and no zone, and
+ * the driver builds it into a Date at LOCAL midnight — so `toISOString`, which
+ * is UTC, rolls it back a day for every reader east of Greenwich. An article
+ * published on the 11th showed as the 10th on its own page, on the index, and
+ * on anything else that prints an article's date, on a machine in IST.
+ *
+ * So the parts are read back in the same zone they were written in. Nothing here
+ * does arithmetic on the value — a published date is a label, not an instant,
+ * which is the same reading `raceDates.ts` records for a round's dates.
  */
 function dateText(value: string | Date | null): string {
   if (!value) return "";
-  return isoDate(value instanceof Date ? value.toISOString().slice(0, 10) : String(value).slice(0, 10));
+  if (!(value instanceof Date)) return isoDate(String(value).slice(0, 10));
+
+  const year = String(value.getFullYear()).padStart(4, "0");
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return isoDate(`${year}-${month}-${day}`);
 }
 
 /**

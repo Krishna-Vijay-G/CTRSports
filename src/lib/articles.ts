@@ -198,6 +198,45 @@ export function slugFromArticleHref(href: string): string {
   return match ? match[1] : "";
 }
 
+/* ──────────────────────── The date, as printed ──────────────────────── */
+
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+/**
+ * `2026-08-15` → `15 August 2026`.
+ *
+ * Assembled, never `toLocaleDateString`. A server rendering "15 August 2026" and
+ * a browser rendering "August 15, 2026" is a hydration mismatch, and the media
+ * library's `formatDate` carries the same note for the same reason.
+ *
+ * Here rather than in the article header that first drew it, because it is no
+ * longer that header's business: three things print an article's date now — the
+ * article's own page, the index, and the announcement card on /incrc — and the
+ * last of those is a section of a different page whose admin panel prints the
+ * date too. A rule with consumers in three routes belongs with the rest of the
+ * article's vocabulary, not inside one of them.
+ */
+export function articleDate(iso: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!match) return "";
+
+  const month = MONTHS[Number(match[2]) - 1];
+  return month ? `${Number(match[3])} ${month} ${match[1]}` : "";
+}
+
 /* ────────────────────────── Which page owns one ─────────────────────── */
 
 /** What the "Appears on" control says for each choice. */

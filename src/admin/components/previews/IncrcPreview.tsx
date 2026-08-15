@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { ArticleSummary } from "@/lib/articles";
 import type { DeckSummary } from "@/lib/decks";
 import type { FormSummary } from "@/lib/forms";
 import type { IncrcContent } from "@/lib/incrcContent";
@@ -36,6 +37,7 @@ export function IncrcPreview({
   tracks,
   forms,
   decks,
+  articles,
   year,
   focus,
   bannerIndex,
@@ -49,6 +51,8 @@ export function IncrcPreview({
   forms: FormSummary[];
   /** The published decks the deck cards point at. Passed in for the same reason. */
   decks: DeckSummary[];
+  /** The published articles the announcement card points at. Same reason again. */
+  articles: ArticleSummary[];
   year: number;
   focus?: string;
   bannerIndex?: number;
@@ -122,7 +126,13 @@ export function IncrcPreview({
                 chrome={chrome}
                 activeIndex={bannerIndex}
               />
-              <IncrcSections content={content} tracks={tracks} forms={forms} decks={decks} />
+              <IncrcSections
+                content={content}
+                tracks={tracks}
+                forms={forms}
+                decks={decks}
+                articles={articles}
+              />
               <SiteFooter content={chrome} year={year} />
             </div>
           </div>

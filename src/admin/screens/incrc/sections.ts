@@ -1,6 +1,7 @@
 import type { IncrcSectionId } from "@/lib/incrcContent";
 import type { RailItem } from "@/admin/components/SectionRail";
 import {
+  BoltIcon,
   CalendarIcon,
   ChartIcon,
   HandshakeIcon,
@@ -62,6 +63,14 @@ export const TABS: Tab[] = [
     hint: "The line of announcements sliding under the banners.",
     preview: "marquee",
     Icon: MegaphoneIcon,
+  },
+  {
+    id: "announcement",
+    short: "Notice",
+    title: "Announcement",
+    hint: "One card for the one thing worth interrupting for — an article, a deck, or anywhere else.",
+    preview: "announcement",
+    Icon: BoltIcon,
   },
   {
     id: "intro",

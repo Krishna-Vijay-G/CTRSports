@@ -1,4 +1,5 @@
 import { requirePage } from "@/lib/server/access";
+import { listPublishedArticles } from "@/lib/server/articlesRepo";
 import { getIncrcContent, getLandingContent } from "@/lib/server/contentRepo";
 import { listDeckSummaries } from "@/lib/server/decksRepo";
 import { listFormsForPage } from "@/lib/server/formsRepo";
@@ -21,12 +22,13 @@ export const dynamic = "force-dynamic";
 export default async function IncrcAdminPage() {
   await requirePage("incrc");
 
-  const [content, chrome, tracks, forms, decks] = await Promise.all([
+  const [content, chrome, tracks, forms, decks, articles] = await Promise.all([
     getIncrcContent(),
     getLandingContent(),
     listTracks(),
     listFormsForPage("incrc"),
     listDeckSummaries(),
+    listPublishedArticles(),
   ]);
 
   return (
@@ -36,6 +38,7 @@ export default async function IncrcAdminPage() {
       tracks={tracks}
       forms={forms}
       decks={decks}
+      articles={articles}
       year={new Date().getFullYear()}
     />
   );

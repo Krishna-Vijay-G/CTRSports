@@ -42,6 +42,7 @@ import {
 import {
   BODY_MAX,
   bool,
+  hexColour,
   image,
   isRecord,
   isoDate,
@@ -69,6 +70,7 @@ import { isUsableSlug } from "@/lib/slug";
  */
 export const INCRC_SECTION_IDS = [
   "marquee",
+  "announcement",
   "intro",
   "stats",
   "vision",
@@ -93,6 +95,27 @@ export type SectionState = { id: IncrcSectionId; visible: boolean };
 
 export const VISION_ICONS = ["star", "rocket", "shield", "globe", "flag", "spark"] as const;
 export type VisionIcon = (typeof VISION_ICONS)[number];
+
+/**
+ * Which of black and white the announcement card wears.
+ *
+ * `auto` is the answer almost always: it reads the card's own colour and picks
+ * the legible one, so a colour nobody has thought about still comes out
+ * readable. The other two are for the case the design wants and the maths does
+ * not — a colour close enough to the crossover that either would pass.
+ */
+export const ANNOUNCEMENT_INKS = ["auto", "dark", "light"] as const;
+export type AnnouncementInk = (typeof ANNOUNCEMENT_INKS)[number];
+
+/**
+ * The colour a new announcement starts as: the accent, written out.
+ *
+ * A Tailwind token cannot be the value of an `<input type="color">` and cannot
+ * be measured for contrast, so this one colour exists twice — here and in
+ * tailwind.config.ts. It is the only place in the project where that is true,
+ * and it is the price of letting the colour be chosen at all.
+ */
+export const DEFAULT_ANNOUNCEMENT_COLOUR = "#F7D619";
 
 /**
  * The glyphs a link chip can wear.
@@ -225,6 +248,55 @@ export type IncrcContent = {
   /** The rotating panels at the top. Modelled in src/lib/banners.ts. */
   banners: Banner[];
   marquee: { items: string[] };
+  /**
+   * One card, high on the page, pointing at one thing worth interrupting for.
+   *
+   * ── Why the link is ONE field ─────────────────────────────────────────────
+   *
+   * `href` is an article, a deck, or an address somebody typed, and there is no
+   * enum beside it saying which. The renderer reads that back out of the address
+   * itself — `slugFromArticleHref` and `slugFromDeckHref` — so the two can never
+   * disagree about what this card points at, which a stored `target` plus a
+   * stored slug eventually would.
+   *
+   * Storing the resolved path rather than an id is the choice `FormPicker`
+   * documents at length: this document is normalised in the BROWSER as well as
+   * on the server, where nothing can be looked up. What it costs is a rename,
+   * and that is paid for elsewhere — both /articles/[slug] and /deck/[slug]
+   * permanently redirect from a former address.
+   *
+   * ── The three overrides ───────────────────────────────────────────────────
+   *
+   * `image`, `ctaLabel` and `date` are blank almost always. Blank means "take it
+   * from the thing this points at" — the article's cover, its title, its
+   * published date — so an article renamed or re-photographed on its own screen
+   * corrects this card without anyone opening /incrc. Fill one in only when this
+   * page needs to say something the article does not. Same bargain as
+   * `DeckCard.title` below.
+   *
+   * `colour` is the one value on this page that ends up in a `style` attribute
+   * instead of a class, because a colour that is chosen cannot be a utility.
+   * It goes through `hexColour` on the way in and on the way out.
+   */
+  announcement: {
+    kicker: string;
+    title: string;
+    body: string;
+    /** The picture on the left. Blank uses the article's or deck's cover. */
+    image: string;
+    imageAlt: string;
+    /** `#RRGGBB`. The card. */
+    colour: string;
+    ink: AnnouncementInk;
+    /** `/articles/<slug>`, `/deck/<slug>`, or anywhere else worth sending someone. */
+    href: string;
+    /** Printed before the label. Blank prints nothing, which most cards want. */
+    emoji: string;
+    /** Overrides the button's words. Blank uses the article's or deck's name. */
+    ctaLabel: string;
+    /** ISO `YYYY-MM-DD`, overriding the article's own date. Blank hides the chip. */
+    date: string;
+  };
   intro: {
     kicker: string;
     headline: string;
@@ -338,6 +410,22 @@ export const BLANK_INCRC_CONTENT: IncrcContent = {
   meta: { name: "", short: "", tagline: "", handle: "", instagram: "", followLabel: "" },
   banners: [],
   marquee: { items: [] },
+  announcement: {
+    kicker: "",
+    title: "",
+    body: "",
+    image: "",
+    imageAlt: "",
+    // A real colour rather than "": the card paints this into a style attribute
+    // with nothing to fall back to, and an unpainted card is a white rectangle
+    // in the middle of a near-black page.
+    colour: DEFAULT_ANNOUNCEMENT_COLOUR,
+    ink: "auto",
+    href: "",
+    emoji: "",
+    ctaLabel: "",
+    date: "",
+  },
   intro: {
     kicker: "",
     headline: "",
@@ -477,6 +565,7 @@ export function normaliseIncrcContent(input: unknown): IncrcContent {
 
   const meta = isRecord(root.meta) ? root.meta : {};
   const marquee = isRecord(root.marquee) ? root.marquee : {};
+  const announcement = isRecord(root.announcement) ? root.announcement : {};
   const intro = isRecord(root.intro) ? root.intro : {};
   const stats = isRecord(root.stats) ? root.stats : {};
   const vision = isRecord(root.vision) ? root.vision : {};
@@ -510,6 +599,31 @@ export function normaliseIncrcContent(input: unknown): IncrcContent {
     banners: normaliseBanners(root.banners, d.banners),
 
     marquee: { items: lines(marquee.items, MAX_MARQUEE_ITEMS, d.marquee.items) },
+
+    announcement: {
+      kicker: text(announcement.kicker, d.announcement.kicker),
+      title: text(announcement.title, d.announcement.title),
+      body: text(announcement.body, d.announcement.body, BODY_MAX),
+      // "" rather than PLACEHOLDER_PHOTO, unlike every other picture in this
+      // document. Blank here is not "no picture", it is "use the article's" —
+      // and a placeholder would be indistinguishable from a real choice, so the
+      // fallback in the renderer could never fire.
+      image: image(announcement.image, ""),
+      imageAlt: text(announcement.imageAlt, d.announcement.imageAlt),
+      colour: hexColour(announcement.colour, DEFAULT_ANNOUNCEMENT_COLOUR),
+      ink: oneOf(announcement.ink, ANNOUNCEMENT_INKS, "auto"),
+      // "" rather than "#": a card pointing nowhere should draw no button, not
+      // a button that scrolls to the top of the page.
+      href: link(announcement.href, ""),
+      // Free text, where every other glyph on this page comes from a closed set
+      // drawn by a component. It is an emoji rather than an icon because that is
+      // what was asked for — the system font draws it, so there is nothing to
+      // ship and nothing to add to a catalogue — and 12 characters is room for a
+      // zero-width-joiner sequence without being room for a sentence.
+      emoji: optionalText(announcement.emoji, 12),
+      ctaLabel: text(announcement.ctaLabel, d.announcement.ctaLabel, 60),
+      date: isoDate(announcement.date),
+    },
 
     intro: {
       kicker: text(intro.kicker, d.intro.kicker),

@@ -1,14 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SITE } from "@/config/site";
-import { articleHref } from "@/lib/articles";
+import { articleDate, articleHref } from "@/lib/articles";
 import { listPublishedArticles } from "@/lib/server/articlesRepo";
 import { getLandingContent } from "@/lib/server/contentRepo";
 import { sendAnchorsHome } from "@/lib/siteChrome";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { Reveal } from "@/components/ui/Reveal";
-import { articleDate } from "./_components/ArticleHeader";
 
 /**
  * Everything that has been written, newest arrangement first.

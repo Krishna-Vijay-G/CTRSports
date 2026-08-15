@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { ArticleSummary } from "@/lib/articles";
 import type { DeckSummary } from "@/lib/decks";
 import type { FormSummary } from "@/lib/forms";
 import { type IncrcContent } from "@/lib/incrcContent";
@@ -16,6 +17,7 @@ import { SectionRail } from "@/admin/components/SectionRail";
 import { UploadFolder } from "@/admin/components/UploadFolder";
 import { BannersPanel } from "@/admin/components/banners/BannersPanel";
 import { TABS, type TabId } from "./sections";
+import { AnnouncementPanel } from "./panels/AnnouncementPanel";
 import { CalendarPanel } from "./panels/CalendarPanel";
 import { DecksPanel } from "./panels/DecksPanel";
 import { FamilyPanel } from "./panels/FamilyPanel";
@@ -66,6 +68,7 @@ export function IncrcEditor({
   tracks,
   forms,
   decks,
+  articles,
   year,
 }: {
   initialContent: IncrcContent;
@@ -83,6 +86,11 @@ export function IncrcEditor({
    * from them.
    */
   decks: DeckSummary[];
+  /**
+   * The published articles, read-only here for the same reason again: they are
+   * written on the Articles screen. The announcement card points at one.
+   */
+  articles: ArticleSummary[];
   year: number;
 }) {
   const [active, setActive] = useState<TabId>(TABS[0].id);
@@ -207,6 +215,15 @@ export function IncrcEditor({
         );
       case "marquee":
         return <MarqueePanel value={draft.marquee} onChange={(v) => setPart("marquee", v)} />;
+      case "announcement":
+        return (
+          <AnnouncementPanel
+            value={draft.announcement}
+            onChange={(v) => setPart("announcement", v)}
+            articles={articles}
+            decks={decks}
+          />
+        );
       case "intro":
         return (
           <IntroPanel
@@ -322,6 +339,7 @@ export function IncrcEditor({
           tracks={tracks}
           forms={forms}
           decks={decks}
+          articles={articles}
           year={year}
           focus={tab.preview}
           bannerIndex={bannerIndex}

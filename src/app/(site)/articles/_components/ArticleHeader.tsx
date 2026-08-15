@@ -1,4 +1,4 @@
-import type { Article } from "@/lib/articles";
+import { articleDate, type Article } from "@/lib/articles";
 import { cn } from "@/lib/utils";
 
 /**
@@ -9,35 +9,11 @@ import { cn } from "@/lib/utils";
  * is simply absent when it is blank: a heading rule over nothing, or an empty
  * picture frame, is worse than a shorter page.
  *
- * The date is printed exactly as it is stored and never reformatted per locale.
- * A server rendering "15 August 2026" and a browser rendering "August 15, 2026"
- * is a hydration mismatch, and the media library's `formatDate` already carries
- * the same note.
+ * The date is printed by `articleDate` in src/lib/articles.ts, which is also
+ * what the index and the /incrc announcement card print — one article, one date,
+ * spelled one way wherever it appears. It is assembled rather than localised;
+ * the note on that function says why.
  */
-
-const MONTHS = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
-
-/** `2026-08-15` → `15 August 2026`. Assembled, never `toLocaleDateString`. */
-export function articleDate(iso: string): string {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
-  if (!match) return "";
-
-  const month = MONTHS[Number(match[2]) - 1];
-  return month ? `${Number(match[3])} ${month} ${match[1]}` : "";
-}
 
 export function ArticleHeader({
   article,

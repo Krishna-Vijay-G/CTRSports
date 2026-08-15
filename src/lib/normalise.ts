@@ -61,6 +61,35 @@ export function isoDate(value: unknown): string {
   return Number.isNaN(date.getTime()) || !date.toISOString().startsWith(trimmed) ? "" : trimmed;
 }
 
+/**
+ * A colour, or the fallback.
+ *
+ * `#RRGGBB`, upper case. `#RGB` is expanded rather than refused — it is what
+ * somebody types by hand and it names exactly the same colour — and the case is
+ * squared up so two spellings of one colour do not read as an edit.
+ *
+ * Here rather than beside the one section that uses it, and for the same reason
+ * `isoDate` is here: this is the shape test that stands between a stored
+ * document and a `style` attribute, which is the only place in the project a
+ * colour cannot be a class. Everything that is not three or six hex digits
+ * behind a `#` falls back — so the fallback must always be a colour whose type
+ * can be read, because it is what a mangled document renders as.
+ */
+export function hexColour(value: unknown, fallback: string): string {
+  if (typeof value !== "string") return fallback;
+
+  const trimmed = value.trim().toUpperCase();
+  if (/^#[0-9A-F]{6}$/.test(trimmed)) return trimmed;
+
+  // The short form: each digit doubles. "#F00" and "#FF0000" are one colour.
+  if (/^#[0-9A-F]{3}$/.test(trimmed)) {
+    const [, r, g, b] = trimmed;
+    return `#${r}${r}${g}${g}${b}${b}`;
+  }
+
+  return fallback;
+}
+
 function isHttpUrl(value: string): boolean {
   try {
     const url = new URL(value);
