@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { SITE } from "@/config/site";
-import { getLandingContentSafe } from "@/lib/server/contentRepo";
-import { listTracksSafe } from "@/lib/server/tracksRepo";
+import { getLandingContent } from "@/lib/server/contentRepo";
+import { listTracks } from "@/lib/server/tracksRepo";
 import { sendAnchorsHome } from "@/lib/siteChrome";
 import { trackSlug } from "@/lib/tracks";
 import { SiteFooter } from "@/components/layout/SiteFooter";
@@ -18,9 +18,9 @@ import { CircuitIndex } from "./_components/CircuitIndex";
  * The chrome is the LANDING document, as everywhere else — the header and footer
  * around this page stay in step with the home page when either is edited.
  *
- * `listTracksSafe`, so an unreachable database renders an empty state rather
- * than an error page. The detail route deliberately does the opposite; see the
- * note there.
+ * An unreachable database renders the error boundary, the same as everywhere
+ * else. It used to render an empty state instead — a circuits page listing no
+ * circuits, which reads as "CTR races nowhere" rather than as the outage it is.
  */
 
 export const revalidate = 60;
@@ -29,7 +29,7 @@ export const revalidate = 60;
 const LOCAL_ANCHORS: string[] = [];
 
 export async function generateMetadata(): Promise<Metadata> {
-  const tracks = await listTracksSafe();
+  const tracks = await listTracks();
 
   const title = "Circuits";
   const description = tracks.length
@@ -54,7 +54,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function CircuitsPage() {
-  const [tracks, landing] = await Promise.all([listTracksSafe(), getLandingContentSafe()]);
+  const [tracks, landing] = await Promise.all([listTracks(), getLandingContent()]);
   const chrome = sendAnchorsHome(landing, LOCAL_ANCHORS);
 
   // A circuit is a real place with a real layout — worth saying so in a way a

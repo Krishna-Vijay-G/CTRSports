@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import { SITE } from "@/config/site";
 import { formHref, formState, placesLeft, stateMessage } from "@/lib/forms";
-import { getLandingContentSafe } from "@/lib/server/contentRepo";
-import { countEntriesSafe } from "@/lib/server/entriesRepo";
+import { getLandingContent } from "@/lib/server/contentRepo";
+import { countEntries } from "@/lib/server/entriesRepo";
 import { getFormBySlug } from "@/lib/server/formsRepo";
 import { issueToken } from "@/lib/server/registerToken";
 import { sendAnchorsHome } from "@/lib/siteChrome";
@@ -81,7 +81,7 @@ export default async function RegisterPage({ params }: Params) {
     // The throwing loader, for the reason /circuits/[slug] gives: a database
     // that is down must be a 500, not a 404 that a crawler will believe.
     getFormBySlug(slug),
-    getLandingContentSafe(),
+    getLandingContent(),
   ]);
 
   if (!form || form.status === "draft") notFound();
@@ -97,7 +97,7 @@ export default async function RegisterPage({ params }: Params) {
    * The count is only asked for when there IS a cap: without one it changes
    * nothing, and it is a query on every view of a public page.
    */
-  const taken = form.max_entries > 0 ? await countEntriesSafe(form.id) : 0;
+  const taken = form.max_entries > 0 ? await countEntries(form.id) : 0;
   const state = formState(form, taken);
   const left = placesLeft(form, taken);
 

@@ -154,16 +154,6 @@ export const listDeckSummaries = cache(async (): Promise<DeckSummary[]> => {
   }));
 });
 
-/** The same, where an unreachable database should cost the cards and not the page. */
-export async function listDeckSummariesSafe(): Promise<DeckSummary[]> {
-  try {
-    return await listDeckSummaries();
-  } catch (error) {
-    console.error("[decks] could not load the decks", error);
-    return [];
-  }
-}
-
 export async function getDeck(id: string): Promise<Deck | null> {
   const sql = getSql();
   const rows = (await sql.query(

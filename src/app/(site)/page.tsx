@@ -1,6 +1,6 @@
 import { SITE } from "@/config/site";
-import { getLandingContentSafe } from "@/lib/server/contentRepo";
-import { listVisibleSportsSafe } from "@/lib/server/sportsRepo";
+import { getLandingContent } from "@/lib/server/contentRepo";
+import { listVisibleSports } from "@/lib/server/sportsRepo";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { BannerCarousel } from "./_components/banner/BannerCarousel";
@@ -12,9 +12,13 @@ import { SportsSection } from "./_components/sections/SportsSection";
 /**
  * The landing page: who CTR is, and which sports it runs.
  *
- * Every word and picture comes from the database — the copy as one document
- * (`ctr.content`), the sports as rows (`ctr.sports`). Both loaders fall back
- * rather than throw, so an unreachable database still renders a complete page.
+ * Every word and picture comes from the database — the copy as rows of
+ * `ctr.page_sections` and `ctr.banners`, the sports as rows of `ctr.sports`.
+ *
+ * Neither loader falls back. There is no default copy left in the repo to fall
+ * back TO: a database this page cannot read is an outage, and it renders the
+ * error boundary beside this file rather than an older version of the site
+ * dressed up as the current one.
  *
  * Everything sits inside one rounded card with the page colour showing around
  * it. That card is the layout: a new section is a child of it and picks up the
@@ -27,8 +31,8 @@ export const revalidate = 60;
 
 export default async function LandingPage() {
   const [content, sports] = await Promise.all([
-    getLandingContentSafe(),
-    listVisibleSportsSafe(),
+    getLandingContent(),
+    listVisibleSports(),
   ]);
 
   // Built here rather than in the root layout because `sameAs` and the logo are

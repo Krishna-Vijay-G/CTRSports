@@ -2,16 +2,8 @@ import "server-only";
 
 import { cache } from "react";
 import { readPage, writePage } from "@/lib/server/sectionsRepo";
-import {
-  DEFAULT_INCRC_CONTENT,
-  normaliseIncrcContent,
-  type IncrcContent,
-} from "@/lib/incrcContent";
-import {
-  DEFAULT_LANDING_CONTENT,
-  normaliseLandingContent,
-  type LandingContent,
-} from "@/lib/landingContent";
+import { normaliseIncrcContent, type IncrcContent } from "@/lib/incrcContent";
+import { normaliseLandingContent, type LandingContent } from "@/lib/landingContent";
 
 /** One key per page. A new page adds a key here and a trio of functions below. */
 export const LANDING_KEY = "landing";
@@ -28,19 +20,6 @@ export const getLandingContent = cache(async (): Promise<LandingContent> => {
   return normaliseLandingContent(await read(LANDING_KEY));
 });
 
-/**
- * Same, but never throws — for the public page, which must always render.
- * An unreachable database falls back to the defaults rather than a blank page.
- */
-export async function getLandingContentSafe(): Promise<LandingContent> {
-  try {
-    return await getLandingContent();
-  } catch (error) {
-    console.error("[content] could not load landing content", error);
-    return DEFAULT_LANDING_CONTENT;
-  }
-}
-
 /** Stores the document already normalised, so a bad write cannot land. */
 export async function saveLandingContent(input: unknown): Promise<LandingContent> {
   return write(LANDING_KEY, normaliseLandingContent(input));
@@ -54,15 +33,6 @@ export async function saveLandingContent(input: unknown): Promise<LandingContent
 export const getIncrcContent = cache(async (): Promise<IncrcContent> => {
   return normaliseIncrcContent(await read(INCRC_KEY));
 });
-
-export async function getIncrcContentSafe(): Promise<IncrcContent> {
-  try {
-    return await getIncrcContent();
-  } catch (error) {
-    console.error("[content] could not load INCRC content", error);
-    return DEFAULT_INCRC_CONTENT;
-  }
-}
 
 export async function saveIncrcContent(input: unknown): Promise<IncrcContent> {
   return write(INCRC_KEY, normaliseIncrcContent(input));

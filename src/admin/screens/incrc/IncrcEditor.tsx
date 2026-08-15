@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { DeckSummary } from "@/lib/decks";
 import type { FormSummary } from "@/lib/forms";
-import { DEFAULT_INCRC_CONTENT, type IncrcContent } from "@/lib/incrcContent";
+import { type IncrcContent } from "@/lib/incrcContent";
 import type { LandingContent } from "@/lib/landingContent";
 import type { Track } from "@/lib/tracks";
 import { cn } from "@/lib/utils";
@@ -58,35 +58,6 @@ import { VisionPanel } from "./panels/VisionPanel";
 
 /** The banners are not a section of the page, so they never move. */
 const FIXED: TabId[] = ["banners"];
-
-/**
- * Which parts of the document each tab owns.
- *
- * The one thing "Load defaults" needs to know, and the only place the mapping
- * exists. Every tab but one is its own key; the introduction also carries the
- * championship's name and handle, which have no tab of their own.
- *
- * `sections` — the running order — is deliberately absent: it is not any one
- * tab's to reset, and losing an arranged page to a button meant for copy is the
- * exact accident this scoping exists to prevent.
- */
-const DEFAULT_PARTS: Record<TabId, (keyof IncrcContent)[]> = {
-  banners: ["banners"],
-  marquee: ["marquee"],
-  intro: ["intro", "meta"],
-  stats: ["stats"],
-  vision: ["vision"],
-  grid: ["grid"],
-  venues: ["venues"],
-  calendar: ["calendar"],
-  partnership: ["partnership"],
-  family: ["family"],
-  rows: ["rows"],
-  posts: ["posts"],
-  register: ["register"],
-  registrations: ["registrations"],
-  decks: ["decks"],
-};
 
 export function IncrcEditor({
   initialContent,
@@ -221,30 +192,6 @@ export function IncrcEditor({
     }
   }
 
-  /** Fills the form with the defaults. Nothing is written until Save. */
-  /**
-   * Refills the OPEN tab from the built-in copy, and nothing else.
-   *
-   * It used to replace the whole document — including the running order, so one
-   * click could undo an afternoon of arranging the page. Scoped to one tab it is
-   * what it sounds like. Nothing is written until Save either way.
-   */
-  function loadDefaults() {
-    setDraft((current) => {
-      const next = { ...current };
-
-      for (const key of DEFAULT_PARTS[active]) {
-        // Indexed rather than assigned per key: the parts differ in type, and
-        // the map above is what guarantees the key belongs to this tab.
-        (next as Record<string, unknown>)[key] = structuredClone(DEFAULT_INCRC_CONTENT[key]);
-      }
-
-      return next;
-    });
-
-    setJustSaved(false);
-  }
-
   /** One case per tab. Adding a section adds a line here and a panel file. */
   function panel() {
     switch (active) {
@@ -354,7 +301,6 @@ export function IncrcEditor({
         busy={busy}
         error={error}
         onSave={handleSave}
-        onLoadDefaults={loadDefaults}
         fieldsOpen={fieldsOpen}
         onToggleFields={() => setFieldsOpen((open) => !open)}
       />

@@ -1,6 +1,6 @@
 import { requirePage } from "@/lib/server/access";
 import { getIncrcContent, getLandingContent } from "@/lib/server/contentRepo";
-import { listDeckSummariesSafe } from "@/lib/server/decksRepo";
+import { listDeckSummaries } from "@/lib/server/decksRepo";
 import { listFormsForPage } from "@/lib/server/formsRepo";
 import { listTracks } from "@/lib/server/tracksRepo";
 import { IncrcEditor } from "@/admin/screens/incrc/IncrcEditor";
@@ -26,10 +26,7 @@ export default async function IncrcAdminPage() {
     getLandingContent(),
     listTracks(),
     listFormsForPage("incrc"),
-    // The safe loader, unlike the two above: the decks are a list to PICK from,
-    // not content this screen could overwrite. An unreachable decks table costs
-    // the picker its options and nothing else.
-    listDeckSummariesSafe(),
+    listDeckSummaries(),
   ]);
 
   return (

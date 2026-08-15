@@ -61,20 +61,6 @@ export const listVisibleSports = cache(async (): Promise<Sport[]> => {
   return rows.map(toSport);
 });
 
-/**
- * Same, but an unreachable database yields an empty list instead of throwing.
- * The landing page has to render even when Neon does not answer — the sports
- * section simply drops out rather than taking the page down.
- */
-export async function listVisibleSportsSafe(): Promise<Sport[]> {
-  try {
-    return await listVisibleSports();
-  } catch (error) {
-    console.error("[sports] could not load sports", error);
-    return [];
-  }
-}
-
 export async function createSport(input: unknown): Promise<Sport> {
   const sql = getSql();
   const sport = normaliseSportInput(input);

@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { SITE } from "@/config/site";
-import { listDeckSummariesSafe } from "@/lib/server/decksRepo";
-import { listTracksSafe } from "@/lib/server/tracksRepo";
+import { listDeckSummaries } from "@/lib/server/decksRepo";
+import { listTracks } from "@/lib/server/tracksRepo";
 import { trackSlug } from "@/lib/tracks";
 
 /**
@@ -9,9 +9,13 @@ import { trackSlug } from "@/lib/tracks";
  *
  * The circuits are read from the table rather than listed by hand, because they
  * are added from the admin: a hand-written list would leave a new circuit out of
- * the sitemap until someone remembered this file. The safe loader is used on
- * purpose — a sitemap that fails the build over an unreachable database would
- * take the whole deploy with it, and a short sitemap is a far smaller problem.
+ * the sitemap until someone remembered this file.
+ *
+ * This runs at BUILD time, and it no longer swallows a database error: a build
+ * that cannot reach Neon now fails instead of shipping a sitemap with every
+ * circuit and deck missing from it. That is the louder of the two failures on
+ * purpose — a deploy that stops is noticed and retried, and a sitemap quietly
+ * published with half the site absent is not.
  *
  * The registration forms at /register/<slug> are deliberately NOT here. Each one
  * sets `robots: noindex` — a form has nothing to rank for, and a closed one in a
@@ -26,7 +30,7 @@ import { trackSlug } from "@/lib/tracks";
  */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
-  const [tracks, decks] = await Promise.all([listTracksSafe(), listDeckSummariesSafe()]);
+  const [tracks, decks] = await Promise.all([listTracks(), listDeckSummaries()]);
 
   return [
     {

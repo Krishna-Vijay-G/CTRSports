@@ -128,7 +128,6 @@ async function hashPassword(plain) {
 
 try {
   const hash = await hashPassword(password);
-  const pagesJson = JSON.stringify(pages);
 
   // Whether the access is written on a conflict depends on whether it was
   // asked for. Without a flag this is a password reset and nothing else — see
@@ -137,27 +136,61 @@ try {
 
   const rows = setAccess
     ? await sql`
-        INSERT INTO ctr.admins (username, password_hash, role, pages)
-        VALUES (${username}, ${hash}, ${role}, ${pagesJson}::jsonb)
+        INSERT INTO ctr.admins (username, password_hash, role)
+        VALUES (${username}, ${hash}, ${role})
         ON CONFLICT (username) DO UPDATE
           SET password_hash = EXCLUDED.password_hash,
-              role          = EXCLUDED.role,
-              pages         = EXCLUDED.pages
+              role          = EXCLUDED.role
         RETURNING id, role, (xmax = 0) AS inserted
       `
     : await sql`
-        INSERT INTO ctr.admins (username, password_hash, role, pages)
-        VALUES (${username}, ${hash}, ${role}, ${pagesJson}::jsonb)
+        INSERT INTO ctr.admins (username, password_hash, role)
+        VALUES (${username}, ${hash}, ${role})
         ON CONFLICT (username) DO UPDATE
           SET password_hash = EXCLUDED.password_hash
         RETURNING id, role, (xmax = 0) AS inserted
       `;
 
+  const { id } = rows[0];
+
+  /*
+   * The grants are rows in ctr.admin_pages since 0005, and the `pages` JSONB
+   * column they used to live in was dropped by 0008. Same delete-then-insert as
+   * writePages in src/lib/server/adminsRepo.ts — and only when access was asked
+   * for, so a bare password reset still leaves them alone.
+   */
+  if (setAccess) {
+    await sql.transaction([
+      sql`DELETE FROM ctr.admin_pages WHERE admin_id = ${id}`,
+      ...pages.map(
+        (page) => sql`
+          INSERT INTO ctr.admin_pages (admin_id, page_key) VALUES (${id}, ${page})
+          ON CONFLICT DO NOTHING
+        `
+      ),
+    ]);
+  }
+
   // A password change invalidates whatever was signed in before it.
-  await sql`DELETE FROM ctr.sessions WHERE admin_id = ${rows[0].id}`;
+  await sql`DELETE FROM ctr.sessions WHERE admin_id = ${id}`;
+
+  /*
+   * Read back rather than echo the flags. On a reset without --pages the grants
+   * are whatever they already were, and reporting the empty flag list would say
+   * "pages: none" about an account that has them — the exact thing the note at
+   * the top of this file promises not to do.
+   */
+  const granted = await sql`
+    SELECT p.page_key
+      FROM ctr.admin_pages p JOIN ctr.pages k ON k.key = p.page_key
+     WHERE p.admin_id = ${id}
+     ORDER BY k.sort_order
+  `;
 
   const access =
-    rows[0].role === "pages" ? `pages: ${pages.join(", ") || "none"}` : rows[0].role;
+    rows[0].role === "pages"
+      ? `pages: ${granted.map((row) => row.page_key).join(", ") || "none"}`
+      : rows[0].role;
 
   console.log(
     rows[0].inserted
@@ -171,8 +204,13 @@ try {
 
   console.log("Sign in at /login on the admin host.");
 } catch (error) {
-  // The likeliest failure on a new database, and the one with an answer.
-  if (error.message.includes("does not exist")) {
+  /*
+   * The likeliest failure on a new database, and the one with an answer. 42P01
+   * is undefined_table and nothing else: matching "does not exist" anywhere in
+   * the message also catches undefined_column (42703), which sent you to re-run
+   * a migrate that had already worked when this script fell behind 0008.
+   */
+  if (error.code === "42P01") {
     console.error("There is no ctr.admins table yet. Run npm run db:migrate first.");
     process.exit(1);
   }

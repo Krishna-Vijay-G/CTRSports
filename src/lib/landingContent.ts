@@ -2,27 +2,29 @@
  * Every word and picture on the landing page except the sports cards, which are
  * rows in `ctr.sports` and have their own model in src/lib/sports.ts.
  *
- * The LIVE content is one JSONB document in `ctr.content` under the key
- * 'landing', edited at /admin/landing. What lives here is the TYPE plus the
- * DEFAULTS, which:
+ * The LIVE content is rows of `ctr.page_sections` and `ctr.banners`, assembled
+ * back into one document by `readPage`, edited at /console/landing. What lives
+ * here is the TYPE plus BLANK_LANDING_CONTENT — the shape with none of the
+ * words — which is the base every stored field is merged over, so a partial or
+ * malformed document degrades field by field rather than breaking the page.
  *
- *   1. render the page when the database is unreachable or has no row yet, so
- *      it can never come up blank
- *   2. are the base every stored field is merged over, so a partial or
- *      malformed document degrades field by field rather than breaking the page
- *   3. are what the admin's "Load defaults" button restores
+ * There used to be a third job and a DEFAULTS constant to do it: render the
+ * whole page when the database had no row. It always had no row, so the site was
+ * served from this file while the tables meant to hold it sat empty, and an
+ * outage published a complete, plausible, out-of-date page that nobody could
+ * tell from the real one. A fresh database is SEEDED now — `npm run db:seed`,
+ * from scripts/seed-data/landing.json — and a database that cannot be read
+ * renders the error boundary.
  *
- * A fresh database needs no seeding: with no row the page renders these and the
- * editor opens on them, and saving once writes the row.
- *
- * A document rather than a column per field: the shape is nested, it changes
- * whenever the design does, and nothing ever queries inside it.
+ * The document shape survives the decomposition because `readPage` puts it back:
+ * it is nested, it changes whenever the design does, and nothing queries inside
+ * it. One row per top-level key is a storage detail, not a second model.
  *
  * Shared by the server and the browser, so nothing here may import `server-only`.
  */
 
-import { ABOUT_PHOTOS } from "@/config/images";
-import { DEFAULT_BANNERS, normaliseBanners, type Banner } from "@/lib/banners";
+
+import { normaliseBanners, type Banner } from "@/lib/banners";
 import {
   BODY_MAX,
   image,
@@ -93,84 +95,51 @@ export type LandingContent = {
   footer: { blurb: string };
 };
 
-export const DEFAULT_LANDING_CONTENT: LandingContent = {
-  brand: {
-    name: "CTR Unified",
-    subtitle: "Sports Collective",
-    logo: "/images/brand/ctr-logo.webp",
-  },
-  nav: {
-    // Pages rather than in-page anchors. The nav grew a second destination when
-    // /incrc got its own page, and an anchor list cannot express "somewhere
-    // else" — the third is off this site entirely.
-    links: [
-      { label: "Home", href: "/" },
-      { label: "CTR x JK Tyre  INCRC", href: "/incrc" },
-      { label: "FMSCI", href: "https://www.fmsci.co.in/" },
-    ],
-    cta: { label: "Get in Touch", href: "#footer" },
-  },
-  splash: {
-    // The championship's line, not the organisation's name. The logo is
-    // directly above it and already says who this is.
-    title: "One Nation. One Championship.",
-    logo: "/images/brand/ctr-logo.webp",
-  },
-  banners: DEFAULT_BANNERS.map((banner) => ({ ...banner })),
+/**
+ * The SHAPE of the document, with none of the words.
+ *
+ * This used to be DEFAULT_LANDING_CONTENT — the whole landing page as a literal,
+ * rendered whenever the database had no row, which was always, because nothing
+ * ever wrote one. The page is rows of `ctr.page_sections` now, seeded from
+ * scripts/seed-data/landing.json, and the copy lives in exactly one place.
+ *
+ * What is left is the skeleton the normaliser merges over, so a stored document
+ * missing a key gets an empty string rather than `undefined` reaching a renderer.
+ * Nothing here is content and nothing here should ever gain any: a value in this
+ * object is a word that would appear on the page without anybody having typed it.
+ */
+export const BLANK_LANDING_CONTENT: LandingContent = {
+  brand: { name: "", subtitle: "", logo: "" },
+  nav: { links: [], cta: { label: "", href: "" } },
+  splash: { title: "", logo: "" },
+  banners: [],
   about: {
-    label: "About CTR",
-    title: "One organisation behind every discipline we compete in",
-    // Racers first, and "race like one team" rather than "run like one team" —
-    // the organisation reads as a motorsport one now, which the rest of the
-    // site had already moved to.
-    heading: "Built for racers, race like one team",
-    /** Blank lines separate paragraphs — one <p> each. */
-    body: "CTR Unified brings racers, athletes, teams and sporting communities together under a single platform. From cricket and volleyball to Formula 4 racing, every programme runs with its own coaching structure and competitive calendar.\n\nWhat they share is one standard of preparation, one identity, and one long-term commitment to developing Indian sporting talent.",
-    ctaLabel: "Explore Sports",
-    ctaHref: "#sports",
-    photos: ABOUT_PHOTOS.map((entry) => ({ ...entry })),
+    label: "",
+    title: "",
+    heading: "",
+    body: "",
+    ctaLabel: "",
+    ctaHref: "",
+    // Two entries, not none. `aboutPhotos` maps over THIS array to decide how
+    // many slots the layout has, so an empty one would render no photographs at
+    // all however many are stored.
+    photos: [
+      { src: "", label: "" },
+      { src: "", label: "" },
+    ],
   },
-  sportsSection: {
-    label: "Home of CTR",
-    title: "Every sport, one standard of preparation",
-  },
-  ctaBand: {
-    label: "One Team",
-    // Set in capitals on purpose. The band is the one all-caps line on the page
-    // and it is stored that way rather than done in CSS, so the admin can see
-    // what it will look like while typing it.
-    title: "ENGINEERED FOR GROWTH. DRIVEN BY CTR",
-    body: "Cricket, volleyball, hockey, pickleball and motorsport — developed under a single organisation.",
-    ctaLabel: "See the Programmes",
-    ctaHref: "#sports",
-  },
+  sportsSection: { label: "", title: "" },
+  ctaBand: { label: "", title: "", body: "", ctaLabel: "", ctaHref: "" },
   contact: {
-    heading: "Get in touch",
-    // Newlines are kept and printed as written — an address is read line by
-    // line, and the one line it would otherwise become is a paragraph nobody
-    // scans.
-    address: "29, Tilak Street,\nT. Nagar, Chennai,\nTamil Nadu 600017",
-    phone: "9500016999",
-    email: "admin@ctrsports.in",
-    formHeading: "Send a message",
-    formNote: "Tell us what you need and we will reply by email.",
+    heading: "",
+    address: "",
+    phone: "",
+    email: "",
+    formHeading: "",
+    formNote: "",
   },
-  footer: {
-    blurb:
-      "Athletes, teams and sporting communities under one organisation — from cricket and volleyball to national motorsport.",
-  },
-  socials: [
-    { label: "Instagram", href: "https://www.instagram.com/incrc_", icon: "instagram" },
-    { label: "Facebook", href: "https://www.facebook.com/chennaiturboriders", icon: "facebook" },
-    { label: "Twitter", href: "https://twitter.com/chennaiturbo", icon: "twitter" },
-    // The championship's channel rather than the club's — the same move the
-    // Instagram handle above made.
-    {
-      label: "YouTube",
-      href: "https://www.youtube.com/@IndianNationalCarRacingChampio",
-      icon: "youtube",
-    },
-  ],
+  footer: { blurb: "" },
+  socials: [],
 };
 
 /* ─────────────────────────── Normalisation ─────────────────────────── */
@@ -253,7 +222,7 @@ function socials(value: unknown, fallback: SocialLink[]): SocialLink[] {
  */
 function banners(root: Record<string, unknown>): Banner[] {
   if (root.banners !== undefined || !isRecord(root.hero)) {
-    return normaliseBanners(root.banners, DEFAULT_LANDING_CONTENT.banners);
+    return normaliseBanners(root.banners, BLANK_LANDING_CONTENT.banners);
   }
 
   const hero = root.hero;
@@ -274,7 +243,7 @@ function banners(root: Record<string, unknown>): Banner[] {
         ctaHref: hero.ctaHref,
       },
     ],
-    DEFAULT_LANDING_CONTENT.banners
+    BLANK_LANDING_CONTENT.banners
   );
 }
 
@@ -297,7 +266,7 @@ function aboutPhotos(value: unknown, fallback: LabelledPhoto[]): LabelledPhoto[]
  * never trusts the stored shape.
  */
 export function normaliseLandingContent(input: unknown): LandingContent {
-  const d = DEFAULT_LANDING_CONTENT;
+  const d = BLANK_LANDING_CONTENT;
   const root = isRecord(input) ? input : {};
 
   const brand = isRecord(root.brand) ? root.brand : {};

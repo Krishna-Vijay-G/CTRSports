@@ -1,0 +1,428 @@
+{
+  "page_key": "incrc",
+  "sections": [
+    {
+      "section_id": "meta",
+      "position": null,
+      "visible": true,
+      "data": {
+        "name": "Indian National Car Racing Championship",
+        "short": "INCRC",
+        "tagline": "One Nation · One Championship",
+        "handle": "@incrc_",
+        "instagram": "https://www.instagram.com/incrc_"
+      }
+    },
+    {
+      "section_id": "marquee",
+      "position": 1,
+      "visible": true,
+      "data": {
+        "items": [
+          "2026 season · registration open",
+          "Round 01 · Kari Motor Speedway · 11–13 September",
+          "Seven racing categories",
+          "Sanctioned by FMSCI",
+          "Presented by CTR & JK Tyre",
+          "Live on OTT"
+        ]
+      }
+    },
+    {
+      "section_id": "intro",
+      "position": 2,
+      "visible": true,
+      "data": {
+        "kicker": "One Nation · One Championship",
+        "headline": "India's biggest multi-category national car racing championship",
+        "body": "A national motorsport ecosystem uniting seven racing categories under one championship.\n\nA complete experience — racing, live audiences, fan ecosystems, entertainment, OTT broadcast and sponsorship integration.",
+        "ctaLabel": "Register for 2026",
+        "ctaHref": "#register",
+        "partnersLabel": "Presented by"
+      }
+    },
+    {
+      "section_id": "stats",
+      "position": 3,
+      "visible": true,
+      "data": {
+        "items": [
+          {
+            "value": "7",
+            "label": "Racing categories"
+          },
+          {
+            "value": "4",
+            "label": "Championship rounds"
+          },
+          {
+            "value": "3",
+            "label": "Iconic circuits"
+          },
+          {
+            "value": "2026",
+            "label": "Inaugural season"
+          }
+        ]
+      }
+    },
+    {
+      "section_id": "vision",
+      "position": 4,
+      "visible": true,
+      "data": {
+        "label": "Our vision",
+        "title": "A new era of Indian motorsport",
+        "items": [
+          {
+            "icon": "star",
+            "label": "Elevate Indian motorsport",
+            "description": "Raise the standard of competitive racing across all categories on India's finest circuits."
+          },
+          {
+            "icon": "rocket",
+            "label": "Inspire the next generation",
+            "description": "Nurture and develop the next wave of Indian racing champions from grassroots to national level."
+          },
+          {
+            "icon": "shield",
+            "label": "Build a world-class ecosystem",
+            "description": "Create a self-sustaining motorsport infrastructure with safety, broadcast and fan engagement at its core."
+          },
+          {
+            "icon": "globe",
+            "label": "Position India globally",
+            "description": "Establish India as a premier motorsport destination, attracting international talent and investment."
+          }
+        ]
+      }
+    },
+    {
+      "section_id": "grid",
+      "position": 5,
+      "visible": true,
+      "data": {
+        "label": "The grid",
+        "heading": "A single grid for the whole country.",
+        "body": "Seven racing categories — from Formula 4 to saloons, hatchbacks and touring cars — line up together under one national banner, on India's finest circuits.",
+        "image": "/images/incrc/one-nation.webp",
+        "imageAlt": "One Nation, One Championship — 3D render of the Kari Motor Speedway circuit, presented by CTR, JK Tyre and FMSCI.",
+        "caption": "Kari Motor Speedway · Coimbatore",
+        "inset": "/images/incrc/cars-lineup.webp",
+        "insetAlt": "The multi-category grid — Formula 4, saloon, hatchback and touring cars in CTR and JK Tyre livery."
+      }
+    },
+    {
+      "section_id": "venues",
+      "position": 6,
+      "visible": true,
+      "data": {
+        "label": "Championship venues",
+        "title": "Three iconic circuits. One championship."
+      }
+    },
+    {
+      "section_id": "calendar",
+      "position": 7,
+      "visible": true,
+      "data": {
+        "label": "FMSCI Indian National Car Racing Championship",
+        "title": "The 2026 Season"
+      }
+    },
+    {
+      "section_id": "partnership",
+      "position": 8,
+      "visible": true,
+      "data": {
+        "label": "Behind the grid",
+        "title": "A landmark partnership",
+        "body": "CTR, JK Tyre and FMSCI put pen to paper — bringing India's biggest multi-category national car racing championship to life.",
+        "layout": "three-hero-left",
+        "shots": [
+          {
+            "image": "/images/incrc/signing-1.webp",
+            "alt": "CTR, JK Tyre and FMSCI officials signing the championship agreement."
+          },
+          {
+            "image": "/images/incrc/signing-2.webp",
+            "alt": "CTR and JK Tyre representatives sealing the partnership with a handshake."
+          },
+          {
+            "image": "/images/incrc/signing-3.webp",
+            "alt": "The CTR, JK Tyre and FMSCI leadership with the signed championship agreement."
+          }
+        ]
+      }
+    },
+    {
+      "section_id": "family",
+      "position": 9,
+      "visible": true,
+      "data": {
+        "image": "/images/incrc/family.webp",
+        "lead": "Entertainment isn't created by one organiser.",
+        "quote": "It is powered by an entire motorsport family.",
+        "showFlag": true,
+        "links": [
+          {
+            "id": "family-link-1",
+            "icon": "instagram",
+            "label": "Follow the championship",
+            "note": "@incrc_",
+            "href": "https://www.instagram.com/incrc_"
+          }
+        ]
+      }
+    },
+    {
+      "section_id": "rows",
+      "position": 10,
+      "visible": true,
+      "data": {
+        "label": "Championship bulletin",
+        "title": "The latest from the paddock",
+        "items": [
+          {
+            "id": "row-1",
+            "label": "Entries",
+            "title": "2026 driver registration is open across all seven categories",
+            "meta": "Closes 15 August",
+            "href": "#register"
+          },
+          {
+            "id": "row-2",
+            "label": "Calendar",
+            "title": "Round 01 confirmed for Kari Motor Speedway, 11–13 September",
+            "meta": "Coimbatore",
+            "href": "#calendar"
+          },
+          {
+            "id": "row-3",
+            "label": "Partnership",
+            "title": "CTR, JK Tyre and FMSCI sign the championship into existence",
+            "meta": "Announcement",
+            "href": "#partnership"
+          },
+          {
+            "id": "row-4",
+            "label": "Broadcast",
+            "title": "Every round to be carried live on OTT with full onboard coverage",
+            "meta": "2026 season",
+            "href": "#vision"
+          }
+        ]
+      }
+    },
+    {
+      "section_id": "posts",
+      "position": 11,
+      "visible": true,
+      "data": {
+        "label": "Newsroom",
+        "title": "Stories from the championship",
+        "ctaLabel": "Follow the championship",
+        "ctaHref": "https://www.instagram.com/incrc_"
+      }
+    },
+    {
+      "section_id": "register",
+      "position": 12,
+      "visible": true,
+      "data": {
+        "kicker": "2026 season · registration open",
+        "title": "Race with CTR",
+        "body": "Seven categories. Four national rounds on India's best circuits. Whether it is your first race or your next championship, there is a grid here for you.",
+        "ctaLabel": "Register now",
+        "ctaHref": "#registrations"
+      }
+    },
+    {
+      "section_id": "registrations",
+      "position": 13,
+      "visible": true,
+      "data": {
+        "label": "Enter the championship",
+        "title": "Registration",
+        "body": "Pick the one you are entering. Everything below is taken on this site — no forms to print, no email to chase.",
+        "showClosed": true
+      }
+    },
+    {
+      "section_id": "decks",
+      "position": 14,
+      "visible": true,
+      "data": {
+        "label": "Read more",
+        "title": "Documents and decks",
+        "body": "",
+        "items": []
+      }
+    }
+  ],
+  "banners": [
+    {
+      "banner_id": "incrc-banner-1",
+      "position": 1,
+      "template": "spotlight",
+      "image": "https://raw.githubusercontent.com/Krishna-Vijay-G/asset-temp/refs/heads/main/banner1.jpeg",
+      "fit": "fill",
+      "focus": "center",
+      "overlay": "none",
+      "title": "",
+      "subtitle": "",
+      "cta_label": "Register for 2026",
+      "cta_href": "#register"
+    },
+    {
+      "banner_id": "incrc-banner-2",
+      "position": 2,
+      "template": "spotlight",
+      "image": "/images/incrc/signing-2.webp",
+      "fit": "fit",
+      "focus": "center",
+      "overlay": "none",
+      "title": "The Team has been forged.",
+      "subtitle": "The Track awaits the Winners.",
+      "cta_label": "See the calendar",
+      "cta_href": "#calendar"
+    },
+    {
+      "banner_id": "incrc-banner-3",
+      "position": 3,
+      "template": "spotlight",
+      "image": "https://raw.githubusercontent.com/Krishna-Vijay-G/asset-temp/refs/heads/main/DR%20(Medium).png",
+      "fit": "fit",
+      "focus": "center",
+      "overlay": "none",
+      "title": "",
+      "subtitle": "",
+      "cta_label": "",
+      "cta_href": "#register"
+    },
+    {
+      "banner_id": "incrc-banner-4",
+      "position": 4,
+      "template": "spotlight",
+      "image": "https://raw.githubusercontent.com/Krishna-Vijay-G/asset-temp/refs/heads/main/chairman%20JK%20TYRES%20(Medium).png",
+      "fit": "fit",
+      "focus": "center",
+      "overlay": "none",
+      "title": "",
+      "subtitle": "",
+      "cta_label": "",
+      "cta_href": "#register"
+    },
+    {
+      "banner_id": "incrc-banner-5",
+      "position": 5,
+      "template": "spotlight",
+      "image": "https://raw.githubusercontent.com/Krishna-Vijay-G/asset-temp/refs/heads/main/MAKAPA%20(Medium).png",
+      "fit": "fit",
+      "focus": "center",
+      "overlay": "none",
+      "title": "",
+      "subtitle": "",
+      "cta_label": "",
+      "cta_href": "#"
+    }
+  ],
+  "rounds": [
+    {
+      "position": 1,
+      "round": "01",
+      "venue": "Kari Motor Speedway",
+      "city": "Coimbatore",
+      "date_from": "2026-09-11",
+      "date_to": "2026-09-13",
+      "dates": "",
+      "status": "Entries open",
+      "track_id": ""
+    },
+    {
+      "position": 2,
+      "round": "02",
+      "venue": "Kari Motor Speedway",
+      "city": "Coimbatore",
+      "date_from": "2026-10-23",
+      "date_to": "2026-10-25",
+      "dates": "",
+      "status": "Entries open",
+      "track_id": ""
+    },
+    {
+      "position": 3,
+      "round": "03",
+      "venue": "Bren Raceway",
+      "city": "Bengaluru",
+      "date_from": "2026-11-13",
+      "date_to": "2026-11-15",
+      "dates": "",
+      "status": "Entries open",
+      "track_id": ""
+    },
+    {
+      "position": 4,
+      "round": "04",
+      "venue": "Madras International Circuit",
+      "city": "Chennai",
+      "date_from": "2026-12-11",
+      "date_to": "2026-12-13",
+      "dates": "",
+      "status": "Season finale",
+      "track_id": ""
+    }
+  ],
+  "posts": [
+    {
+      "post_id": "post-1",
+      "position": 1,
+      "image": "/images/incrc/cars-lineup.webp",
+      "category": "LGBF4",
+      "date": "August 2026",
+      "title": "Seven categories, one national banner",
+      "excerpt": "How a single grid brings Formula 4, saloons, hatchbacks and touring cars to the same race weekend.",
+      "href": "#grid"
+    },
+    {
+      "post_id": "post-2",
+      "position": 2,
+      "image": "/images/incrc/one-nation.webp",
+      "category": "FORMULA 1300",
+      "date": "August 2026",
+      "title": "Three circuits that will decide the title",
+      "excerpt": "Kari, Bren and Madras — the layouts, the corners that matter and what each asks of a driver.",
+      "href": "#venues"
+    },
+    {
+      "post_id": "post-3",
+      "position": 3,
+      "image": "/images/incrc/signing-1.webp",
+      "category": "LEVITAS",
+      "date": "July 2026",
+      "title": "Inside the partnership that built INCRC",
+      "excerpt": "CTR, JK Tyre and FMSCI on why Indian motorsport needed one championship rather than many.",
+      "href": "#partnership"
+    }
+  ],
+  "partners": [
+    {
+      "position": 1,
+      "name": "Chennai Turbo Riders",
+      "logo": "/images/brand/ctr-logo.webp",
+      "href": "https://chennaiturboriders.in"
+    },
+    {
+      "position": 2,
+      "name": "JK Tyre",
+      "logo": "/images/incrc/jktyre.webp",
+      "href": "https://www.jktyre.com"
+    },
+    {
+      "position": 3,
+      "name": "FMSCI",
+      "logo": "/images/incrc/fmsci.webp",
+      "href": "https://www.fmsci.co.in"
+    }
+  ]
+}

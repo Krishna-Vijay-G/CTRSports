@@ -161,21 +161,6 @@ export async function listFormsForPage(page: FormPageKey): Promise<FormSummary[]
   }));
 }
 
-/**
- * Same, but an unreachable database yields an empty list instead of throwing.
- *
- * What the public page uses: a section with no cards is a section that renders
- * nothing, which is a far better failure than a page that will not draw.
- */
-export async function listFormsForPageSafe(page: FormPageKey): Promise<FormSummary[]> {
-  try {
-    return await listFormsForPage(page);
-  } catch (error) {
-    console.error("[forms] could not load the forms for", page, error);
-    return [];
-  }
-}
-
 export async function getForm(id: string): Promise<Form | null> {
   const sql = getSql();
   const rows = (await sql`

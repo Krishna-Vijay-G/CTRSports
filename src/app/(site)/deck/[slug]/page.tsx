@@ -3,7 +3,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { SITE } from "@/config/site";
 import { deckHref } from "@/lib/decks";
 import { getDeckBySlug } from "@/lib/server/decksRepo";
-import { getLandingContentSafe } from "@/lib/server/contentRepo";
+import { getLandingContent } from "@/lib/server/contentRepo";
 import { sendAnchorsHome } from "@/lib/siteChrome";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SiteHeader } from "@/components/layout/SiteHeader";
@@ -76,7 +76,7 @@ export default async function DeckPage({ params }: Params) {
     // The throwing loader, for the reason /circuits/[slug] gives: a database
     // that is down must be a 500, not a 404 a crawler will believe.
     getDeckBySlug(slug),
-    getLandingContentSafe(),
+    getLandingContent(),
   ]);
 
   if (!deck || deck.status !== "published") notFound();

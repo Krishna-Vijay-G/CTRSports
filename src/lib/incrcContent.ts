@@ -1,19 +1,24 @@
 /**
  * Every word and picture on /incrc.
  *
- * The LIVE content is one JSONB document in `ctr.content` under the key 'incrc',
- * edited at /admin/incrc. What lives here is the TYPE plus the DEFAULTS, which:
+ * The LIVE content is rows of `ctr.page_sections` plus the four tables promoted
+ * out of it, assembled back into one document by `readPage` and edited at
+ * /console/incrc. What lives here is the TYPE plus BLANK_INCRC_CONTENT — the
+ * shape with none of the words — which is the base every stored field is merged
+ * over, so a partial or malformed document degrades field by field rather than
+ * breaking the page.
  *
- *   1. render the page when the database is unreachable or has no row yet
- *   2. are the base every stored field is merged over, so a partial or malformed
- *      document degrades field by field rather than breaking the page
- *   3. are what the admin's "Load defaults" button restores
+ * The championship's real copy — extracted from the older CTR site's biography
+ * deck, the `incrc` block of its "CTR National Grid" chapter plus its
+ * registration chapter — used to be a DEFAULTS constant in this file, rendered
+ * whenever the database had no row. It always had no row. That copy is now
+ * scripts/seed-data/incrc.json, written into the tables by `npm run db:seed`,
+ * and a database that cannot be read renders the error boundary rather than a
+ * repo-held replica of the championship.
  *
- * The defaults are the championship's real copy, extracted from the older CTR
- * site's biography deck — the `incrc` block of its "CTR National Grid" chapter
- * plus its registration chapter. Everything there about CTR the team rather than
- * the championship was deliberately left behind: the origin story, the IRL and
- * F4 results, the karting league, the academy and the club belong on a CTR page.
+ * What was deliberately left behind when that copy was extracted still is:
+ * everything about CTR the team rather than the championship — the origin story,
+ * the IRL and F4 results, the karting league, the academy and the club.
  *
  * `sections` is what makes the page assemblable: it is the running order, and
  * each entry can be switched off. The page renders that list, so a section that
@@ -26,7 +31,7 @@
  * Shared by the server and the browser, so nothing here may import `server-only`.
  */
 
-import { INCRC_PHOTOS } from "@/config/images";
+import { PLACEHOLDER_PHOTO } from "@/config/images";
 import { BANNER_PICTURE_DEFAULTS, normaliseBanners, type Banner } from "@/lib/banners";
 import {
   COLLAGE_LAYOUT_IDS,
@@ -281,413 +286,55 @@ export type IncrcContent = {
 
 /* ────────────────────────────── Defaults ────────────────────────────── */
 
-const ART = INCRC_PHOTOS.artwork;
-
-export const DEFAULT_INCRC_CONTENT: IncrcContent = {
-  meta: {
-    name: "Indian National Car Racing Championship",
-    short: "INCRC",
-    tagline: "One Nation · One Championship",
-    handle: "@incrc_",
-    instagram: "https://www.instagram.com/incrc_",
-  },
-
-  /*
-   * Five panels, and only the second one speaks.
-   *
-   * The other four are artwork with the words already on the image — a chairman
-   * portrait, two announcement boards, the championship banner — so a title
-   * printed over them would be the same sentence twice. That is also why every
-   * one of them sets `overlay: "none"`: the gradient is there to keep white type
-   * readable, and with no type to keep readable it is only a photograph dimmed
-   * for nothing.
-   *
-   * `fit: "fit"` on four of the five for the same reason: they are boards and
-   * portraits composed to their own edges, and cropping one to fill the panel
-   * takes the top off somebody's head or the last word off a line. Only the
-   * first is a photograph that can be cropped.
-   */
-  banners: [
-    {
-      id: "incrc-banner-1",
-      template: "spotlight",
-      image: INCRC_PHOTOS.banners[0],
-      ...BANNER_PICTURE_DEFAULTS,
-      overlay: "none",
-      title: "",
-      subtitle: "",
-      ctaLabel: "Register for 2026",
-      ctaHref: "#register",
-    },
-    {
-      id: "incrc-banner-2",
-      template: "spotlight",
-      image: INCRC_PHOTOS.banners[1],
-      ...BANNER_PICTURE_DEFAULTS,
-      fit: "fit",
-      overlay: "none",
-      title: "The Team has been forged.",
-      subtitle: "The Track awaits the Winners.",
-      ctaLabel: "See the calendar",
-      ctaHref: "#calendar",
-    },
-    {
-      id: "incrc-banner-3",
-      template: "spotlight",
-      image: INCRC_PHOTOS.banners[2],
-      ...BANNER_PICTURE_DEFAULTS,
-      fit: "fit",
-      overlay: "none",
-      title: "",
-      subtitle: "",
-      ctaLabel: "",
-      ctaHref: "#register",
-    },
-    {
-      id: "incrc-banner-4",
-      template: "spotlight",
-      image: INCRC_PHOTOS.banners[3],
-      ...BANNER_PICTURE_DEFAULTS,
-      fit: "fit",
-      overlay: "none",
-      title: "",
-      subtitle: "",
-      ctaLabel: "",
-      ctaHref: "#register",
-    },
-    {
-      id: "incrc-banner-5",
-      template: "spotlight",
-      image: INCRC_PHOTOS.banners[4],
-      ...BANNER_PICTURE_DEFAULTS,
-      fit: "fit",
-      overlay: "none",
-      title: "",
-      subtitle: "",
-      ctaLabel: "",
-      ctaHref: "#",
-    },
-  ],
-
-  marquee: {
-    items: [
-      "2026 season · registration open",
-      "Round 01 · Kari Motor Speedway · 11–13 September",
-      "Seven racing categories",
-      "Sanctioned by FMSCI",
-      "Presented by CTR & JK Tyre",
-      "Live on OTT",
-    ],
-  },
-
+/**
+ * The SHAPE of the document, with none of the words. See the note on
+ * BLANK_LANDING_CONTENT — this is the same change, for the larger page.
+ *
+ * The championship's copy is rows of `ctr.page_sections` now, seeded from
+ * scripts/seed-data/incrc.json. Nothing here is content.
+ */
+export const BLANK_INCRC_CONTENT: IncrcContent = {
+  meta: { name: "", short: "", tagline: "", handle: "", instagram: "" },
+  banners: [],
+  marquee: { items: [] },
   intro: {
-    kicker: "One Nation · One Championship",
-    headline: "India's biggest multi-category national car racing championship",
-    body: "A national motorsport ecosystem uniting seven racing categories under one championship.\n\nA complete experience — racing, live audiences, fan ecosystems, entertainment, OTT broadcast and sponsorship integration.",
-    ctaLabel: "Register for 2026",
-    ctaHref: "#register",
-    partnersLabel: "Presented by",
-    // Each mark links to the partner it belongs to. These are the three
-    // organisations' own sites, so they open in a new tab — see PartnerMark.
-    partners: [
-      { name: "Chennai Turbo Riders", logo: ART.ctr, href: "https://chennaiturboriders.in" },
-      { name: "JK Tyre", logo: ART.jkTyre, href: "https://www.jktyre.com" },
-      { name: "FMSCI", logo: ART.fmsci, href: "https://www.fmsci.co.in" },
-    ],
-  },
-
-  stats: {
-    items: [
-      { value: "7", label: "Racing categories" },
-      { value: "4", label: "Championship rounds" },
-      { value: "3", label: "Iconic circuits" },
-      { value: "2026", label: "Inaugural season" },
-    ],
-  },
-
-  vision: {
-    label: "Our vision",
-    title: "A new era of Indian motorsport",
-    items: [
-      {
-        icon: "star",
-        label: "Elevate Indian motorsport",
-        description:
-          "Raise the standard of competitive racing across all categories on India's finest circuits.",
-      },
-      {
-        icon: "rocket",
-        label: "Inspire the next generation",
-        description:
-          "Nurture and develop the next wave of Indian racing champions from grassroots to national level.",
-      },
-      {
-        icon: "shield",
-        label: "Build a world-class ecosystem",
-        description:
-          "Create a self-sustaining motorsport infrastructure with safety, broadcast and fan engagement at its core.",
-      },
-      {
-        icon: "globe",
-        label: "Position India globally",
-        description:
-          "Establish India as a premier motorsport destination, attracting international talent and investment.",
-      },
-    ],
-  },
-
-  grid: {
-    label: "The grid",
-    heading: "A single grid for the whole country.",
-    body: "Seven racing categories — from Formula 4 to saloons, hatchbacks and touring cars — line up together under one national banner, on India's finest circuits.",
-    image: ART.circuit,
-    imageAlt:
-      "One Nation, One Championship — 3D render of the Kari Motor Speedway circuit, presented by CTR, JK Tyre and FMSCI.",
-    caption: "Kari Motor Speedway · Coimbatore",
-    inset: ART.cars,
-    insetAlt:
-      "The multi-category grid — Formula 4, saloon, hatchback and touring cars in CTR and JK Tyre livery.",
-  },
-
-  venues: {
-    label: "Championship venues",
-    title: "Three iconic circuits. One championship.",
-  },
-
-  /*
-   * The rounds carry no `trackId`, and the live document does.
-   *
-   * A trackId is the uuid of a row in ctr.tracks, and this list is what renders
-   * when there is NO document — a fresh install, or the database being
-   * unreachable. Neither of those can resolve a uuid: the first has no circuits
-   * yet and the second cannot read the ones it has. A round with no trackId
-   * falls back to the venue and city written beside it, which is the same
-   * information a card would have shown anyway, so leaving it blank costs the
-   * map and nothing else. Pointing at a row that is not there would cost the
-   * card.
-   *
-   * The venues, dates and status ARE the live ones. Only the pointer is left out.
-   */
-  calendar: {
-    label: "FMSCI Indian National Car Racing Championship",
-    title: "The 2026 Season",
-    rounds: [
-      {
-        round: "01",
-        start: "2026-09-11",
-        end: "2026-09-13",
-        dates: "",
-        trackId: "",
-        venue: "Kari Motor Speedway",
-        city: "Coimbatore",
-        status: "Entries open",
-      },
-      {
-        round: "02",
-        start: "2026-10-23",
-        end: "2026-10-25",
-        dates: "",
-        trackId: "",
-        venue: "Kari Motor Speedway",
-        city: "Coimbatore",
-        status: "Entries open",
-      },
-      {
-        round: "03",
-        start: "2026-11-13",
-        end: "2026-11-15",
-        dates: "",
-        trackId: "",
-        venue: "Bren Raceway",
-        city: "Bengaluru",
-        status: "Entries open",
-      },
-      {
-        round: "04",
-        start: "2026-12-11",
-        end: "2026-12-13",
-        dates: "",
-        trackId: "",
-        venue: "Madras International Circuit",
-        city: "Chennai",
-        status: "Season finale",
-      },
-    ],
-  },
-
-  partnership: {
-    label: "Behind the grid",
-    title: "A landmark partnership",
-    body: "CTR, JK Tyre and FMSCI put pen to paper — bringing India's biggest multi-category national car racing championship to life.",
-    // The establishing shot large on the left, the other two stacked beside it —
-    // the arrangement this section has always drawn.
-    layout: "three-hero-left",
-    shots: [
-      {
-        image: ART.signing[0],
-        alt: "CTR, JK Tyre and FMSCI officials signing the championship agreement.",
-      },
-      {
-        image: ART.signing[1],
-        alt: "CTR and JK Tyre representatives sealing the partnership with a handshake.",
-      },
-      {
-        image: ART.signing[2],
-        alt: "The CTR, JK Tyre and FMSCI leadership with the signed championship agreement.",
-      },
-    ],
-  },
-
-  family: {
-    image: ART.family,
-    lead: "Entertainment isn't created by one organiser.",
-    quote: "It is powered by an entire motorsport family.",
-    showFlag: true,
-    links: [
-      {
-        id: "family-link-1",
-        icon: "instagram",
-        label: "Follow the championship",
-        note: "@incrc_",
-        href: "https://www.instagram.com/incrc_",
-      },
-    ],
-  },
-
-  rows: {
-    label: "Championship bulletin",
-    title: "The latest from the paddock",
-    items: [
-      {
-        id: "row-1",
-        label: "Entries",
-        title: "2026 driver registration is open across all seven categories",
-        meta: "Closes 15 August",
-        href: "#register",
-      },
-      {
-        id: "row-2",
-        label: "Calendar",
-        title: "Round 01 confirmed for Kari Motor Speedway, 11–13 September",
-        meta: "Coimbatore",
-        href: "#calendar",
-      },
-      {
-        id: "row-3",
-        label: "Partnership",
-        title: "CTR, JK Tyre and FMSCI sign the championship into existence",
-        meta: "Announcement",
-        href: "#partnership",
-      },
-      {
-        id: "row-4",
-        label: "Broadcast",
-        title: "Every round to be carried live on OTT with full onboard coverage",
-        meta: "2026 season",
-        href: "#vision",
-      },
-    ],
-  },
-
-  posts: {
-    label: "Newsroom",
-    title: "Stories from the championship",
-    ctaLabel: "Follow the championship",
-    ctaHref: "https://www.instagram.com/incrc_",
-    items: [
-      // The category is the racing class the story is about — LGBF4, Formula
-      // 1300, Levitas — rather than a desk it came off. It is printed on the
-      // card as written, hence the capitals.
-      {
-        id: "post-1",
-        image: INCRC_PHOTOS.posts[0],
-        category: "LGBF4",
-        date: "August 2026",
-        title: "Seven categories, one national banner",
-        excerpt:
-          "How a single grid brings Formula 4, saloons, hatchbacks and touring cars to the same race weekend.",
-        href: "#grid",
-      },
-      {
-        id: "post-2",
-        image: INCRC_PHOTOS.posts[1],
-        category: "FORMULA 1300",
-        date: "August 2026",
-        title: "Three circuits that will decide the title",
-        excerpt:
-          "Kari, Bren and Madras — the layouts, the corners that matter and what each asks of a driver.",
-        href: "#venues",
-      },
-      {
-        id: "post-3",
-        image: INCRC_PHOTOS.posts[2],
-        category: "LEVITAS",
-        date: "July 2026",
-        title: "Inside the partnership that built INCRC",
-        excerpt:
-          "CTR, JK Tyre and FMSCI on why Indian motorsport needed one championship rather than many.",
-        href: "#partnership",
-      },
-    ],
-  },
-
-  register: {
-    kicker: "2026 season · registration open",
-    title: "Race with CTR",
-    // The source deck said "Eight categories" here while the championship's own
-    // figures say seven, in two separate places. Seven is the number used.
-    body: "Seven categories. Four national rounds on India's best circuits. Whether it is your first race or your next championship, there is a grid here for you.",
-    ctaLabel: "Register now",
-    /*
-     * The section listing the forms, not a form.
-     *
-     * Live points straight at /register/race-with-ctr, and that address is a row
-     * in ctr.forms — the same reason the rounds carry no trackId. A default
-     * cannot name a form, because the case it exists for is the case where no
-     * form is readable. The picker in the admin is how this gets aimed at one.
-     *
-     * This is also why `sections` below leaves `registrations` visible while the
-     * live document has it hidden: the two go together. Live can hide the
-     * section because its button bypasses it; a default whose button lands on
-     * `#registrations` cannot hide the thing it lands on.
-     */
-    ctaHref: "#registrations",
-  },
-
-  registrations: {
-    label: "Enter the championship",
-    title: "Registration",
-    body: "Pick the one you are entering. Everything below is taken on this site — no forms to print, no email to chase.",
-    showClosed: true,
-  },
-
-  /*
-   * Empty on purpose, and the section renders nothing while it is.
-   *
-   * There is no honest default here: a card names a deck by its address, and a
-   * fresh install has no decks. Copy with no cards under it would be a heading
-   * over a blank strip on a live page — this id was appended to
-   * INCRC_SECTION_IDS, which switches it ON for every stored document.
-   *
-   * The live document has three cards, pointing at three published decks. They
-   * are not copied here for the reason above: an address is only a card if the
-   * deck behind it exists, and this list is what renders when nothing can be
-   * read. The section is switched on and empty, so it draws nothing until the
-   * admin picks decks for it.
-   */
-  decks: {
-    label: "Read more",
-    title: "Documents and decks",
+    kicker: "",
+    headline: "",
     body: "",
-    items: [],
+    ctaLabel: "",
+    ctaHref: "",
+    partnersLabel: "",
+    partners: [],
   },
-
-  /*
-   * Every section on. The live document hides `registrations`; see the note on
-   * `register.ctaHref` for why that one difference is deliberate rather than an
-   * oversight — hiding it here would leave the register button pointing at a
-   * section that is not drawn.
-   */
+  stats: { items: [] },
+  vision: { label: "", title: "", items: [] },
+  grid: {
+    label: "",
+    heading: "",
+    body: "",
+    image: "",
+    imageAlt: "",
+    caption: "",
+    inset: "",
+    insetAlt: "",
+  },
+  venues: { label: "", title: "" },
+  calendar: { label: "", title: "", rounds: [] },
+  partnership: {
+    label: "",
+    title: "",
+    body: "",
+    // A real id rather than "": the field is typed to the set, and the
+    // normaliser picks its own from the photograph count regardless.
+    layout: "one",
+    shots: [],
+  },
+  family: { image: "", lead: "", quote: "", showFlag: true, links: [] },
+  rows: { label: "", title: "", items: [] },
+  posts: { label: "", title: "", ctaLabel: "", ctaHref: "", items: [] },
+  register: { kicker: "", title: "", body: "", ctaLabel: "", ctaHref: "" },
+  registrations: { label: "", title: "", body: "", showClosed: true },
+  decks: { label: "", title: "", body: "", items: [] },
   sections: INCRC_SECTION_IDS.map((id) => ({ id, visible: true })),
 };
 
@@ -775,7 +422,7 @@ function withIds<T extends { id: string }>(items: T[], prefix: string): T[] {
  * the stored shape.
  */
 export function normaliseIncrcContent(input: unknown): IncrcContent {
-  const d = DEFAULT_INCRC_CONTENT;
+  const d = BLANK_INCRC_CONTENT;
   const root = isRecord(input) ? input : {};
 
   const meta = isRecord(root.meta) ? root.meta : {};
@@ -825,7 +472,7 @@ export function normaliseIncrcContent(input: unknown): IncrcContent {
         MAX_PARTNERS,
         (entry) => ({
           name: optionalText(entry.name),
-          logo: image(entry.logo, ART.ctr),
+          logo: image(entry.logo, PLACEHOLDER_PHOTO),
           // "" rather than a fallback address: a mark saved before marks could
           // be linked has no href, and the honest reading of that is a picture
           // that goes nowhere — not one silently pointed at somebody else's
@@ -910,7 +557,7 @@ export function normaliseIncrcContent(input: unknown): IncrcContent {
         partnership.shots,
         MAX_SHOTS,
         (entry) => ({
-          image: image(entry.image, ART.signing[0]),
+          image: image(entry.image, PLACEHOLDER_PHOTO),
           alt: optionalText(entry.alt),
         }),
         d.partnership.shots
@@ -993,7 +640,7 @@ export function normaliseIncrcContent(input: unknown): IncrcContent {
           MAX_POSTS,
           (entry) => ({
             id: optionalText(entry.id, 64),
-            image: image(entry.image, INCRC_PHOTOS.posts[0]),
+            image: image(entry.image, PLACEHOLDER_PHOTO),
             category: optionalText(entry.category, 40),
             date: optionalText(entry.date, 40),
             title: optionalText(entry.title, BODY_MAX),

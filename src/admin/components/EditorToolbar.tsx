@@ -26,7 +26,6 @@ export function EditorToolbar({
   busy,
   error,
   onSave,
-  onLoadDefaults,
   actions,
   fieldsOpen,
   onToggleFields,
@@ -40,8 +39,6 @@ export function EditorToolbar({
   busy: boolean;
   error: string | null;
   onSave: () => void;
-  /** Omitted on screens with no built-in copy to fall back to — see below. */
-  onLoadDefaults?: () => void;
   /** Screen-specific buttons, placed before Save. */
   actions?: React.ReactNode;
   fieldsOpen: boolean;
@@ -68,21 +65,13 @@ export function EditorToolbar({
 
         {actions}
 
-        {/* Only where there IS a set of defaults to fall back to. The circuits
-            are rows someone typed, not a document with built-in copy, so that
-            screen has nothing this button could honestly refill. */}
-        {onLoadDefaults ? (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onLoadDefaults}
-            disabled={busy}
-            title={`Refills “${title}” with the built-in copy. No other section is touched, and nothing is written until you Save.`}
-          >
-            Load defaults
-          </Button>
-        ) : null}
-
+        {/* "Load defaults" was here. It refilled the open panel from
+            DEFAULT_LANDING_CONTENT / DEFAULT_INCRC_CONTENT — a second copy of
+            the site's words kept in the repo. Those are gone: the pages are rows
+            now, seeded once from scripts/seed-data, and there is no built-in
+            copy left for a button to honestly restore. Undo is the browser's
+            back button before Save, and the original wording is a re-run of the
+            seed against an empty table. */}
         <Button onClick={onSave} disabled={busy} size="sm">
           {busy ? "Saving…" : "Save"}
         </Button>

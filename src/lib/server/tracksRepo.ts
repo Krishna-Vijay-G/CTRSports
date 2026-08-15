@@ -106,22 +106,6 @@ async function freeSlug(name: string): Promise<string> {
   throw new Error("Could not find a free address for the circuit.");
 }
 
-/**
- * Same, but an unreachable database yields an empty list instead of throwing.
- *
- * The calendar has to render without circuits: a round falls back to the venue
- * and city typed on it, so the season is still readable when the tracks table
- * cannot be reached — it simply loses the pictures.
- */
-export async function listTracksSafe(): Promise<Track[]> {
-  try {
-    return await listTracks();
-  } catch (error) {
-    console.error("[tracks] could not load circuits", error);
-    return [];
-  }
-}
-
 export async function createTrack(input: unknown): Promise<Track> {
   const sql = getSql();
   const t = normaliseTrackInput(input);

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { SITE } from "@/config/site";
-import { getIncrcContentSafe, getLandingContentSafe } from "@/lib/server/contentRepo";
+import { getIncrcContent, getLandingContent } from "@/lib/server/contentRepo";
 import { listTracks } from "@/lib/server/tracksRepo";
 import { sendAnchorsHome } from "@/lib/siteChrome";
 import { findTrackBySlug, majorEventList, trackSlug, type Track } from "@/lib/tracks";
@@ -90,8 +90,8 @@ export default async function CircuitPage({ params }: Params) {
 
   const [found, landing, incrc] = await Promise.all([
     load(slug),
-    getLandingContentSafe(),
-    getIncrcContentSafe(),
+    getLandingContent(),
+    getIncrcContent(),
   ]);
 
   if (!found) notFound();

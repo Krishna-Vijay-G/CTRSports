@@ -1,6 +1,5 @@
 import "server-only";
 
-import { ABOUT_PHOTOS, BANNER_PHOTOS, INCRC_PHOTOS } from "@/config/images";
 import { PAGE_LABELS } from "@/lib/roles";
 import { getSql } from "@/lib/server/db";
 import { MEDIA_PREFIX } from "@/lib/server/s3";
@@ -63,7 +62,7 @@ import { MEDIA_PREFIX } from "@/lib/server/s3";
  * advisory-lock mechanism anywhere in this app and this is not the place to
  * invent one.
  *
- * And it can only see THIS database, plus the four objects pinned in source. Not
+ * And it can only see THIS database. Not
  * a URL somebody pasted into an external document, an email, or the older CTR
  * site. Which is why the dialog says "nothing on this site points at these"
  * rather than "this is unused".
@@ -81,47 +80,25 @@ const TOO_MANY = 2000;
 let warned = false;
 
 /**
- * The four objects referenced from the CODE rather than the database.
+ * Nothing is pinned from the source any more, and there is nothing left to pin.
  *
- * `src/config/images.ts` holds the photography the pages fall back to when the
- * database is unreachable, and four of those URLs are uploads. A database-only
- * scan calls them unreferenced, and deleting one breaks the site precisely at
- * the moment nobody can see why — during an outage.
+ * This used to walk `src/config/images.ts` — three tables of photography the
+ * pages fell back to — and pin any upload among them, because a database-only
+ * scan called them unreferenced and deleting one broke the site during an
+ * outage, when nobody could see why.
  *
- * DERIVED, never a literal set of uuids. The protection then follows an edit to
- * that file instead of drifting from it: add a fifth default photograph and it
- * is pinned the moment it renders, with nothing to remember.
+ * Those tables are gone. Every photograph on both pages is a row now, seeded
+ * from scripts/seed-data/*.json, so the database scan below already sees all of
+ * them: a picture in use is a picture some row points at, with no second list to
+ * keep in step. What remains in that file is one /public placeholder, which is
+ * not an upload and cannot be deleted from the media library.
  *
- * The derivation matches on the KEY PREFIX and not on the host, which is what
- * makes it survive the media domain: `MEDIA_BASE_URL` changed the front of
- * every one of these URLs and none of the keys. Regressing this to a host match
- * would silently unpin all four.
+ * Kept as a function rather than deleted outright because the caller's shape is
+ * "everything the database knows, plus everything the code does" — and the day
+ * something is referenced from the source again, this is where it says so.
  */
 function sourcePinnedKeys(): Set<string> {
-  const found = new Set<string>();
-
-  const walk = (value: unknown): void => {
-    if (typeof value === "string") {
-      const at = value.indexOf(`/${MEDIA_PREFIX}`);
-      if (at >= 0) found.add(value.slice(at + 1));
-      return;
-    }
-
-    if (Array.isArray(value)) {
-      for (const item of value) walk(item);
-      return;
-    }
-
-    if (value && typeof value === "object") {
-      for (const item of Object.values(value)) walk(item);
-    }
-  };
-
-  walk(ABOUT_PHOTOS);
-  walk(BANNER_PHOTOS);
-  walk(INCRC_PHOTOS);
-
-  return found;
+  return new Set<string>();
 }
 
 /**

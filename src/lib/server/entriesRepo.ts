@@ -410,22 +410,6 @@ export async function updateEntry(
   return getEntry(formId, entryId);
 }
 
-/**
- * The same, but an unreachable database counts as nought rather than throwing.
- *
- * For the public page, which asks only to say how many places are left. A count
- * it cannot get is not a reason to refuse to draw the form — and the cap is
- * enforced by the insert regardless, so nothing depends on this being right.
- */
-export async function countEntriesSafe(formId: string): Promise<number> {
-  try {
-    return await countEntries(formId);
-  } catch (error) {
-    console.error("[forms] could not count the entries for", formId, error);
-    return 0;
-  }
-}
-
 export async function countEntries(formId: string): Promise<number> {
   const sql = getSql();
   const rows = (await sql`

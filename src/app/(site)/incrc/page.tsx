@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { SITE } from "@/config/site";
 import type { IncrcContent } from "@/lib/incrcContent";
-import { getIncrcContentSafe, getLandingContentSafe } from "@/lib/server/contentRepo";
-import { listDeckSummariesSafe } from "@/lib/server/decksRepo";
-import { listFormsForPageSafe } from "@/lib/server/formsRepo";
-import { listTracksSafe } from "@/lib/server/tracksRepo";
+import { getIncrcContent, getLandingContent } from "@/lib/server/contentRepo";
+import { listDeckSummaries } from "@/lib/server/decksRepo";
+import { listFormsForPage } from "@/lib/server/formsRepo";
+import { listTracks } from "@/lib/server/tracksRepo";
 import { sendAnchorsHome } from "@/lib/siteChrome";
 import { findTrack, trackHref } from "@/lib/tracks";
 import { SiteFooter } from "@/components/layout/SiteFooter";
@@ -19,15 +19,16 @@ import { IncrcTop } from "./_components/IncrcTop";
  * results, the karting league, the academy, the club — is not on this page,
  * because none of it is INCRC.
  *
- * Two documents, both from `ctr.content`:
+ * Two documents, both assembled from `ctr.page_sections` and the four tables
+ * promoted out of it:
  *
  *   'incrc'   — everything in the body, including which sections are on the page
  *               and in what order. Edited at /admin/incrc.
  *   'landing' — the header, the navigation and the footer, so the chrome around
  *               this page stays in step with the home page.
  *
- * Both loaders fall back rather than throw, so an unreachable database still
- * renders a complete page.
+ * Neither loader falls back. A database this page cannot read is an outage, and
+ * it renders the error boundary rather than a stale copy of the championship.
  *
  * Same shell as the landing page: the page colour showing around one rounded
  * card, every section on `.shell` for the shared horizontal rhythm.
@@ -36,7 +37,7 @@ import { IncrcTop } from "./_components/IncrcTop";
 export const revalidate = 60;
 
 export async function generateMetadata(): Promise<Metadata> {
-  const content = await getIncrcContentSafe();
+  const content = await getIncrcContent();
   const title = `${content.meta.name} — ${content.meta.tagline}`;
   const description = describe(content);
 
@@ -87,11 +88,11 @@ const LOCAL_ANCHORS = new Set([
 
 export default async function IncrcPage() {
   const [content, landing, tracks, forms, decks] = await Promise.all([
-    getIncrcContentSafe(),
-    getLandingContentSafe(),
-    listTracksSafe(),
-    listFormsForPageSafe("incrc"),
-    listDeckSummariesSafe(),
+    getIncrcContent(),
+    getLandingContent(),
+    listTracks(),
+    listFormsForPage("incrc"),
+    listDeckSummaries(),
   ]);
 
   const chrome = sendAnchorsHome(landing, LOCAL_ANCHORS);

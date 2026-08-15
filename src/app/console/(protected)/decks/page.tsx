@@ -1,6 +1,6 @@
 import { SITE } from "@/config/site";
 import { requirePage } from "@/lib/server/access";
-import { getLandingContentSafe } from "@/lib/server/contentRepo";
+import { getLandingContent } from "@/lib/server/contentRepo";
 import { listDecks } from "@/lib/server/decksRepo";
 import { DecksEditor } from "@/admin/screens/decks/DecksEditor";
 
@@ -22,7 +22,7 @@ export const dynamic = "force-dynamic";
 export default async function DecksAdminPage() {
   await requirePage("decks");
 
-  const [decks, chrome] = await Promise.all([listDecks(), getLandingContentSafe()]);
+  const [decks, chrome] = await Promise.all([listDecks(), getLandingContent()]);
 
   /*
    * The public origin, handed down rather than imported by the editor.

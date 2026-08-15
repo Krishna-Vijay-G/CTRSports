@@ -1,5 +1,5 @@
 import { requirePage } from "@/lib/server/access";
-import { getIncrcContentSafe, getLandingContentSafe } from "@/lib/server/contentRepo";
+import { getIncrcContent, getLandingContent } from "@/lib/server/contentRepo";
 import { listTracks } from "@/lib/server/tracksRepo";
 import { TracksEditor } from "@/admin/screens/tracks/TracksEditor";
 
@@ -22,8 +22,8 @@ export default async function TracksAdminPage() {
 
   const [tracks, landing, incrc] = await Promise.all([
     listTracks(),
-    getLandingContentSafe(),
-    getIncrcContentSafe(),
+    getLandingContent(),
+    getIncrcContent(),
   ]);
 
   return (

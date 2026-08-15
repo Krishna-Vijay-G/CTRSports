@@ -1,0 +1,185 @@
+{
+  "page_key": "landing",
+  "sections": [
+    {
+      "section_id": "brand",
+      "position": 1,
+      "visible": true,
+      "data": {
+        "name": "CTR Unified",
+        "subtitle": "Sports Collective",
+        "logo": "/images/brand/ctr-logo.webp"
+      }
+    },
+    {
+      "section_id": "nav",
+      "position": 2,
+      "visible": true,
+      "data": {
+        "links": [
+          {
+            "label": "Home",
+            "href": "/"
+          },
+          {
+            "label": "CTR x JK Tyre  INCRC",
+            "href": "/incrc"
+          },
+          {
+            "label": "FMSCI",
+            "href": "https://www.fmsci.co.in/"
+          }
+        ],
+        "cta": {
+          "label": "Get in Touch",
+          "href": "#footer"
+        }
+      }
+    },
+    {
+      "section_id": "splash",
+      "position": 3,
+      "visible": true,
+      "data": {
+        "title": "One Nation. One Championship.",
+        "logo": "/images/brand/ctr-logo.webp"
+      }
+    },
+    {
+      "section_id": "about",
+      "position": 4,
+      "visible": true,
+      "data": {
+        "label": "About CTR",
+        "title": "One organisation behind every discipline we compete in",
+        "heading": "Built for racers, race like one team",
+        "body": "CTR Unified brings racers, athletes, teams and sporting communities together under a single platform. From cricket and volleyball to Formula 4 racing, every programme runs with its own coaching structure and competitive calendar.\n\nWhat they share is one standard of preparation, one identity, and one long-term commitment to developing Indian sporting talent.",
+        "ctaLabel": "Explore Sports",
+        "ctaHref": "#sports",
+        "photos": [
+          {
+            "src": "https://www.evoindia.com/evoindia/2024-02/1dc1ca47-79c5-49e0-b10c-3bfb59652723/Deepak_Ravikumar__winner_of_the_Touring_Cars_Race_1__July_22_.jpg",
+            "label": "Track & Field"
+          },
+          {
+            "src": "/images/hero/background.webp",
+            "label": "Endurance"
+          }
+        ]
+      }
+    },
+    {
+      "section_id": "sportsSection",
+      "position": 5,
+      "visible": true,
+      "data": {
+        "label": "Home of CTR",
+        "title": "Every sport, one standard of preparation"
+      }
+    },
+    {
+      "section_id": "ctaBand",
+      "position": 6,
+      "visible": true,
+      "data": {
+        "label": "One Team",
+        "title": "ENGINEERED FOR GROWTH. DRIVEN BY CTR",
+        "body": "Cricket, volleyball, hockey, pickleball and motorsport — developed under a single organisation.",
+        "ctaLabel": "See the Programmes",
+        "ctaHref": "#sports"
+      }
+    },
+    {
+      "section_id": "contact",
+      "position": 7,
+      "visible": true,
+      "data": {
+        "heading": "Get in touch",
+        "address": "29, Tilak Street,\nT. Nagar, Chennai,\nTamil Nadu 600017",
+        "phone": "9500016999",
+        "email": "admin@ctrsports.in",
+        "formHeading": "Send a message",
+        "formNote": "Tell us what you need and we will reply by email."
+      }
+    },
+    {
+      "section_id": "footer",
+      "position": 9,
+      "visible": true,
+      "data": {
+        "blurb": "Athletes, teams and sporting communities under one organisation — from cricket and volleyball to national motorsport."
+      }
+    },
+    {
+      "section_id": "socials",
+      "position": 8,
+      "visible": true,
+      "data": [
+        {
+          "label": "Instagram",
+          "href": "https://www.instagram.com/incrc_",
+          "icon": "instagram"
+        },
+        {
+          "label": "Facebook",
+          "href": "https://www.facebook.com/chennaiturboriders",
+          "icon": "facebook"
+        },
+        {
+          "label": "Twitter",
+          "href": "https://twitter.com/chennaiturbo",
+          "icon": "twitter"
+        },
+        {
+          "label": "YouTube",
+          "href": "https://www.youtube.com/@IndianNationalCarRacingChampio",
+          "icon": "youtube"
+        }
+      ]
+    }
+  ],
+  "banners": [
+    {
+      "banner_id": "banner-1",
+      "position": 1,
+      "template": "spotlight",
+      "image": "https://raw.githubusercontent.com/Krishna-Vijay-G/asset-temp/refs/heads/main/banner1.jpeg",
+      "fit": "fill",
+      "focus": "center",
+      "overlay": "none",
+      "title": "",
+      "subtitle": "",
+      "cta_label": "",
+      "cta_href": "#"
+    },
+    {
+      "banner_id": "banner-2",
+      "position": 2,
+      "template": "spotlight",
+      "image": "https://raw.githubusercontent.com/Krishna-Vijay-G/asset-temp/refs/heads/main/CTR%20UNIFIED%20(Medium).png",
+      "fit": "fit",
+      "focus": "center",
+      "overlay": "none",
+      "title": "",
+      "subtitle": "",
+      "cta_label": "",
+      "cta_href": "#sports"
+    },
+    {
+      "banner_id": "banner-3",
+      "position": 3,
+      "template": "split",
+      "image": "https://raw.githubusercontent.com/Krishna-Vijay-G/asset-temp/refs/heads/main/DSC_0528%7E2%20(Medium).jpeg",
+      "fit": "fill",
+      "focus": "center",
+      "overlay": "none",
+      "title": "From karting to full circuit racing",
+      "subtitle": "A national ladder that takes drivers all the way through.",
+      "cta_label": "See the programmes",
+      "cta_href": "#sports"
+    }
+  ],
+  "rounds": [],
+  "posts": [],
+  "partners": []
+}
