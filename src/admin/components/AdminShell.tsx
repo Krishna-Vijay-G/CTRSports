@@ -397,10 +397,31 @@ export function AdminShell({
   }
 
   return (
-    // md:h-screen + overflow-hidden so the editor and the preview each scroll on
-    // their own instead of the whole document scrolling as one.
+    /*
+     * md:h-screen + overflow-hidden so the editor and the preview each scroll on
+     * their own instead of the whole document scrolling as one.
+     *
+     * ── Two things that had to be added to make that true ─────────────────
+     *
+     * `relative`. `overflow: hidden` on an element that is NOT positioned does
+     * not clip an absolutely positioned descendant whose containing block is
+     * further up — that descendant resolves against the initial containing
+     * block, escapes this box entirely, and adds its height to the DOCUMENT's
+     * scrollable area. The console then scrolled past its own bottom into empty
+     * space, taking the whole interface off the top of the window. One word
+     * makes this the containing block, so there is nowhere to escape to.
+     *
+     * `data-admin-shell`. Even clipped, nothing stopped the document itself from
+     * being taller than the viewport. The rule keyed on this attribute in
+     * globals.css locks `html` and `body` at the same breakpoint, so the page
+     * cannot scroll as a whole whatever a child does. Belt and braces, and the
+     * braces are the part that cannot be undone by a future descendant.
+     */
     <CollapsedContext.Provider value={collapsed}>
-      <div className="min-h-screen bg-background font-ui text-foreground md:flex md:h-screen md:gap-2 md:overflow-hidden md:p-2">
+      <div
+        data-admin-shell
+        className="relative min-h-screen bg-background font-ui text-foreground md:flex md:h-screen md:gap-2 md:overflow-hidden md:p-2"
+      >
       {/* Wider at xl: the section rows carry a drag handle and an eye, and the
           labels are what gives way when they do not fit. Collapsed, it is a rail
           just wide enough for the icons. */}

@@ -29,6 +29,34 @@
     overflow-x: hidden;
   }
 
+  /*
+   * The console is an application, not a document.
+   *
+   * Its shell is `h-screen` with each pane scrolling on its own, and that is
+   * only true if the PAGE cannot scroll. Without this it could: anything that
+   * escaped the shell's clipping — an absolutely positioned descendant, a
+   * transform, a stray tall child — made the document taller than the window,
+   * and scrolling to the bottom carried the whole interface off the top into
+   * empty space.
+   *
+   * Keyed on the shell's own attribute with `:has()` rather than a class on
+   * `<body>`, because a route cannot set one: `<body>` belongs to the root
+   * layout, which the public site shares and which MUST go on scrolling. No
+   * JavaScript either, so it holds from the first paint rather than from
+   * hydration.
+   *
+   * The breakpoint matches the shell's. Below `md:` the console deliberately IS
+   * one scrolling document — the sidebar becomes a row of chips and the panes
+   * stack — and locking it there would strand everything below the fold.
+   */
+  @media (min-width: 768px) {
+    html:has([data-admin-shell]),
+    html:has([data-admin-shell]) body {
+      height: 100%;
+      overflow: hidden;
+    }
+  }
+
   ::selection {
     background: rgba(247, 214, 25, 0.35);
     color: #f3f5f7;
