@@ -104,6 +104,20 @@ const SCHEMAS = {
       what: "anything pasted into a form's questions or sections",
       columns: [{ name: "fields", json: true }, { name: "sections", json: true }],
     },
+    /*
+     * Both shapes at once: a cover is a plain column and a body is a document
+     * holding every picture dropped into the middle of the text.
+     *
+     * These two were missing until the CDN was actually put in front of the
+     * bucket, because the script predates both tables — `articles` arrived with
+     * 0010 and `events` with 0018, and a one-shot that has never run is a
+     * one-shot nobody notices going stale. `src/lib/server/mediaRefs.ts` has the
+     * complete list; this now matches it.
+     */
+    { table: "articles", what: "article covers and pictures inside them",
+      columns: [{ name: "cover_image" }, { name: "body", json: true }] },
+    { table: "events", what: "event covers and pictures inside them",
+      columns: [{ name: "cover_image" }, { name: "body", json: true }] },
   ],
 };
 
@@ -256,6 +270,16 @@ try {
     const resolved = await resolveTable(table);
 
     if (!resolved) {
+      /*
+       * `articles` and `events` arrived long after this script did, so a
+       * database that predates them is not a database this is pointed at by
+       * mistake — it is one that simply has nothing of theirs to rewrite.
+       */
+      if (table === "articles" || table === "events") {
+        console.log(`  ${table.padEnd(20)} —  not on this database yet (${what})`);
+        continue;
+      }
+
       fail(`No ${table} table under either name. Is DATABASE_URL pointing at the right database?`);
     }
 
@@ -316,7 +340,10 @@ try {
   // the difference between "the statements ran" and "the rows changed".
   let left = 0;
   for (const { table, columns } of TARGETS) {
-    const counts = await countMatches(await resolveTable(table), columns);
+    const resolved = await resolveTable(table);
+    if (!resolved) continue;
+
+    const counts = await countMatches(resolved, columns);
     left += counts.reduce((sum, count) => sum + count.rows, 0);
   }
 

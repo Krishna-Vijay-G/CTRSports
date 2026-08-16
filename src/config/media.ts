@@ -10,15 +10,22 @@
  * in the client bundle. That means it is inlined at BUILD time: changing the
  * value on Vercel needs a redeploy, not a restart.
  *
- * The S3 address survives only as a last-resort fallback, so an unset variable
- * degrades to the behaviour this project had before the CDN rather than
- * emitting `undefined/...` into every default image. It is the only S3 hostname
- * left in the source apart from the template in `src/lib/server/s3.ts`.
+ * ── The fallback is the distribution, not the bucket ──────────────────────
+ *
+ * It was the bucket's own address, on the argument that an unset variable
+ * should degrade to the behaviour this project had before the CDN. That
+ * argument expired the day the distribution went in front of a bucket with
+ * Block Public Access on: the S3 address now answers 403 for every object, so
+ * falling back to it is not "slower", it is a site with no pictures at all.
+ *
+ * So the last resort is the distribution. It is the one environment-specific
+ * literal in the source and it has to be kept in step with the variable above —
+ * which is the price of a fallback that works. An unset variable is still a
+ * mistake; this only decides whether the mistake is visible or total.
  *
  * The trailing-slash strip is what lets the variable be set either way round;
  * every caller joins with a `/` of its own.
  */
 export const MEDIA_BASE_URL = (
-  process.env.NEXT_PUBLIC_MEDIA_BASE_URL ||
-  "https://ctrsports-media-storage.s3.us-east-1.amazonaws.com"
+  process.env.NEXT_PUBLIC_MEDIA_BASE_URL || "https://d3mqgi8f34hcli.cloudfront.net"
 ).replace(/\/+$/, "");
