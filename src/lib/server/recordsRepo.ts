@@ -3,8 +3,8 @@ import "server-only";
 import { cache } from "react";
 import { listPublishedArticles } from "@/lib/server/articlesRepo";
 import { listDeckSummaries } from "@/lib/server/decksRepo";
-import { listPublishedEvents } from "@/lib/server/eventsRepo";
 import { listFormsForSite } from "@/lib/server/formsRepo";
+import { currentPublishedSeason } from "@/lib/server/seasonsRepo";
 import { listVisibleSports, listAllSports } from "@/lib/server/sportsRepo";
 import { listTracks } from "@/lib/server/tracksRepo";
 import { metaOf, type Section } from "@/lib/sections/document";
@@ -27,19 +27,36 @@ import type { SectionRecords } from "@/lib/sections/types";
  * series. Five parallel queries against a site's own rows is cheaper than that,
  * and each of them is `cache()`d for the request anyway — a route that also
  * renders a deck list pays for it once.
+ *
+ * ── The season, not the sport's whole history ─────────────────────────────
+ *
+ * `currentPublishedSeason` returns the season a visitor has arrived in and its
+ * rounds, so the calendar band draws one year rather than every year there has
+ * ever been. It reads the two published lists, both `cache()`d, so it costs
+ * nothing over fetching the events directly.
  */
 export const getRecords = cache(
   async (site: Site, sections: readonly Section[]): Promise<SectionRecords> => {
-    const [tracks, forms, decks, articles, events, sports] = await Promise.all([
+    const [tracks, forms, decks, articles, current, sports] = await Promise.all([
       listTracks(site.id),
       listFormsForSite(site.id),
       listDeckSummaries(site.id),
       listPublishedArticles(site.id),
-      listPublishedEvents(site.id),
+      currentPublishedSeason(site.id),
       listVisibleSports(),
     ]);
 
-    return { site, tracks, forms, decks, articles, events, sports, meta: metaOf(sections) };
+    return {
+      site,
+      tracks,
+      forms,
+      decks,
+      articles,
+      season: current?.season ?? null,
+      events: current?.events ?? [],
+      sports,
+      meta: metaOf(sections),
+    };
   }
 );
 
@@ -53,15 +70,25 @@ export const getRecords = cache(
  */
 export const getEditorRecords = cache(
   async (site: Site, sections: readonly Section[]): Promise<SectionRecords> => {
-    const [tracks, forms, decks, articles, events, sports] = await Promise.all([
+    const [tracks, forms, decks, articles, current, sports] = await Promise.all([
       listTracks(site.id),
       listFormsForSite(site.id),
       listDeckSummaries(site.id),
       listPublishedArticles(site.id),
-      listPublishedEvents(site.id),
+      currentPublishedSeason(site.id),
       listAllSports(),
     ]);
 
-    return { site, tracks, forms, decks, articles, events, sports, meta: metaOf(sections) };
+    return {
+      site,
+      tracks,
+      forms,
+      decks,
+      articles,
+      season: current?.season ?? null,
+      events: current?.events ?? [],
+      sports,
+      meta: metaOf(sections),
+    };
   }
 );

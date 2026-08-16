@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { isArticleId } from "@/lib/articles";
 import { isDeckId } from "@/lib/decks";
 import { isEventId } from "@/lib/events";
+import { isSeasonId } from "@/lib/seasons";
 import { isFormId } from "@/lib/forms";
 import { type GrantModule } from "@/lib/roles";
 import { isUsableSlug, type SlugCheck, type SlugKind } from "@/lib/slug";
@@ -9,12 +10,15 @@ import { guardRequestSite } from "@/lib/server/access";
 import type { SiteRef } from "@/lib/sites";
 import * as articles from "@/lib/server/articlesRepo";
 import * as decks from "@/lib/server/decksRepo";
+import { findCalendarSlugOwner } from "@/lib/server/calendarSlugs";
 import * as events from "@/lib/server/eventsRepo";
 import * as forms from "@/lib/server/formsRepo";
+import * as seasons from "@/lib/server/seasonsRepo";
 import { revalidateArticlePages } from "@/lib/server/revalidateArticles";
 import { revalidateDeckPages } from "@/lib/server/revalidateDecks";
 import { revalidateEventPages } from "@/lib/server/revalidateEvents";
 import { revalidateFormPages } from "@/lib/server/revalidateForms";
+import { revalidateSeasonPages } from "@/lib/server/revalidateSeasons";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,6 +40,12 @@ export const dynamic = "force-dynamic";
  * Each kind is checked SEPARATELY and never against another. They publish under
  * different prefixes — /register/, /deck/ and /articles/ — so `entry-pack` being
  * both a form and a deck is two different pages, not a collision.
+ *
+ * The exception is the calendar. A season and a round publish under the SAME
+ * prefix, so `2026` being both would be one address naming two pages; both kinds
+ * therefore ask `findCalendarSlugOwner`, which reads the two namespaces at once.
+ * Releasing follows: the address being handed over may belong to either, so both
+ * repos are asked and each ignores an id that is not its own.
  *
  * ── Every question is now about one sport ─────────────────────────────────
  *
@@ -93,17 +103,51 @@ const REPOS: Record<SlugKind, Repo> = {
   },
   event: {
     module: "events",
-    findSlugOwner: events.findSlugOwner,
-    releaseFormerSlug: events.releaseFormerSlug,
+    findSlugOwner: findCalendarSlugOwner,
+    releaseFormerSlug: releaseCalendarSlug,
     isId: isEventId,
     // Takes no slug: the events revalidator clears the detail route by its
     // PATTERN, which covers the address just released along with every other.
     revalidate: (site) => revalidateEventPages(site),
   },
+  season: {
+    // Not a module of its own. Whoever may announce a weekend may announce the
+    // year it runs in — see the seasons routes.
+    module: "events",
+    findSlugOwner: findCalendarSlugOwner,
+    releaseFormerSlug: releaseCalendarSlug,
+    isId: isSeasonId,
+    revalidate: (site) => revalidateSeasonPages(site),
+  },
 };
 
+/**
+ * Hands a calendar address over, whichever of the two kinds is holding it.
+ *
+ * Both are scoped `WHERE entity_id = fromId AND NOT is_current`, so the one that
+ * does not own the id deletes nothing. Asking both is therefore the same
+ * question as asking the right one, without the caller having to know which kind
+ * an id belongs to — which it cannot, because both are uuids.
+ */
+async function releaseCalendarSlug(
+  siteId: string,
+  slug: string,
+  fromId: string
+): Promise<boolean> {
+  const [fromEvent, fromSeason] = await Promise.all([
+    events.releaseFormerSlug(siteId, slug, fromId),
+    seasons.releaseFormerSlug(siteId, slug, fromId),
+  ]);
+
+  return fromEvent || fromSeason;
+}
+
 function repoFor(value: unknown): Repo | null {
-  return value === "form" || value === "deck" || value === "article" || value === "event"
+  return value === "form" ||
+    value === "deck" ||
+    value === "article" ||
+    value === "event" ||
+    value === "season"
     ? REPOS[value]
     : null;
 }

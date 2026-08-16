@@ -74,6 +74,14 @@ export type CtrEvent = {
    * move a record into a sport it does not administer.
    */
   site_id: string;
+  /**
+   * The season it runs in — `ctr.seasons.id`, NOT NULL since 0021.
+   *
+   * A round is not a season; a season has several. This is what makes the home
+   * band able to draw one year's rounds without the next year's joining them,
+   * and what `currentSeason` reads to work out which year is running.
+   */
+  season_id: string;
   /** The address. `/<sport>/calendar/<slug>`. */
   slug: string;
   status: EventStatus;
@@ -113,6 +121,7 @@ export type CtrEvent = {
 };
 
 export const BLANK_EVENT: Omit<CtrEvent, "id" | "site_id"> = {
+  season_id: "",
   slug: "",
   status: "draft",
   round: "",
@@ -248,6 +257,13 @@ export function normaliseEventInput(
   }
 
   return {
+    /*
+     * Not checked against `ctr.seasons` for the same reason the circuit is not —
+     * this runs in the browser. Unlike the circuit it cannot be left dangling,
+     * because the column is NOT NULL, so the repo resolves it against THIS site's
+     * seasons and falls back to the current one when the id names nothing.
+     */
+    season_id: optionalText(record.season_id, 40),
     slug,
     status: oneOf(record.status, EVENT_STATUSES, "draft"),
     round,

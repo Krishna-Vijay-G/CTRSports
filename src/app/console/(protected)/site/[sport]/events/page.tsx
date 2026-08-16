@@ -3,6 +3,7 @@ import { requireSite } from "@/lib/server/access";
 import { getChrome } from "@/lib/server/contentRepo";
 import { listEvents } from "@/lib/server/eventsRepo";
 import { listFormsForSite } from "@/lib/server/formsRepo";
+import { listSeasons } from "@/lib/server/seasonsRepo";
 import { listTracks } from "@/lib/server/tracksRepo";
 import { EventsEditor } from "@/admin/screens/events/EventsEditor";
 
@@ -11,7 +12,7 @@ export const dynamic = "force-dynamic";
 type Props = { params: Promise<{ sport: string }> };
 
 /**
- * One sport's season.
+ * One sport's rounds.
  *
  * A screen of its own rather than a panel inside the page editor, which is what
  * it was until migration 0018: the rounds were a repeater in the calendar band,
@@ -28,8 +29,9 @@ export default async function EventsAdminPage({ params }: Props) {
   const { sport } = await params;
   const { site } = await requireSite(sport, "events");
 
-  const [events, tracks, forms, chrome] = await Promise.all([
+  const [events, seasons, tracks, forms, chrome] = await Promise.all([
     listEvents(site.id),
+    listSeasons(site.id),
     listTracks(site.id),
     listFormsForSite(site.id),
     getChrome(site),
@@ -45,6 +47,7 @@ export default async function EventsAdminPage({ params }: Props) {
   return (
     <EventsEditor
       initialEvents={events}
+      seasons={seasons}
       tracks={tracks}
       forms={forms}
       chrome={chrome}

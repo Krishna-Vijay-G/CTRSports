@@ -98,12 +98,19 @@ export const DEFAULT_UPLOAD_FOLDER = "uploads";
  * `forms` is deliberately absent. A registration's attachments live under
  * `ENTRY_PREFIX`, a sibling of the media prefix, and are never public — so a
  * form has no folder here to name.
+ *
+ * `seasons` and `events` are two folders rather than one nested pair, even
+ * though a round belongs to a season. Depth here is capped at three and the
+ * entity segment is already the third; `incrc/seasons/2026/round-01/…` would be
+ * a fourth. A round's folder is named after its own address, which is unique
+ * within the sport, so nothing is lost but the nesting.
  */
 export const MODULE_FOLDERS = {
   decks: "decks",
   circuits: "circuits",
   articles: "articles",
   events: "events",
+  seasons: "seasons",
 } as const;
 
 /** The modules that have a media folder. Not every site module does. */

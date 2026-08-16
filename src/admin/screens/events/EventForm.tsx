@@ -10,6 +10,7 @@ import {
 import { eventDateLabel } from "@/lib/raceDates";
 import type { RichDoc } from "@/lib/richtext";
 import type { FormSummary } from "@/lib/forms";
+import type { SeasonSummary } from "@/lib/seasons";
 import type { SlugHolder } from "@/lib/slug";
 import type { Track } from "@/lib/tracks";
 import { Button } from "@/admin/ui/Button";
@@ -34,6 +35,7 @@ import { RichText } from "@/admin/components/richtext/RichText";
  */
 export function EventForm({
   event,
+  seasons,
   tracks,
   forms,
   siteUrl,
@@ -43,6 +45,8 @@ export function EventForm({
   busy,
 }: {
   event: CtrEvent;
+  /** This sport's seasons, newest first. Every round is in exactly one. */
+  seasons: SeasonSummary[];
   /** This sport's circuits, for the picker. Fetched by the screen, never here. */
   tracks: Track[];
   /** This sport's entry forms, published and not. */
@@ -65,6 +69,34 @@ export function EventForm({
     <div className="space-y-2.5">
       <Panel title="Event">
         <div className="space-y-3">
+          {/*
+            The season, first and not in a panel of its own.
+            
+            It is the one field that decides whether this round appears on the
+            home page at all — the band draws the season that is running — so it
+            reads before the number rather than after the report.
+          */}
+          <div className="block">
+            <Label>Season</Label>
+            <Select
+              value={event.season_id}
+              onChange={(e) => set({ season_id: e.target.value })}
+              disabled={busy}
+              className="mt-1.5 w-full"
+            >
+              {seasons.map((season) => (
+                <option key={season.id} value={season.id}>
+                  {season.name || season.slug}
+                  {season.status === "draft" ? " · draft" : ""}
+                </option>
+              ))}
+            </Select>
+            <Hint className="mt-1">
+              The home page draws whichever season is running, decided by these rounds' dates.
+              Seasons are added on the Seasons screen.
+            </Hint>
+          </div>
+
           <Row>
             <Field
               label="Number"

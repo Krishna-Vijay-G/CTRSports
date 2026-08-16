@@ -33,7 +33,9 @@ const ROUTE: Record<SlugKind, string> = {
   form: "register",
   deck: "deck",
   article: "articles",
+  // One route for both. A season and its rounds are the calendar at two depths.
   event: "calendar",
+  season: "calendar",
 };
 
 export function FormerSlugs({

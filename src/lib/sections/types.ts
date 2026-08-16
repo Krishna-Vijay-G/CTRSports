@@ -32,6 +32,7 @@
 import type { ArticleSummary } from "@/lib/articles";
 import type { DeckSummary } from "@/lib/decks";
 import type { EventSummary } from "@/lib/events";
+import type { SeasonSummary } from "@/lib/seasons";
 import type { FormSummary } from "@/lib/forms";
 import type { SiteModule, SiteRef } from "@/lib/sites";
 import type { Sport } from "@/lib/sports";
@@ -81,12 +82,23 @@ export type SectionRecords = {
   /** ctr.articles, this site's published ones. The announcement card. */
   articles: ArticleSummary[];
   /**
-   * ctr.events, this site's published season, in its own order.
+   * The season a visitor has arrived in — `null` when none is published.
    *
-   * The calendar band draws every one of them, which is why there is nothing
-   * stored about WHICH — the same call `registrations` makes about forms. Empty
-   * for a site with the `events` module switched off, which cannot have a
-   * calendar band anyway.
+   * Derived from the rounds' dates rather than stored, so it rolls over on its
+   * own the day the last weekend of a year is run. `currentSeason` sets out how.
+   */
+  season: SeasonSummary | null;
+  /**
+   * ctr.events — the rounds of THAT season, in its own order.
+   *
+   * The whole sport's rounds until 0021, which was right while a sport had one
+   * season and wrong the January after: next year's four would have joined this
+   * year's four on the home page, under a heading naming whichever year somebody
+   * last typed, with a countdown reaching across both.
+   *
+   * There is still nothing stored about WHICH rounds — the same call
+   * `registrations` makes about forms. The season decides. Empty for a site with
+   * the `events` module switched off, which cannot have a calendar band anyway.
    */
   events: EventSummary[];
   /** ctr.sports — the cards on the landing page, and the CTA band's links. */

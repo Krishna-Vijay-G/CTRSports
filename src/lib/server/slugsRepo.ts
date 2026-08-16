@@ -46,7 +46,7 @@ import { getSql } from "@/lib/server/db";
  * job is addresses somebody else could claim.
  */
 
-export type SlugEntity = "deck" | "form" | "article" | "event";
+export type SlugEntity = "deck" | "form" | "article" | "event" | "season";
 
 /** Deleting the row cleans these up — see the trigger in migrations/0002. */
 
@@ -69,7 +69,7 @@ export async function findSlugOwner(
   const except = exceptId || "00000000-0000-0000-0000-000000000000";
 
   /*
-   * Four branches, spelled out. An article's readable name is its `title` and an
+   * Five branches, spelled out. An article's readable name is its `title` and an
    * event's is whichever of its title, circuit or venue it has, so both are
    * aliased to `name` rather than the caller learning a column per kind —
    * `SlugHolder` says "name" because that is what the sentence under the address
@@ -103,13 +103,21 @@ export async function findSlugOwner(
                  AND s.slug = ${slug} AND e.id <> ${except}
                LIMIT 1
             `
-          : await sql`
-              SELECT f.id, f.name, s.is_current
-                FROM ctr.slugs s JOIN ctr.forms f ON f.id = s.entity_id
-               WHERE s.site_id = ${siteId} AND s.entity_type = 'form'
-                 AND s.slug = ${slug} AND f.id <> ${except}
-               LIMIT 1
-            `
+          : entity === "season"
+            ? await sql`
+                SELECT n.id, n.name, s.is_current
+                  FROM ctr.slugs s JOIN ctr.seasons n ON n.id = s.entity_id
+                 WHERE s.site_id = ${siteId} AND s.entity_type = 'season'
+                   AND s.slug = ${slug} AND n.id <> ${except}
+                 LIMIT 1
+              `
+            : await sql`
+                SELECT f.id, f.name, s.is_current
+                  FROM ctr.slugs s JOIN ctr.forms f ON f.id = s.entity_id
+                 WHERE s.site_id = ${siteId} AND s.entity_type = 'form'
+                   AND s.slug = ${slug} AND f.id <> ${except}
+                 LIMIT 1
+              `
   ) as { id: string; name: string; is_current: boolean }[];
 
   const row = rows[0];

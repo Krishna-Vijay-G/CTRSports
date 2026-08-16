@@ -11,6 +11,7 @@ import { isoDate, oneOf } from "@/lib/normalise";
 import { normaliseRichText } from "@/lib/richtext";
 import { type SlugHolder } from "@/lib/slug";
 import { getSql } from "@/lib/server/db";
+import { calendarSlugTaken, findCalendarSlugOwner } from "@/lib/server/calendarSlugs";
 import {
   findSlugOwner as findOwner,
   releaseFormerSlug as releaseFormer,
@@ -39,7 +40,7 @@ const DUPLICATE = "23505";
 
 /** Everything but the body. The addresses are joined on. */
 const SUMMARY =
-  `e.id, e.site_id, e.round, e.title, e.subtitle, e.venue, e.city,
+  `e.id, e.site_id, e.season_id, e.round, e.title, e.subtitle, e.venue, e.city,
    e.track_id, e.form_id, e.date_from, e.date_to, e.dates, e.badge,
    e.status, e.cover_image, e.sort_order`;
 
@@ -55,6 +56,7 @@ const FORMER = `
 type SummaryRow = {
   id: string;
   site_id: string;
+  season_id: string;
   round: string;
   title: string;
   subtitle: string;
@@ -102,6 +104,7 @@ function summarise(row: SummaryRow): EventSummary {
   return {
     id: row.id,
     site_id: row.site_id,
+    season_id: row.season_id,
     slug: row.slug ?? "",
     status: oneOf(row.status, EVENT_STATUSES, "draft"),
     round: row.round,
@@ -140,9 +143,14 @@ function hydrate(row: EventRow): CtrEvent {
 /* ──────────────────────────────── Reads ─────────────────────────────── */
 
 /**
- * One sport's whole season, drafts included. The console's list.
+ * One sport's rounds, drafts included. The console's list.
  *
- * Not narrowed by session, unlike `listArticles`: the events screen is per
+ * Every season's, not one season's: the screen groups them under their season
+ * headings and the move-to-season picker needs to see across the lot. Ordered
+ * newest season first to match `listSeasons`, and within a season by position —
+ * the order the calendar band draws.
+ *
+ * Not narrowed by session, unlike `listArticles`: the rounds screen is per
  * sport, so the route has already guarded the site and there is no cross-sport
  * list to filter. The site id IS the scope.
  */
@@ -152,16 +160,38 @@ export async function listEvents(siteId: string): Promise<CtrEvent[]> {
   const rows = (await sql.query(
     `SELECT ${SUMMARY}, e.body, ${SLUG}, ${FORMER}
        FROM ctr.events e
+       JOIN ctr.seasons n ON n.id = e.season_id
       WHERE e.site_id = $1
-      ORDER BY e.sort_order ASC, e.date_from ASC NULLS LAST`,
+      ORDER BY n.sort_order DESC, n.name DESC,
+               e.sort_order ASC, e.date_from ASC NULLS LAST`,
     [siteId]
   )) as EventRow[];
 
   return rows.map(hydrate);
 }
 
+/** One season's rounds, drafts included — the season's own console screen. */
+export async function listEventsOfSeason(seasonId: string): Promise<CtrEvent[]> {
+  const sql = getSql();
+
+  const rows = (await sql.query(
+    `SELECT ${SUMMARY}, e.body, ${SLUG}, ${FORMER}
+       FROM ctr.events e
+      WHERE e.season_id = $1
+      ORDER BY e.sort_order ASC, e.date_from ASC NULLS LAST`,
+    [seasonId]
+  )) as EventRow[];
+
+  return rows.map(hydrate);
+}
+
 /**
- * The published events, for the calendar band and the season index.
+ * The published rounds of every published season. The band and the index.
+ *
+ * The season's status gates the round: a season still being drafted must not
+ * leak its rounds onto the home page through a card whose own status somebody
+ * ticked first. Nothing else in the app can express "published round, unpublished
+ * season", so it is enforced in the one read both public surfaces go through.
  *
  * A summary and not the event: the band draws a date, a circuit and a countdown,
  * and sending the bodies would put every race report of the season into the
@@ -176,8 +206,9 @@ export const listPublishedEvents = cache(async (siteId: string): Promise<EventSu
   const rows = (await sql.query(
     `SELECT ${SUMMARY}, ${SLUG}
        FROM ctr.events e
+       JOIN ctr.seasons n ON n.id = e.season_id AND n.status = 'published'
       WHERE e.site_id = $1 AND e.status = 'published'
-      ORDER BY e.sort_order ASC, e.date_from ASC NULLS LAST`,
+      ORDER BY n.sort_order DESC, e.sort_order ASC, e.date_from ASC NULLS LAST`,
     [siteId]
   )) as SummaryRow[];
 
@@ -214,13 +245,6 @@ function taken(message: string): Error & { code?: string } {
   const conflict = new Error(message) as Error & { code?: string };
   conflict.code = DUPLICATE;
   return conflict;
-}
-
-function heldBy(slug: string, holder: SlugHolder): string {
-  const name = holder.name || "another event";
-  return holder.held === "current"
-    ? `/calendar/${slug} is where “${name}” lives. Give that event a different address first.`
-    : `/calendar/${slug} is an old address of “${name}” and still redirects there.`;
 }
 
 /** Which event answers to this address. Kept exported: the slugs route calls it. */
@@ -262,8 +286,8 @@ export async function createEvent(
     (input as { slug: string }).slug.trim() !== "";
 
   if (asked) {
-    const holder = await findSlugOwner(siteId, first.slug);
-    if (holder) throw taken(heldBy(first.slug, holder));
+    const holder = await findCalendarSlugOwner(siteId, first.slug);
+    if (holder) throw taken(calendarSlugTaken(first.slug, holder));
 
     return insertEvent(siteId, first);
   }
@@ -271,7 +295,7 @@ export async function createEvent(
   for (let attempt = 1; attempt <= 20; attempt += 1) {
     const slug = attempt === 1 ? first.slug : `${first.slug}-${attempt}`;
 
-    if (await findSlugOwner(siteId, slug)) continue;
+    if (await findCalendarSlugOwner(siteId, slug)) continue;
 
     try {
       const event = await insertEvent(siteId, { ...first, slug });
@@ -296,6 +320,9 @@ export async function createEvent(
  * about the console — it is about a request that names an id from somewhere
  * else, which would otherwise put another sport's circuit on this sport's
  * calendar. NULL is the state the card already handles.
+ *
+ * The SEASON goes through the same filter but cannot land as NULL — a round has
+ * to be in one — so it falls back to the site's newest. See `seasonOf` below.
  */
 async function insertEvent(
   siteId: string,
@@ -304,10 +331,11 @@ async function insertEvent(
   const sql = getSql();
 
   const rows = (await sql`
-    INSERT INTO ctr.events (site_id, round, title, subtitle, venue, city,
+    INSERT INTO ctr.events (site_id, season_id, round, title, subtitle, venue, city,
                             track_id, form_id, date_from, date_to, dates, badge,
                             status, cover_image, body, sort_order)
-    VALUES (${siteId}, ${e.round}, ${e.title}, ${e.subtitle}, ${e.venue}, ${e.city},
+    VALUES (${siteId}, ${await seasonOf(siteId, e.season_id)},
+            ${e.round}, ${e.title}, ${e.subtitle}, ${e.venue}, ${e.city},
             (SELECT id FROM ctr.tracks WHERE id::text = ${e.track_id} AND site_id = ${siteId}),
             (SELECT id FROM ctr.forms  WHERE id::text = ${e.form_id}  AND site_id = ${siteId}),
             ${e.date_from || null}, ${e.date_to || null}, ${e.dates}, ${e.badge},
@@ -349,8 +377,8 @@ export async function updateEvent(
   if (!existing) return null;
 
   if (e.slug !== existing.slug) {
-    const holder = await findSlugOwner(existing.site_id, e.slug, id);
-    if (holder) throw taken(heldBy(e.slug, holder));
+    const holder = await findCalendarSlugOwner(existing.site_id, e.slug, id);
+    if (holder) throw taken(calendarSlugTaken(e.slug, holder));
   }
 
   /*
@@ -386,7 +414,8 @@ export async function updateEvent(
 
   const rows = (await sql`
     UPDATE ctr.events
-       SET round       = ${e.round},
+       SET season_id   = ${await seasonOf(site, e.season_id)},
+           round       = ${e.round},
            title       = ${e.title},
            subtitle    = ${e.subtitle},
            venue       = ${e.venue},
@@ -410,6 +439,41 @@ export async function updateEvent(
   await writeSlugs("event", site, id, e.slug, formerSlugs);
 
   return getEvent(id);
+}
+
+/**
+ * The season a round is filed under. Its own round trip, deliberately.
+ *
+ * Three decisions in one place, so neither write has to restate them:
+ *
+ *   · the named season, but only when it belongs to THIS site — a request
+ *     naming another sport's season must not move a round out of its own
+ *     championship, the same guard the circuit and the form already get;
+ *   · the site's newest otherwise, which is where a round created from the
+ *     rounds screen with nothing chosen belongs;
+ *   · and a refusal when the site has no season at all, in a sentence. The
+ *     NOT NULL would refuse it anyway, as `null` violates not-null — but as a
+ *     constraint name, which is not something to put in front of somebody.
+ *
+ * A query rather than a subquery spliced into the INSERT because these are
+ * tagged templates: `${}` binds a VALUE, so a string of SQL would go in as text
+ * and the column would take the sentence instead of the id.
+ */
+async function seasonOf(siteId: string, seasonId: string): Promise<string> {
+  const sql = getSql();
+
+  const rows = (await sql`
+    SELECT id FROM ctr.seasons
+     WHERE site_id = ${siteId}
+     ORDER BY (id::text = ${seasonId}) DESC, sort_order DESC
+     LIMIT 1
+  `) as { id: string }[];
+
+  if (!rows[0]) {
+    throw new Error("This sport has no season yet. Create one, then add its rounds.");
+  }
+
+  return rows[0].id;
 }
 
 /** Spaced by ten, in one statement. `unnest` over two arrays, as decksRepo does. */

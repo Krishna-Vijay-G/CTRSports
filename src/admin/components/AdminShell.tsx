@@ -33,6 +33,7 @@ import {
   SignOutIcon,
   StackIcon,
   TicketIcon,
+  TrophyIcon,
   UsersIcon,
 } from "@/admin/ui/icons";
 import { Media } from "@/components/ui/Media";
@@ -150,8 +151,19 @@ function siteNav(site: Site, scope: { role: AdminRole; grants: Grant[] }): NavIt
   if (on("circuits") && has("circuits")) {
     rows.push({ href: `${base}/tracks`, label: "Circuits", icon: MapIcon, siteId: site.id });
   }
+  /*
+   * Two rows, one grant. A season and its rounds are one job — whoever may
+   * announce a weekend may announce the year it runs in — and splitting the
+   * permission would mean an account that can add rounds to a season it cannot
+   * create. The screens are separate because the records are: 0021 made a season
+   * a row, and it has an address, a cover and a status of its own.
+   *
+   * Seasons first: it is the one you visit once a year and the one that has to
+   * exist before a round can be filed under it.
+   */
   if (on("events") && has("events")) {
-    rows.push({ href: `${base}/events`, label: "Season", icon: CalendarIcon, siteId: site.id });
+    rows.push({ href: `${base}/seasons`, label: "Seasons", icon: TrophyIcon, siteId: site.id });
+    rows.push({ href: `${base}/events`, label: "Rounds", icon: CalendarIcon, siteId: site.id });
   }
   if (on("decks") && has("decks")) {
     rows.push({ href: `${base}/decks`, label: "Decks", icon: StackIcon, siteId: site.id });

@@ -2,12 +2,14 @@ import type { MetadataRoute } from "next";
 import { SITE } from "@/config/site";
 import { articleHref, articlesHref } from "@/lib/articles";
 import { deckHref } from "@/lib/decks";
-import { calendarHref, eventHref } from "@/lib/events";
+import { eventHref } from "@/lib/events";
 import { listPublishedArticles } from "@/lib/server/articlesRepo";
 import { listDeckSummaries } from "@/lib/server/decksRepo";
 import { listPublishedEvents } from "@/lib/server/eventsRepo";
+import { listPublishedSeasons } from "@/lib/server/seasonsRepo";
 import { listSites } from "@/lib/server/sitesRepo";
 import { listTracks } from "@/lib/server/tracksRepo";
+import { seasonHref } from "@/lib/seasons";
 import { hasModule, siteHref, type Site } from "@/lib/sites";
 import { circuitsHref, trackHref } from "@/lib/tracks";
 
@@ -50,11 +52,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 }
 
 async function entriesFor(site: Site, now: Date): Promise<MetadataRoute.Sitemap> {
-  const [tracks, decks, articles, events] = await Promise.all([
+  const [tracks, decks, articles, events, seasons] = await Promise.all([
     hasModule(site, "circuits") ? listTracks(site.id) : [],
     hasModule(site, "decks") ? listDeckSummaries(site.id) : [],
     hasModule(site, "articles") ? listPublishedArticles(site.id) : [],
     hasModule(site, "events") ? listPublishedEvents(site.id) : [],
+    hasModule(site, "events") ? listPublishedSeasons(site.id) : [],
   ]);
 
   const at = (path: string) => `${SITE.url}${path}`;
@@ -119,18 +122,23 @@ async function entriesFor(site: Site, now: Date): Promise<MetadataRoute.Sitemap>
       priority: 0.6,
     })),
 
-    ...(events.length > 0
-      ? [
-          {
-            url: at(calendarHref(site)),
-            lastModified: now,
-            // The season is announced once and then moves through itself, which
-            // is a change to the page every time a weekend passes.
-            changeFrequency: "weekly" as const,
-            priority: 0.8,
-          },
-        ]
-      : []),
+    /*
+     * The seasons, and not `/<sport>/calendar`.
+     *
+     * That address redirects to whichever season is running, and a sitemap of
+     * redirects is a sitemap a crawler has to be told twice about. Each season
+     * is a page in its own right — this year's is the one being updated, and
+     * the older ones stay worth finding, which is most of the point of giving
+     * them addresses at all.
+     */
+    ...seasons.map((season, index) => ({
+      url: at(seasonHref(site, season)),
+      lastModified: now,
+      // The newest is the one moving through itself, a change every time a
+      // weekend passes. A finished season is finished.
+      changeFrequency: index === 0 ? ("weekly" as const) : ("yearly" as const),
+      priority: index === 0 ? 0.8 : 0.5,
+    })),
     ...events.map((event) => ({
       url: at(eventHref(site, event)),
       lastModified: now,

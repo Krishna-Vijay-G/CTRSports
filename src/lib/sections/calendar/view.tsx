@@ -44,11 +44,17 @@ import { Media } from "@/components/ui/Media";
  *
  * ── Where the season comes from ───────────────────────────────────────────
  *
- * `records.events` — every published event of this site, in the order the Events
- * screen puts them in. It used to be a list stored inside this section, which is
- * what migration 0018 undid: an event is a row with an address of its own now,
- * so the cards link to the EVENT rather than to the circuit it is held at. A
- * circuit is a place; a weekend is a thing that happens.
+ * `records.events` — the rounds of whichever season is running, in the order the
+ * Rounds screen puts them in. Which season that is comes from the dates rather
+ * than from a setting, so this band rolls over on its own the day the last
+ * weekend of a year is run; `currentSeason` sets out how it is decided.
+ *
+ * The rounds used to be a list stored inside this section, which is what
+ * migration 0018 undid: an event is a row with an address of its own now, so the
+ * cards link to the EVENT rather than to the circuit it is held at. A circuit is
+ * a place; a weekend is a thing that happens. 0021 then took the last editorial
+ * decision out of the band — it drew every round the sport had ever had, which
+ * was the same thing as the season only while there had been one.
  *
  * The circuit is still resolved, from `records.tracks`, because it is what
  * supplies the photograph, the length and the corner count. An event with no
@@ -62,7 +68,18 @@ import { Media } from "@/components/ui/Media";
  * field that only ever goes stale.
  */
 export function CalendarView({ value: calendar, records }: SectionViewProps<Calendar>) {
-  const { tracks, site, events } = records;
+  const { tracks, site, events, season } = records;
+
+  /*
+   * The heading, with the season's own name behind it.
+   *
+   * A title typed here is a title somebody has to remember to change every
+   * January — and "The 2026 Season" over next year's rounds is worse than no
+   * heading at all. Left blank it takes the season's name, which changes with
+   * the season because it IS the season. Typed, it wins: a championship whose
+   * band says something other than the year should keep saying it.
+   */
+  const title = calendar.title || season?.name || "";
 
   // Null until the browser has read the clock. Nothing below may read it during
   // render; every time-dependent decision on this screen comes from here.
@@ -82,11 +99,11 @@ export function CalendarView({ value: calendar, records }: SectionViewProps<Cale
   if (events.length === 0) {
     // A heading over an unannounced season is worth keeping — it says the
     // season exists. A heading nobody has written is not a section at all.
-    if (!calendar.label && !calendar.title) return null;
+    if (!calendar.label && !title) return null;
 
     return (
       <section id="calendar" className="shell py-16 sm:py-20">
-        <SectionHeading label={calendar.label} title={calendar.title} />
+        <SectionHeading label={calendar.label} title={title} />
       </section>
     );
   }
@@ -96,7 +113,7 @@ export function CalendarView({ value: calendar, records }: SectionViewProps<Cale
 
   return (
     <section id="calendar" className="shell py-16 sm:py-20">
-      <SectionHeading label={calendar.label} title={calendar.title} />
+      <SectionHeading label={calendar.label} title={title} />
 
       <Reveal className="mt-10">
         <NextEvent

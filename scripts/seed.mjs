@@ -125,6 +125,17 @@ const SEED_DECKS = load("decks");
  */
 const SEED_EVENTS = load("events");
 
+/**
+ * The seasons a round can be filed under.
+ *
+ * Its own file for the same reason the rounds have one: 0021 made a season a
+ * record with a name, a status and an address of its own. A round names its
+ * season by ADDRESS — `season_slug` — because a seed cannot know the uuid
+ * `gen_random_uuid()` produces in this same run, which is the trick `track_slug`
+ * already plays for the circuits.
+ */
+const SEED_SEASONS = load("seasons");
+
 if (!process.env.DATABASE_URL) {
   console.error("DATABASE_URL is not set. Make sure .env exists in the project root.");
   process.exit(1);
@@ -266,7 +277,42 @@ async function seedDecks(siteId) {
 }
 
 /**
- * The season, as rows with addresses of their own.
+ * The seasons. Before the rounds, which cannot be written without one.
+ *
+ * Two writes each, like a deck: the row, then its address in `ctr.slugs`. That
+ * address shares a namespace with the rounds' — both are served by
+ * `/<sport>/calendar/<slug>` — so a season slugged `round-01` would collide with
+ * a round of that name. The seed data does not do that; `findCalendarSlugOwner`
+ * is what stops anybody doing it afterwards.
+ */
+async function seedSeasons(siteId) {
+  if (SEED_SEASONS.length === 0) return 0;
+
+  const [{ count }] = await sql`SELECT count(*)::int AS count FROM ctr.seasons`;
+  if (count > 0) return 0;
+
+  for (const [index, season] of SEED_SEASONS.entries()) {
+    const [{ id }] = await sql`
+      INSERT INTO ctr.seasons (site_id, name, subtitle, status, cover_image, sort_order)
+      VALUES (${siteId}, ${season.name ?? ""}, ${season.subtitle ?? ""},
+              ${season.status ?? "draft"}, ${season.cover_image ?? ""},
+              ${season.sort_order ?? index + 1})
+      RETURNING id
+    `;
+
+    if (season.slug) {
+      await sql`
+        INSERT INTO ctr.slugs (site_id, entity_type, slug, entity_id, is_current)
+        VALUES (${siteId}, 'season', ${season.slug}, ${id}, true)
+      `;
+    }
+  }
+
+  return SEED_SEASONS.length;
+}
+
+/**
+ * The rounds, as rows with addresses of their own.
  *
  * Two writes per event, like a deck: the row, then its address in `ctr.slugs`.
  * `is_current` true is what makes it the one `/<sport>/calendar/<slug>` answers
@@ -288,7 +334,7 @@ async function seedEvents(siteId) {
     const [{ id }] = await sql`
       INSERT INTO ctr.events (site_id, round, title, subtitle, venue, city,
                               track_id, form_id, date_from, date_to, dates, badge,
-                              status, cover_image, sort_order)
+                              status, cover_image, sort_order, season_id)
       VALUES (
         ${siteId}, ${event.round ?? ""}, ${event.title ?? ""}, ${event.subtitle ?? ""},
         ${event.venue ?? ""}, ${event.city ?? ""},
@@ -299,7 +345,20 @@ async function seedEvents(siteId) {
         ${event.date_from || null}, ${event.date_to || null},
         ${event.dates ?? ""}, ${event.badge ?? ""},
         ${event.status ?? "draft"}, ${event.cover_image ?? ""},
-        ${event.sort_order ?? (index + 1) * 10}
+        ${event.sort_order ?? (index + 1) * 10},
+        /*
+         * NOT NULL since 0021, and named by address rather than by id. The
+         * fallback is the site's newest season, which is what a round with no
+         * `season_slug` means — and if the site has no season at all this is
+         * NULL and the insert is refused, which is the honest failure: a round
+         * has to be in a season.
+         */
+        coalesce(
+          (SELECT s.entity_id FROM ctr.slugs s
+            WHERE s.site_id = ${siteId} AND s.entity_type = 'season'
+              AND s.slug = ${event.season_slug ?? ""} AND s.is_current),
+          (SELECT id FROM ctr.seasons WHERE site_id = ${siteId} ORDER BY sort_order DESC LIMIT 1)
+        )
       )
       RETURNING id
     `;
@@ -525,7 +584,15 @@ try {
         : "ctr.decks already has rows — nothing seeded."
   );
 
-  // After the circuits, so an event can resolve the track it names.
+  const seasons = await seedSeasons(siteId);
+  console.log(
+    seasons
+      ? `Seeded ${seasons} season(s).`
+      : "ctr.seasons already has rows — nothing seeded."
+  );
+
+  // After the circuits, so a round can resolve the track it names — and after
+  // the seasons, which it cannot be written without.
   const events = await seedEvents(siteId);
   console.log(events ? `Seeded ${events} event(s).` : "ctr.events already has rows — nothing seeded.");
 

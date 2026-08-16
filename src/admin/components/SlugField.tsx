@@ -18,6 +18,11 @@ import { useSite, withSite } from "@/admin/components/SiteScope";
  * finished editing everything else, and phrased as a failure of the save rather
  * than of the one field that caused it.
  *
+ * One kind means one namespace, with one exception: a season and a round are
+ * both served by `/<sport>/calendar/<slug>`, so both ask about the two together
+ * — see calendarSlugs.ts. That is why the message under the box can name a
+ * round while a season is being edited.
+ *
  * Three answers, three different things to do about them:
  *
  * FREE, or the address it already had — nothing to say beyond where it will
@@ -48,12 +53,16 @@ const ROUTE: Record<SlugKind, string> = {
   // which is what the reserved-slug list in 0012 already holds. `events` is the
   // admin screen, where the noun is the record.
   event: "calendar",
+  // The same route. A season and its rounds share one address space, which is
+  // the whole reason the check for either asks about both.
+  season: "calendar",
 };
 const THING: Record<SlugKind, string> = {
   form: "form",
   deck: "deck",
   article: "article",
-  event: "event",
+  event: "round",
+  season: "season",
 };
 
 /** What an address of this kind tends to look like, when nothing suggests one. */
@@ -62,6 +71,7 @@ const PLACEHOLDER: Record<SlugKind, string> = {
   deck: "entry-pack",
   article: "season-opener",
   event: "round-01",
+  season: "2026",
 };
 
 /** Long enough that typing an address is one request, not fifteen. */

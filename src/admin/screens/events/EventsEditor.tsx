@@ -9,6 +9,7 @@ import {
   type CtrEvent,
 } from "@/lib/events";
 import type { FormSummary } from "@/lib/forms";
+import type { SeasonSummary } from "@/lib/seasons";
 import { folderForEntity, folderForModule } from "@/lib/mediaPaths";
 import { eventDateLabel } from "@/lib/raceDates";
 import type { SlugHolder } from "@/lib/slug";
@@ -50,6 +51,7 @@ const ORDER_SAVE_DELAY = 500;
 
 export function EventsEditor({
   initialEvents,
+  seasons,
   tracks,
   forms,
   chrome,
@@ -57,6 +59,8 @@ export function EventsEditor({
   year,
 }: {
   initialEvents: CtrEvent[];
+  /** This sport's seasons, newest first. Every round is filed under one. */
+  seasons: SeasonSummary[];
   /** This sport's circuits, for the picker and the preview's photograph. */
   tracks: Track[];
   /** This sport's entry forms, for the picker. */
@@ -256,6 +260,10 @@ export function EventsEditor({
           ...BLANK_EVENT,
           title,
           slug,
+          // The newest season, which is where a round being announced belongs.
+          // It is a picker on the form afterwards; this is only the default, and
+          // the server falls back to the same answer if it arrives blank.
+          season_id: seasons[0]?.id ?? "",
           sort_order: events.reduce((top, event) => Math.max(top, event.sort_order), 0) + 10,
         }),
       });
@@ -351,7 +359,16 @@ export function EventsEditor({
     // The number first when there is one: a season is scanned by round, and
     // "01 · Kari Motor Speedway" reads the way the calendar does.
     title: [event.round, nameOf(event)].filter(Boolean).join(" · "),
-    hint: [eventDateLabel(event) || "no date", EVENT_STATUS_LABELS[event.status]].join(" · "),
+    // The season is on the hint, not the title: a screen listing three seasons
+    // of rounds is otherwise a list of names with no way to tell which year any
+    // of them belongs to.
+    hint: [
+      seasons.find((season) => season.id === event.season_id)?.name || "",
+      eventDateLabel(event) || "no date",
+      EVENT_STATUS_LABELS[event.status],
+    ]
+      .filter(Boolean)
+      .join(" · "),
     // Present so the rail lets them be dragged. No `onToggleVisible` is passed,
     // so no eye appears: an event is not switched off, it is set back to draft.
     visible: true,
@@ -377,7 +394,7 @@ export function EventsEditor({
       <div className="flex min-h-0 flex-col gap-2 md:h-full">
         <AdminRailSlot>
           <SectionRail
-            heading="Season"
+            heading="Rounds"
             items={railItems}
             active={activeId ?? ""}
             onSelect={setActiveId}
@@ -387,7 +404,7 @@ export function EventsEditor({
 
         <EditorToolbar
           Icon={CalendarIcon}
-          title={active ? nameOf(active) : "Season"}
+          title={active ? nameOf(active) : "Rounds"}
           hint={
             adding
               ? "Give the new event a name and an address."
@@ -501,6 +518,7 @@ export function EventsEditor({
                 ) : (
                   <EventForm
                     event={active}
+                    seasons={seasons}
                     tracks={tracks}
                     forms={forms}
                     siteUrl={siteUrl}

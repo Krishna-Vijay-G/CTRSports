@@ -113,6 +113,7 @@ export type EventsRow = {
   sort_order: number;
   created_at: Date;
   updated_at: Date;
+  season_id: string;
 };
 
 export type FormEntriesRow = {
@@ -214,6 +215,18 @@ export type SchemaMigrationsRow = {
   name: string;
   checksum: string;
   applied_at: Date;
+};
+
+export type SeasonsRow = {
+  id: string;
+  site_id: string;
+  name: string;
+  subtitle: string;
+  status: string;
+  cover_image: string;
+  sort_order: number;
+  created_at: Date;
+  updated_at: Date;
 };
 
 export type SessionsRow = {
@@ -322,6 +335,7 @@ export type CtrTables = {
   partners: PartnersRow;
   posts: PostsRow;
   schema_migrations: SchemaMigrationsRow;
+  seasons: SeasonsRow;
   sessions: SessionsRow;
   site_modules: SiteModulesRow;
   sites: SitesRow;
