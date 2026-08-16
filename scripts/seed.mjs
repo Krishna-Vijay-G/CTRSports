@@ -349,9 +349,12 @@ async function seedEvents(siteId) {
         /*
          * NOT NULL since 0021, and named by address rather than by id. The
          * fallback is the site's newest season, which is what a round with no
-         * `season_slug` means — and if the site has no season at all this is
+         * season_slug means -- and if the site has no season at all this is
          * NULL and the insert is refused, which is the honest failure: a round
          * has to be in a season.
+         *
+         * No backticks in here. This comment is inside a JS template literal,
+         * so one would end the query and leave the rest of it as source code.
          */
         coalesce(
           (SELECT s.entity_id FROM ctr.slugs s
