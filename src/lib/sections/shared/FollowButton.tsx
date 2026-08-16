@@ -11,7 +11,7 @@ import { LinkPill } from "./LinkPill";
  * lives") rather than a list of places to go. The band at the foot of the page
  * carries THAT — see `family.links`.
  *
- * The wording is `meta.followLabel`, not a constant here. It used to be one —
+ * The wording is `intro.followLabel`, not a constant here. It used to be one —
  * which meant a page whose document said nothing still put a sentence on the
  * screen, and that sentence came from this file rather than from anyone who
  * edits the site. Nothing to say, or nowhere to go, and there is no chip: the

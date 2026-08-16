@@ -94,23 +94,33 @@ export type SectionRecords = {
   /**
    * The page's own identity, from its `meta` section.
    *
-   * A section reading another section's value is the one exception in here, and
-   * it is deliberate: the introduction's follow button is the championship's
-   * handle, which belongs to the page rather than to the band that happens to
-   * print it. Passing it through the records keeps `meta` a single stored value
-   * instead of a field copied into every section that wants it.
+   * Read by the title, the search-engine markup and the structured data rather
+   * than by any band — which is why what is left of it is three strings. The
+   * introduction's follow button used to be here too, and 0019 moved it onto the
+   * introduction: a section reading another section's value is a thing to have a
+   * reason for, and "the band that draws it should own it" turned out to be the
+   * better one.
    */
   meta: PageMeta;
 };
 
-/** What every page knows about itself. Modelled in sections/meta/model.ts. */
+/**
+ * What every page knows about itself. Modelled in sections/meta/model.ts.
+ *
+ * Three fields left in 0019 — the follow chip's label, handle and address. They
+ * were here because the handle "belongs to the page rather than to the band that
+ * prints it", which reads well and put them on the one section that renders
+ * nothing: editing them on a page with no introduction did nothing at all. They
+ * are fields of the introduction now, where the chip is drawn.
+ *
+ * What is left is what every page genuinely has, whatever it is built from: a
+ * name, a short name and a tagline, read by the title, the search-engine markup
+ * and the structured data.
+ */
 export type PageMeta = {
   name: string;
   short: string;
   tagline: string;
-  handle: string;
-  instagram: string;
-  followLabel: string;
 };
 
 /** What a view is handed. `T` is the module's own value type. */

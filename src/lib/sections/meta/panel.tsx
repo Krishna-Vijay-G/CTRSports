@@ -5,13 +5,18 @@ import type { SectionPanelProps } from "@/lib/sections/types";
 import type { Meta } from "./model";
 
 /**
- * What the page is called, and the account it points at.
+ * What the page is called.
  *
- * These used to be edited under the introduction, because the introduction was
- * the section that used them and there was nowhere else to put them. There is
- * now: they are a section of their own that renders nothing, which is the
- * honest shape — the browser tab, the search result and the follow button all
- * read the same six fields, and the introduction is only one of them.
+ * These used to be edited under the introduction, because that was the section
+ * that used them and there was nowhere else to put them. They are a section of
+ * their own now, which is the honest shape for three strings the browser tab,
+ * the search result and the structured data all read and no band prints.
+ *
+ * The follow chip was here too, and went back to the introduction in 0019 — it
+ * was the one thing on this section that was DRAWN, drawn by a band a page might
+ * not have. On a page with an `about` instead of an `intro` it did nothing
+ * whatever was typed into it, which is not a state a field should be able to be
+ * in.
  */
 export function MetaPanel({ value, onChange }: SectionPanelProps<Meta>) {
   const set = (patch: Partial<Meta>) => onChange({ ...value, ...patch });
@@ -41,31 +46,6 @@ export function MetaPanel({ value, onChange }: SectionPanelProps<Meta>) {
         </div>
       </Panel>
 
-      <Panel title="Follow button" hint="the chip in the introduction">
-        <div className="space-y-3">
-          <Field
-            label="Label"
-            value={value.followLabel}
-            onChange={(followLabel) => set({ followLabel })}
-            maxLength={60}
-            placeholder="Follow the championship"
-            hint="Blank leaves the chip off the introduction."
-          />
-          <Row>
-            <Field label="Handle" value={value.handle} onChange={(handle) => set({ handle })} />
-            <Field
-              label="Address"
-              value={value.instagram}
-              onChange={(instagram) => set({ instagram })}
-            />
-          </Row>
-        </div>
-        <Note className="mt-3">
-          The handle prints in the accent after the label. No address is no chip — a button that
-          goes nowhere is worse than none. The chips over a quote band are their own list, on that
-          section.
-        </Note>
-      </Panel>
     </>
   );
 }

@@ -15,11 +15,7 @@ import { Media } from "@/components/ui/Media";
  * their own — they are three white tiles and they would break a centred column
  * of type in half.
  */
-export function IntroView({ value: intro, records }: SectionViewProps<Intro>) {
-  // The follow button is the page's own handle rather than this band's, so
-  // it arrives with the records. See SectionRecords.meta.
-  const { meta } = records;
-
+export function IntroView({ value: intro }: SectionViewProps<Intro>) {
   return (
     <section id="intro" className="shell py-16 sm:py-20">
       <div className="grid gap-12 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:items-center lg:gap-16">
@@ -46,15 +42,15 @@ export function IntroView({ value: intro, records }: SectionViewProps<Intro>) {
           {/* Neither button is guaranteed now that the chip's wording is the
               document's, so the row itself is conditional — an empty flex box
               with a 36px top margin is a gap nobody asked for. */}
-          {intro.ctaLabel || (meta.followLabel && meta.instagram) ? (
+          {intro.ctaLabel || (intro.followLabel && intro.followHref) ? (
             <div className="mt-9 flex flex-wrap items-center gap-3">
               {intro.ctaLabel ? (
                 <ActionButton href={intro.ctaHref}>{intro.ctaLabel}</ActionButton>
               ) : null}
               <FollowButton
-                href={meta.instagram}
-                handle={meta.handle}
-                label={meta.followLabel}
+                href={intro.followHref}
+                handle={intro.followHandle}
+                label={intro.followLabel}
               />
             </div>
           ) : null}

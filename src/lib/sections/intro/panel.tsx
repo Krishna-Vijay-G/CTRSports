@@ -50,6 +50,47 @@ export function IntroPanel({ value, onChange }: SectionPanelProps<Intro>) {
       </Panel>
 
       {/*
+        The chip that sits beside the button above.
+        Fields of the IDENTITY section until 0019, which put them on the one
+        section that renders nothing — so on a page with no introduction they did
+        nothing at all, whatever was typed into them. They are here now, beside
+        the button they share a row with.
+      */}
+      <Panel title="Follow button" hint="the chip beside it">
+        <div className="space-y-3">
+          <Field
+            label="Label"
+            value={value.followLabel}
+            onChange={(followLabel) => set({ followLabel })}
+            maxLength={60}
+            placeholder="Follow the championship"
+            hint="Blank leaves the chip off."
+          />
+          <Row>
+            <Field
+              label="Handle"
+              value={value.followHandle}
+              onChange={(followHandle) => set({ followHandle })}
+              maxLength={60}
+              placeholder="@incrc_"
+            />
+            <Field
+              label="Address"
+              value={value.followHref}
+              onChange={(followHref) => set({ followHref })}
+              placeholder="https://www.instagram.com/…"
+            />
+          </Row>
+        </div>
+        <Note className="mt-3">
+          The handle prints in the accent after the label. No address is no chip — a button that
+          goes nowhere is worse than none. Any account will do; it was called “Instagram” when it
+          lived on the identity section, and it is an address. The chips over a quote band are
+          their own list, on that section.
+        </Note>
+      </Panel>
+
+      {/*
         One line per mark, opening in place.
         Six marks, each with a name, an image field and an address, is a very
         tall panel to scroll past to reach the label below it — and the always-

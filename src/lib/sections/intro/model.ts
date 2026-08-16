@@ -19,6 +19,26 @@ export type Intro = {
   body: string;
   ctaLabel: string;
   ctaHref: string;
+  /**
+   * The follow chip, beside the button.
+   *
+   * Fields of the IDENTITY section until 0019, on the argument that a handle
+   * belongs to the page rather than to the band that prints it. It is drawn
+   * here and nowhere else, and a page may not even have an introduction — so
+   * on the landing page, which has an `about` band instead, they did nothing
+   * whatever was typed into them.
+   *
+   * `followHref` rather than `instagram`, which is what it was called: it is an
+   * address, and a championship whose following is on YouTube had a field name
+   * telling it otherwise.
+   *
+   * Blank label or blank address leaves the chip off entirely. The words on a
+   * button are the championship's to choose, and a chip nobody typed is one
+   * that came from this file rather than from them.
+   */
+  followLabel: string;
+  followHandle: string;
+  followHref: string;
   partnersLabel: string;
   partners: Partner[];
 };
@@ -31,6 +51,9 @@ export const BLANK_INTRO: Intro = {
   body: "",
   ctaLabel: "",
   ctaHref: "",
+  followLabel: "",
+  followHandle: "",
+  followHref: "",
   partnersLabel: "",
   partners: [],
 };
@@ -54,6 +77,9 @@ export const intro: SectionModule<Intro> = {
       body: text(value.body, d.body, BODY_MAX),
       ctaLabel: text(value.ctaLabel, d.ctaLabel),
       ctaHref: link(value.ctaHref, d.ctaHref),
+      followLabel: text(value.followLabel, d.followLabel, 60),
+      followHandle: text(value.followHandle, d.followHandle, 60),
+      followHref: link(value.followHref, d.followHref),
       partnersLabel: text(value.partnersLabel, d.partnersLabel),
       partners: list(
         value.partners,

@@ -8,10 +8,7 @@
       "data": {
         "name": "Indian National Car Racing Championship",
         "short": "INCRC",
-        "tagline": "One Nation · One Championship",
-        "handle": "@incrc_",
-        "instagram": "https://www.instagram.com/incrc_",
-        "followLabel": "Follow the championship"
+        "tagline": "One Nation · One Championship"
       }
     },
     {
@@ -48,7 +45,10 @@
         "body": "A national motorsport ecosystem uniting seven racing categories under one championship.\n\nA complete experience — racing, live audiences, fan ecosystems, entertainment, OTT broadcast and sponsorship integration.",
         "ctaLabel": "Register for 2026",
         "ctaHref": "#register",
-        "partnersLabel": "Presented by"
+        "partnersLabel": "Presented by",
+        "followLabel": "Follow the championship",
+        "followHandle": "@incrc_",
+        "followHref": "https://www.instagram.com/incrc_"
       }
     },
     {
