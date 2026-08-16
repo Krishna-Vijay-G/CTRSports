@@ -10,22 +10,26 @@
  * in the client bundle. That means it is inlined at BUILD time: changing the
  * value on Vercel needs a redeploy, not a restart.
  *
- * ── The fallback is the distribution, not the bucket ──────────────────────
+ * ── There is no fallback, on purpose ──────────────────────────────────────
  *
- * It was the bucket's own address, on the argument that an unset variable
- * should degrade to the behaviour this project had before the CDN. That
- * argument expired the day the distribution went in front of a bucket with
- * Block Public Access on: the S3 address now answers 403 for every object, so
- * falling back to it is not "slower", it is a site with no pictures at all.
+ * It was the bucket's own address, on the argument that an unset variable should
+ * degrade to the behaviour this project had before the CDN. That expired when
+ * Block Public Access went on: S3 answers 403 for every object, so falling back
+ * to it is not "slower", it is a site with no pictures.
  *
- * So the last resort is the distribution. It is the one environment-specific
- * literal in the source and it has to be kept in step with the variable above —
- * which is the price of a fallback that works. An unset variable is still a
- * mistake; this only decides whether the mistake is visible or total.
+ * It was then briefly the distribution's address — which works, and is wrong in
+ * a different way: a literal naming ONE deployment's CDN, in a repository that
+ * gets stood up against new buckets and new domains. An unset variable there
+ * would silently preconnect to somebody else's CDN.
+ *
+ * So it is "". The one consumer is the preconnect in src/app/layout.tsx, which
+ * skips it when empty — a missing performance hint rather than a wrong one.
+ * Nothing else reads this: `publicUrl()` in src/lib/server/s3.ts builds an
+ * upload's address on the server from `S3_PUBLIC_BASE_URL`, this variable, and
+ * finally the bucket's own virtual-hosted name, which it derives from
+ * `S3_BUCKET` and `S3_REGION` and is therefore right for any bucket.
  *
  * The trailing-slash strip is what lets the variable be set either way round;
  * every caller joins with a `/` of its own.
  */
-export const MEDIA_BASE_URL = (
-  process.env.NEXT_PUBLIC_MEDIA_BASE_URL || "https://d3mqgi8f34hcli.cloudfront.net"
-).replace(/\/+$/, "");
+export const MEDIA_BASE_URL = (process.env.NEXT_PUBLIC_MEDIA_BASE_URL || "").replace(/\/+$/, "");

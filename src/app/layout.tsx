@@ -84,11 +84,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           for a second one. That is a preconnect doing nothing but cost. It goes
           back only if something here is ever drawn onto a canvas.
 
-          The media host is not written down: it comes from MEDIA_BASE_URL, the
-          same constant the default image URLs are built from, so this line
-          cannot end up pointing at last month's host.
+          The media host is not written down: it comes from MEDIA_BASE_URL, so
+          this line cannot end up pointing at last month's host — or, on a
+          deployment that has not set the variable, at somebody else's. Unset, it
+          is "" and the hint is simply not emitted: a preconnect to nowhere costs
+          a DNS lookup and buys nothing.
         */}
-        <link rel="preconnect" href={MEDIA_BASE_URL} />
+        {MEDIA_BASE_URL ? <link rel="preconnect" href={MEDIA_BASE_URL} /> : null}
         <link rel="preconnect" href="https://raw.githubusercontent.com" />
         {children}
       </body>

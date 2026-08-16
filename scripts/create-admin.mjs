@@ -2,18 +2,33 @@
  * Creates an admin account, or resets the password of an existing one.
  *
  *   npm run create-admin -- <username> <password>
- *   npm run create-admin -- <username> <password> --role pages --pages incrc,circuits
- *   npm run create-admin -- <username> <password> --role registrations
+ *   npm run create-admin -- <username> <password> --role member
  *
- * Three roles, described in src/lib/roles.ts: `owner` (everything, including
- * the accounts), `pages` (only the page editors named by --pages), and
- * `registrations` (only the entry forms). The default here is `owner`, unlike
- * the database's own default — this is the bootstrap tool, run by whoever owns
- * the server, and the first account it makes has to be able to make the rest.
+ * Two roles, described in src/lib/roles.ts: `owner` (everything, every sport,
+ * including the accounts) and `member` (exactly what their grants say, and
+ * nothing else). The default here is `owner`, unlike the database's own default
+ * — this is the bootstrap tool, run by whoever owns the server, and the first
+ * account it makes has to be able to make the rest.
  *
- * Resetting an existing account's password does NOT change its role or its
- * pages unless those flags are given. A routine "they forgot their password"
- * must not quietly promote a scoped account to owner.
+ * ── What this no longer does, and why ─────────────────────────────────────
+ *
+ * `--pages landing,incrc` is gone with the model it belonged to. A scope used to
+ * be a page key in `ctr.admin_pages`; migration 0013 replaced it with a GRANT —
+ * a (site, module) pair in `ctr.admin_grants` — because "may edit decks" has to
+ * mean "may edit INCRC's decks" once there is more than one sport.
+ *
+ * That is a pair per grant, per sport, and expressing it as command-line flags
+ * would be a worse version of the two screens that already do it: `/admins` for
+ * an owner and `/site/<sport>/team` for a sport admin. So this makes the FIRST
+ * account, which has to be an owner, and everything scoped is made there.
+ *
+ * A `member` made here therefore holds no grants and reaches no screen until
+ * somebody gives it one. That is said out loud below rather than left to be
+ * discovered at a blank console.
+ *
+ * Resetting an existing account's password does NOT change its role unless
+ * `--role` is given. A routine "they forgot their password" must not quietly
+ * promote a scoped account to owner.
  *
  * There is an Accounts screen in the admin that does all of this; this stays
  * for the first account, and for the day somebody locks themselves out.
@@ -29,11 +44,10 @@ import { neon } from "@neondatabase/serverless";
 
 const scrypt = promisify(scryptCb);
 
-const ROLES = ["owner", "pages", "registrations"];
-const PAGES = ["landing", "incrc", "circuits"];
+const ROLES = ["owner", "member"];
 
 const USAGE =
-  "Usage: npm run create-admin -- <username> <password> [--role owner|pages|registrations] [--pages landing,incrc,circuits]";
+  "Usage: npm run create-admin -- <username> <password> [--role owner|member]";
 
 /** Positional first, then flags. Anything unrecognised is an error, not a shrug. */
 function parse(argv) {
@@ -49,7 +63,7 @@ function parse(argv) {
     }
 
     const name = arg.slice(2);
-    if (name !== "role" && name !== "pages") {
+    if (name !== "role") {
       console.error(`Unknown option "${arg}".`);
       console.error(USAGE);
       process.exit(1);
@@ -87,31 +101,6 @@ if (!ROLES.includes(role)) {
   process.exit(1);
 }
 
-const pages = (flags.pages ?? "")
-  .split(",")
-  .map((entry) => entry.trim())
-  .filter(Boolean);
-
-for (const page of pages) {
-  if (!PAGES.includes(page)) {
-    console.error(`Unknown page "${page}". One of: ${PAGES.join(", ")}.`);
-    process.exit(1);
-  }
-}
-
-// A page editor scoped to nothing can sign in and reach no screen at all. That
-// is never what was meant, so it is refused here rather than made and puzzled
-// over later.
-if (role === "pages" && pages.length === 0) {
-  console.error("A pages admin needs --pages. Try --pages incrc");
-  process.exit(1);
-}
-
-if (role !== "pages" && pages.length > 0) {
-  console.error(`--pages only applies to --role pages. "${role}" has no page list.`);
-  process.exit(1);
-}
-
 if (!process.env.DATABASE_URL) {
   console.error("DATABASE_URL is not set. Make sure .env exists in the project root.");
   process.exit(1);
@@ -129,10 +118,10 @@ async function hashPassword(plain) {
 try {
   const hash = await hashPassword(password);
 
-  // Whether the access is written on a conflict depends on whether it was
-  // asked for. Without a flag this is a password reset and nothing else — see
-  // the note at the top of the file.
-  const setAccess = flags.role !== undefined || flags.pages !== undefined;
+  // Whether the role is written on a conflict depends on whether it was asked
+  // for. Without the flag this is a password reset and nothing else — see the
+  // note at the top of the file.
+  const setAccess = flags.role !== undefined;
 
   const rows = setAccess
     ? await sql`
@@ -154,43 +143,37 @@ try {
   const { id } = rows[0];
 
   /*
-   * The grants are rows in ctr.admin_pages since 0005, and the `pages` JSONB
-   * column they used to live in was dropped by 0008. Same delete-then-insert as
-   * writePages in src/lib/server/adminsRepo.ts — and only when access was asked
-   * for, so a bare password reset still leaves them alone.
+   * The grants are deliberately NOT touched, on either path.
+   *
+   * `ctr.admin_pages` used to be rewritten here from `--pages`; 0013 dropped it
+   * for `ctr.admin_grants`, which this tool no longer writes at all — see the
+   * note at the top. That also means a password reset cannot disturb what
+   * somebody was granted in the console, which was already the promise and is
+   * now true by construction rather than by a flag check.
    */
-  if (setAccess) {
-    await sql.transaction([
-      sql`DELETE FROM ctr.admin_pages WHERE admin_id = ${id}`,
-      ...pages.map(
-        (page) => sql`
-          INSERT INTO ctr.admin_pages (admin_id, page_key) VALUES (${id}, ${page})
-          ON CONFLICT DO NOTHING
-        `
-      ),
-    ]);
-  }
 
   // A password change invalidates whatever was signed in before it.
   await sql`DELETE FROM ctr.sessions WHERE admin_id = ${id}`;
 
   /*
-   * Read back rather than echo the flags. On a reset without --pages the grants
-   * are whatever they already were, and reporting the empty flag list would say
-   * "pages: none" about an account that has them — the exact thing the note at
-   * the top of this file promises not to do.
+   * Read back rather than echo the flags. On a reset the role is whatever it
+   * already was, and reporting what was passed would say "owner" about an
+   * account that is not one — the exact thing the note at the top of this file
+   * promises not to do.
    */
   const granted = await sql`
-    SELECT p.page_key
-      FROM ctr.admin_pages p JOIN ctr.pages k ON k.key = p.page_key
-     WHERE p.admin_id = ${id}
-     ORDER BY k.sort_order
+    SELECT s.slug, g.module
+      FROM ctr.admin_grants g JOIN ctr.sites s ON s.id = g.site_id
+     WHERE g.admin_id = ${id}
+     ORDER BY s.sort_order, g.module
   `;
 
   const access =
-    rows[0].role === "pages"
-      ? `pages: ${granted.map((row) => row.page_key).join(", ") || "none"}`
-      : rows[0].role;
+    rows[0].role === "owner"
+      ? "owner — every sport, every screen"
+      : `member — ${
+          granted.map((row) => `${row.slug}:${row.module}`).join(", ") || "no grants yet"
+        }`;
 
   console.log(
     rows[0].inserted
@@ -198,8 +181,15 @@ try {
       : `Reset the password for "${username}" (${access}) and signed out its existing sessions.`
   );
 
+  if (rows[0].role === "member" && granted.length === 0) {
+    console.log(
+      "\nThat account can sign in and reach no screen. Give it grants from /admins,\n" +
+        "or from /site/<sport>/team as that sport's admin."
+    );
+  }
+
   if (!rows[0].inserted && !setAccess) {
-    console.log("Its role and pages were left as they were. Pass --role to change them.");
+    console.log("Its role and its grants were left as they were. Pass --role to change the role.");
   }
 
   console.log("Sign in at /login on the admin host.");
