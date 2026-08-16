@@ -1,5 +1,11 @@
 import { redirect } from "next/navigation";
-import { canManageAdmins, canManageSites, canSeeAnySite, canSeeSite } from "@/lib/roles";
+import {
+  canManageAdmins,
+  canManageSites,
+  canReadEnquiries,
+  canSeeAnySite,
+  canSeeSite,
+} from "@/lib/roles";
 import { getSession } from "@/lib/server/auth";
 import { listSites } from "@/lib/server/sitesRepo";
 
@@ -27,6 +33,14 @@ export default async function AdminIndexPage() {
   if (canManageSites(session)) redirect("/sports");
   if (canManageAdmins(session)) redirect("/admins");
   if (canSeeAnySite(session)) redirect("/media");
+
+  /*
+   * Last, because it is the narrowest thing an account can hold: somebody given
+   * nothing but the enquiries has no sport, so every test above has already
+   * failed for them. Without this line they would land on the card below —
+   * "nothing assigned yet" — while holding the one screen they were given.
+   */
+  if (canReadEnquiries(session)) redirect("/enquiries");
 
   return (
     <div className="flex min-h-full items-center justify-center p-6">

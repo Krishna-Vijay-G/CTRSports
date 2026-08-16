@@ -170,6 +170,19 @@ export const TicketIcon = (p: IconProps) => (
   </Icon>
 );
 
+/**
+ * The enquiries — an envelope.
+ *
+ * The same drawing as `MailGlyph` in SiteFooter.tsx, redrawn on the 20px grid
+ * these use rather than the 24px one the site's own glyphs are on.
+ */
+export const MailIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="2.5" y="4.6" width="15" height="10.8" rx="2" />
+    <path d="m3.2 5.9 5.9 4.3a1.6 1.6 0 0 0 1.8 0l5.9-4.3" />
+  </Icon>
+);
+
 /** The running order — a stack whose top card is being moved. */
 export const StackIcon = (p: IconProps) => (
   <Icon {...p}>

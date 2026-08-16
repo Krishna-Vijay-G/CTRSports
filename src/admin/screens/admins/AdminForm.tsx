@@ -3,10 +3,14 @@
 import { MIN_PASSWORD, type AdminAccount } from "@/lib/admins";
 import {
   ADMIN_ROLES,
+  CAPABILITIES,
+  CAPABILITY_HINTS,
+  CAPABILITY_LABELS,
   GRANT_LABELS,
   GRANT_MODULES,
   ROLE_HINTS,
   ROLE_LABELS,
+  type Capability,
   type Grant,
   type GrantModule,
 } from "@/lib/roles";
@@ -96,6 +100,24 @@ export function AdminForm({
           ];
 
     set({ grants: next });
+  }
+
+  /**
+   * Adds or removes one capability. No sport to key it by — that is the point.
+   *
+   * Rebuilt from `CAPABILITIES` rather than appended to, so the list is always
+   * in the same order the server returns it in. The editor's dirty check
+   * compares these as JSON, and an order that depended on which button was
+   * pressed first would show unsaved changes on a set that had not changed.
+   */
+  function toggleCapability(capability: Capability) {
+    const held = account.capabilities.includes(capability);
+    const wanted = new Set(account.capabilities);
+
+    if (held) wanted.delete(capability);
+    else wanted.add(capability);
+
+    set({ capabilities: CAPABILITIES.filter((one) => wanted.has(one)) });
   }
 
   /** A module is only offered where the sport has it switched on. */
@@ -202,6 +224,37 @@ export function AdminForm({
                 right to hand pieces of it to co-admins. Anything narrower opens only what is
                 ticked.
               </Hint>
+            </div>
+          ) : null}
+
+          {/*
+            Below the grid and outside it, because these belong to no sport and
+            a row inside a per-sport grid would say they did. An account can hold
+            one of these and no grant at all — that is the enquiries admin, and
+            they reach this one screen and nothing else.
+          */}
+          {account.role === "member" ? (
+            <div className="block">
+              <Label>Across every sport</Label>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {CAPABILITIES.map((capability) => {
+                  const on = account.capabilities.includes(capability);
+
+                  return (
+                    <Button
+                      key={capability}
+                      variant={on ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => toggleCapability(capability)}
+                      aria-pressed={on}
+                    >
+                      {on ? <CheckIcon /> : null}
+                      {CAPABILITY_LABELS[capability]}
+                    </Button>
+                  );
+                })}
+              </div>
+              <Hint className="mt-1">{CAPABILITY_HINTS.enquiries}</Hint>
             </div>
           ) : null}
 

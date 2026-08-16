@@ -10,8 +10,10 @@ import {
   canManageAdmins,
   canManageSites,
   canManageTeam,
+  canReadEnquiries,
   canSeeAnySite,
   type AdminRole,
+  type Capability,
   type Grant,
 } from "@/lib/roles";
 import type { Site } from "@/lib/sites";
@@ -24,6 +26,7 @@ import {
   FlagIcon,
   FolderIcon,
   ImagesIcon,
+  MailIcon,
   MapIcon,
   NewsIcon,
   PanelIcon,
@@ -85,11 +88,26 @@ export function useSidebarCollapsed() {
  */
 type NavItem = {
   href: string;
+  /**
+   * What the row says. BARE — "Articles", not "INCRC · Articles".
+   *
+   * The sport's name is `site` below, and which of the two a reader sees depends
+   * on where the row is drawn: inside its sport's group the name is already
+   * overhead, and in the flat lists — the phone's chip row, the "where you are"
+   * line — `qualify` puts it back.
+   */
   label: string;
   icon: (props: { className?: string }) => React.ReactElement;
   /** Which sport this row belongs to, for grouping. Absent for the global rows. */
   siteId?: string;
+  /** That sport's name, for the group's heading and for `qualify`. */
+  site?: string;
 };
+
+/** "INCRC · Articles" — for a list with no heading above it to say which sport. */
+function qualify(item: NavItem): string {
+  return item.site ? `${item.site} · ${item.label}` : item.label;
+}
 
 /**
  * The screens of one sport.
@@ -159,22 +177,22 @@ function siteNav(site: Site, scope: { role: AdminRole; grants: Grant[] }): NavIt
 /**
  * Every row this account may open, sports first and the global screens last.
  *
- * The label carries the sport's name when there is more than one, and does not
- * when there is one — "Decks" is unambiguous on a deployment with a single
- * sport, and "INCRC · Decks" on every row is noise until the day it is not.
+ * Each sport's rows carry its name rather than having it pasted onto every
+ * label. That used to be the only way to tell two "Articles" apart in one flat
+ * list; the drawer groups them under a heading per sport now, so the name is
+ * said once instead of on every row — and `qualify` puts it back for the two
+ * places that are still a flat list.
  */
 function allowedNav(
-  scope: { role: AdminRole; grants: Grant[] },
+  scope: { role: AdminRole; grants: Grant[]; capabilities: Capability[] },
   sites: Site[]
 ): NavItem[] {
   const reachable = sites.filter((site) => siteNav(site, scope).length > 0);
-  const many = reachable.length > 1;
 
-  const rows = reachable.flatMap((site) =>
-    siteNav(site, scope).map((item) => ({
-      ...item,
-      label: many ? `${site.name} · ${item.label}` : item.label,
-    }))
+  // Typed rather than inferred: the global rows pushed below carry no `site`,
+  // and an array inferred from the sports' rows alone would require one.
+  const rows: NavItem[] = reachable.flatMap((site) =>
+    siteNav(site, scope).map((item) => ({ ...item, site: site.name }))
   );
 
   /*
@@ -191,6 +209,15 @@ function allowedNav(
   }
   if (canManageAdmins(scope)) {
     rows.push({ href: "/admins", label: "Accounts", icon: UsersIcon });
+  }
+  /*
+   * No `site`, and that is not an oversight to be tidied up later: the footer's
+   * message box is on every page of every sport and `ctr.enquiries` has no
+   * `site_id`, so there is no sport this row could be filed under. It is global
+   * in the same way Media is.
+   */
+  if (canReadEnquiries(scope)) {
+    rows.push({ href: "/enquiries", label: "Enquiries", icon: MailIcon });
   }
 
   return rows;
@@ -242,6 +269,30 @@ export function AdminRailSlot({ children }: { children: React.ReactNode }) {
  * label moves into the tooltip, and the caret still points the way the list will
  * travel.
  */
+/** One sport's screens, under its own heading. */
+type NavGroup = { id: string; name: string; items: NavItem[] };
+
+/**
+ * The rows, split into a group per sport with the global screens left loose.
+ *
+ * Order is the order `allowedNav` produced — sites in `listSites` order, then
+ * Media, Sports and Accounts — so the drawer reads the same way down however
+ * many sports there turn out to be.
+ */
+function groupNav(nav: NavItem[]): { groups: NavGroup[]; global: NavItem[] } {
+  const groups: NavGroup[] = [];
+
+  for (const item of nav) {
+    if (!item.siteId) continue;
+
+    const found = groups.find((group) => group.id === item.siteId);
+    if (found) found.items.push(item);
+    else groups.push({ id: item.siteId, name: item.site ?? "", items: [item] });
+  }
+
+  return { groups, global: nav.filter((item) => !item.siteId) };
+}
+
 function PagesDrawer({
   nav,
   pathname,
@@ -268,7 +319,50 @@ function PagesDrawer({
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
   const current = nav.find((item) => isActive(item.href));
 
-  const links = nav.map((item) => {
+  const { groups, global } = groupNav(nav);
+
+  /*
+   * One sport is not a hierarchy.
+   *
+   * A single group whose heading repeats what the whole drawer is about costs a
+   * click and a line to say nothing. The rows go flat until there is a second
+   * sport to tell them apart from — which is the same judgement the labels used
+   * to make for themselves before the headings took it over.
+   */
+  const nested = groups.length > 1;
+
+  /*
+   * Which sports are open. The one being edited always starts open; after that
+   * it is whatever was clicked.
+   *
+   * Not remembered across visits, unlike the drawer above it. What somebody
+   * wants open is almost always "the sport I am in", and that is derivable —
+   * remembering would mostly re-derive the same answer, and would sometimes
+   * open on a page whose own group had been left shut.
+   */
+  const [openSites, setOpenSites] = useState<string[]>([]);
+  const activeSite = current?.siteId;
+
+  useEffect(() => {
+    if (!activeSite) return;
+    setOpenSites((sites) => (sites.includes(activeSite) ? sites : [...sites, activeSite]));
+  }, [activeSite]);
+
+  function toggleSite(id: string) {
+    setOpenSites((sites) =>
+      sites.includes(id) ? sites.filter((entry) => entry !== id) : [...sites, id]
+    );
+  }
+
+  /**
+   * One row.
+   *
+   * `bare` is the label without its sport in front. Inside a group the heading
+   * has already said which sport, and repeating it on all eight rows is the
+   * noise the grouping exists to remove — but the TOOLTIP is qualified either
+   * way, because collapsed to a rail there is no heading and no label at all.
+   */
+  const renderLink = (item: NavItem, bare: boolean) => {
     const active = isActive(item.href);
     const Icon = item.icon;
 
@@ -277,7 +371,7 @@ function PagesDrawer({
         key={item.href}
         href={item.href}
         aria-current={active ? "page" : undefined}
-        title={item.label}
+        title={qualify(item)}
         className={cn(
           "flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md px-2 py-1.5 text-[13px] font-medium transition",
           collapsed && "md:justify-center md:px-0",
@@ -287,17 +381,33 @@ function PagesDrawer({
         )}
       >
         <Icon className="size-4 shrink-0" />
-        <span className={collapsed ? "md:hidden" : undefined}>{item.label}</span>
+        <span className={cn("truncate", collapsed && "md:hidden")}>
+          {bare ? item.label : qualify(item)}
+        </span>
       </Link>
     );
-  });
+  };
+
+  /**
+   * Every row, one after another. The phone's chip row, and the rail.
+   *
+   * Qualified only when there is more than one sport to tell apart — which is
+   * the judgement the labels used to make for themselves. On a deployment with
+   * one sport "Decks" is unambiguous, and "INCRC · Decks" on every row is noise
+   * until the day it is not.
+   */
+  const flat = nav.map((item) => renderLink(item, !nested));
+
+  /** What a row is called where there is no heading above it to say the sport. */
+  const name = (item: NavItem) => (nested ? qualify(item) : item.label);
 
   return (
     <div className="md:contents">
       {/* Below md the sidebar is a scrolling chip row — there is no foot for a
-          drawer to pull up out of, so the pages stay a plain row. */}
+          drawer to pull up out of, so the pages stay a plain row. Flat, and
+          qualified: a row of chips has no headings to group them under. */}
       <nav aria-label="Pages" className="flex gap-1 overflow-x-auto md:hidden">
-        {links}
+        {flat}
       </nav>
 
       <div className="hidden md:block">
@@ -312,7 +422,77 @@ function PagesDrawer({
               without this the links stay visible at zero height. */}
           <div className="overflow-hidden">
             <nav aria-label="Pages" className="flex flex-col gap-1 pb-1">
-              {links}
+              {/*
+                Collapsed to a 52px rail there is nowhere to put a heading, and
+                a group whose contents are icons and whose title is invisible is
+                a control that does nothing. So the rail is the flat list, which
+                is what it has always been.
+              */}
+              {!nested || collapsed
+                ? flat
+                : (
+                  <>
+                    {groups.map((group) => {
+                      const openHere = openSites.includes(group.id);
+                      const here = group.items.find((item) => isActive(item.href));
+
+                      return (
+                        <div key={group.id}>
+                          <button
+                            type="button"
+                            onClick={() => toggleSite(group.id)}
+                            aria-expanded={openHere}
+                            className={cn(
+                              "flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-[0.08em] outline-none transition",
+                              "hover:bg-muted/60 focus-visible:ring-[3px] focus-visible:ring-ring/40",
+                              here ? "text-foreground" : "text-muted-fg hover:text-foreground"
+                            )}
+                          >
+                            <CaretDownIcon
+                              className={cn(
+                                "size-3 shrink-0 transition-transform motion-reduce:transition-none",
+                                !openHere && "-rotate-90"
+                              )}
+                            />
+                            <span className="min-w-0 truncate">{group.name}</span>
+
+                            {/* Where you are, for when this sport is shut. */}
+                            {!openHere && here ? (
+                              <span className="ms-auto min-w-0 truncate normal-case tracking-normal text-foreground">
+                                {here.label}
+                              </span>
+                            ) : null}
+                          </button>
+
+                          <div
+                            className={cn(
+                              "grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none",
+                              openHere ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+                            )}
+                          >
+                            <div className="overflow-hidden">
+                              {/* The rule down the left is what makes a row read
+                                  as belonging to the sport above it rather than
+                                  as another sport. */}
+                              <div className="ms-3 flex flex-col gap-1 border-s border-border ps-2 pt-1">
+                                {group.items.map((item) => renderLink(item, true))}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {/* Media, Sports and Accounts belong to no sport, so they sit
+                        at the foot with nothing above them — a heading would have
+                        to invent a name for "the rest". */}
+                    {global.length > 0 ? (
+                      <div className="mt-1 flex flex-col gap-1 border-t border-border pt-1">
+                        {global.map((item) => renderLink(item, true))}
+                      </div>
+                    ) : null}
+                  </>
+                )}
             </nav>
           </div>
         </div>
@@ -328,7 +508,7 @@ function PagesDrawer({
           onClick={toggle}
           aria-expanded={open}
           aria-controls={PAGES_DRAWER_ID}
-          title={current ? `Pages — ${current.label}` : "Pages"}
+          title={current ? `Pages — ${name(current)}` : "Pages"}
           className={cn(
             "flex w-full items-center rounded-md py-1.5 text-[11px] font-medium text-muted-fg outline-none transition hover:bg-muted/60 hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/40",
             collapsed ? "justify-center px-0" : "gap-1.5 px-2 text-left"
@@ -344,9 +524,10 @@ function PagesDrawer({
             <>
               <span>Pages</span>
 
-              {/* Where you are, for when the list is shut. */}
+              {/* Where you are, for when the list is shut. Qualified, because
+                  with the drawer shut there is no heading to say which sport. */}
               {!open && current ? (
-                <span className="ms-auto min-w-0 truncate text-foreground">{current.label}</span>
+                <span className="ms-auto min-w-0 truncate text-foreground">{name(current)}</span>
               ) : null}
             </>
           )}
@@ -360,6 +541,7 @@ export function AdminShell({
   username,
   role,
   grants,
+  capabilities,
   sites,
   children,
 }: {
@@ -367,13 +549,15 @@ export function AdminShell({
   role: AdminRole;
   /** Every (sport, module) pair this account holds. Empty for an owner. */
   grants: Grant[];
+  /** What it holds that names no sport — the enquiries. Empty for an owner. */
+  capabilities: Capability[];
   /** Every sport, so the navigation can be built from what exists. */
   sites: Site[];
   children: React.ReactNode;
 }) {
   const pathname = usePathname() ?? "/";
   const router = useRouter();
-  const nav = allowedNav({ role, grants }, sites);
+  const nav = allowedNav({ role, grants, capabilities }, sites);
 
   // Starts expanded and corrects itself on mount. Reading localStorage during
   // render would differ from what the server drew and break hydration.

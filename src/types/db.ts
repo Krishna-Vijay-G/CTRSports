@@ -14,6 +14,11 @@
  * has `pages`, and no row does.
  */
 
+export type AdminCapabilitiesRow = {
+  admin_id: string;
+  capability: string;
+};
+
 export type AdminGrantsRow = {
   admin_id: string;
   site_id: string;
@@ -81,10 +86,11 @@ export type EnquiriesRow = {
   name: string;
   email: string;
   message: string;
-  handled: boolean;
   ip: string;
   user_agent: string;
   created_at: Date;
+  status: string;
+  archived_at: Date | null;
 };
 
 export type EventsRow = {
@@ -297,6 +303,7 @@ export type TracksRow = {
 
 /** Every table in the schema, by name. */
 export type CtrTables = {
+  admin_capabilities: AdminCapabilitiesRow;
   admin_grants: AdminGrantsRow;
   admins: AdminsRow;
   articles: ArticlesRow;

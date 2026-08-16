@@ -31,11 +31,15 @@ export async function notifyNewEntry(form: Form, entry: FormEntry): Promise<void
 /**
  * The same, for a message sent from the footer.
  *
- * There is no screen that reads these yet, so until there is, this log line is
- * the only thing that says one arrived. Whatever fills the function above in
- * should fill this in at the same time and send it to the footer's own email
- * address — the one edited in the admin, which is by definition the address the
- * organisation publishes for exactly this.
+ * There IS a screen that reads these now — /enquiries in the console — so this
+ * is no longer the only trace that one arrived. It is still worth filling in:
+ * the screen has to be opened to be read, and the point of a notification is
+ * the message that does not wait for somebody to think of looking.
+ *
+ * Whatever fills the function above in should fill this in at the same time and
+ * send it to the footer's own email address — the one edited in the admin,
+ * which is by definition the address the organisation publishes for exactly
+ * this.
  *
  * The message body is deliberately not logged. It is somebody's enquiry, and a
  * server log is not where it should be readable.

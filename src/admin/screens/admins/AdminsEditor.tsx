@@ -72,6 +72,9 @@ export function AdminsEditor({
           (active.username !== activeSaved.username ||
             active.role !== activeSaved.role ||
             JSON.stringify(active.grants) !== JSON.stringify(activeSaved.grants) ||
+            // Compared the same way, and it can be: `normaliseCapabilities`
+            // returns them in a fixed order, so two equal sets stringify equal.
+            JSON.stringify(active.capabilities) !== JSON.stringify(activeSaved.capabilities) ||
             password.length > 0)
       );
 

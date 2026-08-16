@@ -16,13 +16,82 @@
  * Shared by the server and the browser, so nothing here may import `server-only`.
  */
 
-import { isRecord } from "@/lib/normalise";
+import { isRecord, oneOf } from "@/lib/normalise";
 
 export const ENQUIRY_LIMITS = {
   name: 80,
   email: 254,
   message: 2000,
 } as const;
+
+/**
+ * Where an enquiry has got to.
+ *
+ * Three states rather than the `handled` boolean this replaces, because two
+ * could not express the one thing a monitor is for: a message nobody has opened
+ * and a message somebody is part-way through answering both read as "not
+ * handled", and they need entirely different actions from whoever is looking.
+ *
+ * The order here is the order they are shown in and the order they are worked
+ * through, so it is also the order the filter chips appear in.
+ */
+export const ENQUIRY_STATUSES = ["unread", "in_progress", "resolved"] as const;
+export type EnquiryStatus = (typeof ENQUIRY_STATUSES)[number];
+
+export const ENQUIRY_STATUS_LABELS: Record<EnquiryStatus, string> = {
+  unread: "Unread",
+  in_progress: "In progress",
+  resolved: "Resolved",
+};
+
+/**
+ * An unrecognised status reads as `unread`, never as `resolved`.
+ *
+ * The same rule `normaliseRole` follows and for the same reason: the fallback
+ * has to be the state that gets a message LOOKED at. A bad value that quietly
+ * became "resolved" is a customer nobody ever replies to.
+ */
+export function normaliseEnquiryStatus(value: unknown): EnquiryStatus {
+  return oneOf(value, ENQUIRY_STATUSES, "unread");
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Same reasoning as `isFormId`: a malformed id should 400, not blow up Postgres. */
+export function isEnquiryId(value: unknown): value is string {
+  return typeof value === "string" && UUID.test(value);
+}
+
+/**
+ * An enquiry as it is stored, which is what the console screen renders.
+ *
+ * Here rather than in enquiriesRepo for the reason `Form` and `FormEntry` are
+ * in src/lib/forms.ts: the table that draws these is a client component, and a
+ * type it needs cannot live behind `server-only`. `import type` would erase at
+ * build time and happen to work, but it puts a browser file one careless edit
+ * away from pulling the database driver into the bundle.
+ */
+export type StoredEnquiry = Enquiry & {
+  id: string;
+  status: EnquiryStatus;
+  /** When it was archived, or null while it is still in the working list. */
+  archived_at: string | null;
+  ip: string;
+  user_agent: string;
+  created_at: string;
+};
+
+/**
+ * Where the next page starts.
+ *
+ * Both halves. Two enquiries can share a millisecond, and a cursor on the
+ * timestamp alone steps over whichever of them lands on a page boundary — the
+ * same rule, and the same reasoning, as `EntryCursor`.
+ */
+export type EnquiryCursor = { at: string; id: string };
+
+/** The counts behind the filter chips. */
+export type EnquiryCounts = Record<EnquiryStatus, number> & { archived: number };
 
 /** Below this, a "message" is not one — it is a test of the send button. */
 const MESSAGE_MIN = 10;

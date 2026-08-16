@@ -106,8 +106,49 @@ export type Grant = {
   module: GrantModule;
 };
 
-/** Everything the predicates need. `AdminSession` satisfies it. */
-export type Scoped = { role: AdminRole; grants: Grant[] };
+/**
+ * What an account may reach that belongs to no sport.
+ *
+ * A grant is a (site, module) pair, which is the right shape for everything the
+ * console edits — because everything the console edits belongs to a sport. The
+ * enquiries do not. The footer's message box is on every page of every site and
+ * `ctr.enquiries` has no `site_id` by design, so there is no site to put in a
+ * grant and no honest way to write one.
+ *
+ * So a capability is a grant with the site left out. It is a separate list
+ * rather than a `GrantModule` with a null site because the two answer different
+ * questions and mixing them would mean every existing predicate had to start
+ * asking "…but is the site part real?".
+ *
+ * `media` is deliberately NOT one, and the argument is unchanged from 0013: a
+ * folder belongs to a site, so "may they open incrc/decks/?" is already
+ * answered by "have they any grant on incrc?". A capability would be a second
+ * source of truth for a question the first one answers.
+ */
+export const CAPABILITIES = ["enquiries"] as const;
+export type Capability = (typeof CAPABILITIES)[number];
+
+export const CAPABILITY_LABELS: Record<Capability, string> = {
+  enquiries: "Enquiries",
+};
+
+export const CAPABILITY_HINTS: Record<Capability, string> = {
+  enquiries: "The messages people send from the footer, on every sport. Not tied to one.",
+};
+
+/**
+ * Everything the predicates need. `AdminSession` satisfies it.
+ *
+ * `capabilities` is optional so that the callers which build a scope by hand
+ * out of a role and some grants keep compiling. Absent reads as none, which is
+ * the safe direction: forgetting to pass them closes a door rather than opening
+ * one.
+ */
+export type Scoped = {
+  role: AdminRole;
+  grants: Grant[];
+  capabilities?: readonly Capability[];
+};
 
 /* ─────────────────────────────── The tests ──────────────────────────────── */
 
@@ -222,6 +263,41 @@ export function modulesFor(
   return available.filter((module) => module !== "*" && canEdit(session, siteId, module));
 }
 
+/**
+ * One capability, which an owner holds by role rather than by row.
+ *
+ * The same short-circuit every predicate above makes. An owner with no rows in
+ * `ctr.admin_capabilities` still passes, so promoting somebody to owner never
+ * has to remember to tick anything.
+ */
+export function holdsCapability(
+  session: Scoped | null | undefined,
+  capability: Capability
+): boolean {
+  if (!session) return false;
+  if (session.role === "owner") return true;
+  return (session.capabilities ?? []).includes(capability);
+}
+
+/** May they open the enquiries screen? The only question that screen asks. */
+export function canReadEnquiries(session: Scoped | null | undefined): boolean {
+  return holdsCapability(session, "enquiries");
+}
+
+/**
+ * Any reason at all to be in the console.
+ *
+ * `canSeeAnySite` was that question while a sport was the only thing anybody
+ * could be given. An account holding nothing but the enquiries has no grant on
+ * any site and would read as having nothing to do here — which is how the root
+ * redirect ends up showing "nothing assigned yet" to somebody who has been
+ * assigned something.
+ */
+export function canSeeAnything(session: Scoped | null | undefined): boolean {
+  if (!session) return false;
+  return canSeeAnySite(session) || CAPABILITIES.some((one) => holdsCapability(session, one));
+}
+
 export function canManageAdmins(session: Scoped | null | undefined): boolean {
   return session?.role === "owner";
 }
@@ -275,6 +351,21 @@ export function normaliseGrants(value: unknown): Grant[] {
   }
 
   return out;
+}
+
+/**
+ * Capabilities as stored, made safe to interpret.
+ *
+ * Same rule as `normaliseGrants`: an unrecognised one is dropped rather than
+ * carried, so retiring a capability stops being an access grant the moment it
+ * stops being a capability. Returned in the order `CAPABILITIES` declares, with
+ * duplicates collapsed, so two accounts holding the same set compare equal —
+ * which is what the editor's dirty check relies on.
+ */
+export function normaliseCapabilities(value: unknown): Capability[] {
+  if (!Array.isArray(value)) return [];
+  const wanted = new Set(value.filter((entry): entry is string => typeof entry === "string"));
+  return CAPABILITIES.filter((capability) => wanted.has(capability));
 }
 
 /** A module list from a form, in a fixed order and with the unknown dropped. */

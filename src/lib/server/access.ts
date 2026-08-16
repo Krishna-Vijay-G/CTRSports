@@ -8,6 +8,7 @@ import {
   canManageAdmins,
   canManageSites,
   canManageTeam,
+  canReadEnquiries,
   canSeeAnySite,
   canSeeSite,
   isSiteModule,
@@ -240,6 +241,17 @@ export function guardOwner(): Promise<NextResponse | null> {
   return guard(canManageAdmins);
 }
 
+/**
+ * The footer's messages.
+ *
+ * Takes no site, and that is not an omission — `ctr.enquiries` has no `site_id`
+ * and the enquiries screen is one list across every sport. A guard that asked
+ * for a site here would have to invent one.
+ */
+export function guardEnquiries(): Promise<NextResponse | null> {
+  return guard(canReadEnquiries);
+}
+
 /* ─────────────────────────── Screens ──────────────────────────── */
 
 /**
@@ -313,6 +325,13 @@ export async function requireTeam(slug: string): Promise<{ session: AdminSession
 export async function requireOwner(): Promise<AdminSession> {
   const session = await getSession();
   if (!session || !canManageAdmins(session)) notFound();
+  return session;
+}
+
+/** The enquiries screen. The owner, or an account given the capability. */
+export async function requireEnquiries(): Promise<AdminSession> {
+  const session = await getSession();
+  if (!session || !canReadEnquiries(session)) notFound();
   return session;
 }
 

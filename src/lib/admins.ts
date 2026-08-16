@@ -16,10 +16,13 @@
  */
 
 import {
+  CAPABILITY_LABELS,
   GRANT_LABELS,
+  normaliseCapabilities,
   normaliseGrants,
   normaliseRole,
   type AdminRole,
+  type Capability,
   type Grant,
 } from "@/lib/roles";
 import { optionalText } from "@/lib/normalise";
@@ -36,6 +39,13 @@ export type AdminAccount = {
    * "may edit decks" cannot quietly mean everybody's decks.
    */
   grants: Grant[];
+  /**
+   * What they hold that belongs to no sport — today, the enquiries.
+   *
+   * Separate from `grants` rather than folded into it because a grant names a
+   * site and these cannot. See `Capability` in roles.ts.
+   */
+  capabilities: Capability[];
   created_at: string;
 };
 
@@ -59,6 +69,7 @@ export const BLANK_ADMIN: Omit<AdminAccount, "id" | "created_at"> = {
   username: "",
   role: "member",
   grants: [],
+  capabilities: [],
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -97,6 +108,7 @@ export function normaliseAdminInput(input: unknown): Omit<AdminAccount, "id" | "
     username: normaliseUsername(record.username),
     role: normaliseRole(record.role),
     grants: normaliseGrants(record.grants),
+    capabilities: normaliseCapabilities(record.capabilities),
   };
 }
 
@@ -108,11 +120,10 @@ export function normaliseAdminInput(input: unknown): Omit<AdminAccount, "id" | "
  * a glance, and a flat list of nine module names tells nobody which sport.
  */
 export function describeAccess(
-  account: Pick<AdminAccount, "role" | "grants">,
+  account: Pick<AdminAccount, "role" | "grants"> & Partial<Pick<AdminAccount, "capabilities">>,
   siteNames: Record<string, string> = {}
 ): string {
   if (account.role === "owner") return "Every sport, and the accounts";
-  if (account.grants.length === 0) return "Nothing yet";
 
   const bySite = new Map<string, string[]>();
   for (const grant of account.grants) {
@@ -121,11 +132,18 @@ export function describeAccess(
     bySite.get(name)!.push(grant.module);
   }
 
-  return [...bySite]
-    .map(([name, modules]) =>
-      modules.includes("*")
-        ? `${name}: everything`
-        : `${name}: ${modules.map((m) => GRANT_LABELS[m as keyof typeof GRANT_LABELS] ?? m).join(", ")}`
-    )
-    .join(" · ");
+  const parts = [...bySite].map(([name, modules]) =>
+    modules.includes("*")
+      ? `${name}: everything`
+      : `${name}: ${modules.map((m) => GRANT_LABELS[m as keyof typeof GRANT_LABELS] ?? m).join(", ")}`
+  );
+
+  // Last, and with no sport in front of it — that absence is the whole point of
+  // a capability, and a reader scanning the rail should be able to see that this
+  // one is not somebody's sport.
+  for (const capability of account.capabilities ?? []) {
+    parts.push(CAPABILITY_LABELS[capability]);
+  }
+
+  return parts.length === 0 ? "Nothing yet" : parts.join(" · ");
 }
