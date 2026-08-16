@@ -32,6 +32,7 @@ import {
   TicketIcon,
   UsersIcon,
 } from "@/admin/ui/icons";
+import { Media } from "@/components/ui/Media";
 
 /**
  * Chrome around every admin screen.
@@ -457,7 +458,7 @@ export function AdminShell({
           )}
           title={username}
         >
-          <img
+          <Media
             src="/images/brand/ctr-logo.webp"
             alt=""
             aria-hidden

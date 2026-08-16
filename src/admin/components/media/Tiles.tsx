@@ -3,7 +3,8 @@
 import { cn } from "@/lib/utils";
 import { Button } from "@/admin/ui/Button";
 import { FileIcon, FolderIcon, TrashIcon } from "@/admin/ui/icons";
-import { extensionOf, formatBytes, isImageKey, nameOfKey } from "./format";
+import { posterFor } from "@/lib/media";
+import { extensionOf, formatBytes, isImageKey, isVideoKey, nameOfKey } from "./format";
 import type { MediaFolder, MediaObject } from "./types";
 
 /**
@@ -94,6 +95,29 @@ export function FileTile({
             loading="lazy"
             decoding="async"
             className="aspect-square w-full object-contain p-1"
+          />
+        ) : isVideoKey(file.key) ? (
+          /*
+           * The poster if there is one, and the video itself if there is not.
+           *
+           * `preload="metadata"` and no autoplay, unlike everywhere else: a
+           * folder of twenty clips all playing at once is a browser brought to
+           * its knees, and this grid is for finding a file rather than watching
+           * one. Hovering plays it, which is enough to tell two apart.
+           */
+          <video
+            src={file.url}
+            poster={posterFor(file.url) || undefined}
+            muted
+            loop
+            playsInline
+            preload="metadata"
+            onMouseEnter={(event) => void event.currentTarget.play().catch(() => {})}
+            onMouseLeave={(event) => {
+              event.currentTarget.pause();
+              event.currentTarget.currentTime = 0;
+            }}
+            className="aspect-square w-full bg-black object-contain"
           />
         ) : (
           // One icon and the extension as text, rather than eight bespoke

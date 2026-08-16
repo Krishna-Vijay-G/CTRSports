@@ -14,6 +14,7 @@ import { Field, Hint, Panel, Row } from "@/admin/components/Fields";
 import { Repeater } from "@/admin/components/Repeater";
 import { ImageField } from "@/admin/components/ImageField";
 import { TrackOutline } from "@/app/(site)/_shell/circuits/CircuitMap";
+import { Media } from "@/components/ui/Media";
 
 /**
  * Everything about one circuit, in the order the public page reads it.
@@ -97,7 +98,7 @@ export function TrackForm({
                   className="p-2 text-primary"
                 />
               ) : track.map_url ? (
-                <img src={track.map_url} alt="" className="h-full w-full object-contain p-1" />
+                <Media src={track.map_url} alt="" className="h-full w-full object-contain p-1" />
               ) : (
                 <span className="px-2 text-center text-[10px] leading-tight text-muted-fg">
                   Nothing drawn yet

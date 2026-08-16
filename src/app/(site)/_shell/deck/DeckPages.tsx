@@ -1,5 +1,6 @@
 import { pageAlt, type Deck } from "@/lib/decks";
 import { cn } from "@/lib/utils";
+import { Media } from "@/components/ui/Media";
 
 /**
  * The images of a deck, one below another, and nothing else.
@@ -31,7 +32,7 @@ export function DeckPages({ deck, className }: { deck: Deck; className?: string 
   return (
     <div className={cn("mx-auto flex w-full max-w-4xl flex-col gap-2 sm:gap-3", className)}>
       {deck.pages.map((page, index) => (
-        <img
+        <Media
           // Position IS a page's identity here — nothing stores a page number —
           // so the URL and the index together are the only stable key, and the
           // index alone is the honest one.

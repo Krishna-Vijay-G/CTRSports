@@ -3,6 +3,7 @@
 import type { Chrome } from "@/lib/chrome";
 import { cn } from "@/lib/utils";
 import { BackButton } from "./BackButton";
+import { Media } from "@/components/ui/Media";
 
 /**
  * The nav bar. It is laid over the banners rather than pinned to the
@@ -87,7 +88,7 @@ export function SiteHeader({
                   itself, and then draws the 40×40 box the attributes reserved —
                   a white square where a mark should be. */}
               {brand.logo ? (
-                <img
+                <Media
                   src={brand.logo}
                   alt=""
                   aria-hidden

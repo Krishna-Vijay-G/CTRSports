@@ -5,6 +5,7 @@ import type { SectionViewProps } from "@/lib/sections/types";
 import type { SportsHeading } from "./model";
 import { Reveal } from "@/components/ui/Reveal";
 import { SectionHeading } from "@/components/ui/SectionHeading";
+import { Media } from "@/components/ui/Media";
 
 /**
  * The sports grid: one card per programme, photo on top, crest badged over it.
@@ -42,7 +43,7 @@ export function SportsView({ value: heading, records }: SectionViewProps<SportsH
             <Card href={sport.href} title={sport.title}>
               <div className="relative overflow-hidden rounded-2xl">
                 {sport.photo_url ? (
-                  <img
+                  <Media
                     src={sport.photo_url}
                     alt=""
                     aria-hidden
@@ -58,7 +59,7 @@ export function SportsView({ value: heading, records }: SectionViewProps<SportsH
 
                 {sport.logo_url ? (
                   <span className="absolute left-3 top-3 flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-white p-1.5 shadow-md">
-                    <img
+                    <Media
                       src={sport.logo_url}
                       alt={`${sport.title} crest`}
                       loading="lazy"

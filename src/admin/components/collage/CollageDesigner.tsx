@@ -6,6 +6,7 @@ import type { Shot } from "@/lib/sections/partnership/model";
 import { cn } from "@/lib/utils";
 import { Note } from "@/admin/components/Fields";
 import { CheckIcon } from "@/admin/ui/icons";
+import { Media } from "@/components/ui/Media";
 
 /**
  * Arranges a collage: which shape it takes, and which photograph is in which
@@ -93,7 +94,7 @@ export function CollageDesigner({
             )}
           >
             {shot.image ? (
-              <img
+              <Media
                 src={shot.image}
                 alt=""
                 className={cn(

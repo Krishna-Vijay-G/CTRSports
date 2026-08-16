@@ -5,6 +5,7 @@ import { mailHref, telHref } from "@/lib/sections/contact/model";
 import { cn } from "@/lib/utils";
 import { FooterEnquiry } from "@/components/layout/FooterEnquiry";
 import { SocialIcon } from "@/components/ui/SocialIcon";
+import { Media } from "@/components/ui/Media";
 
 /**
  * The foot of every page: who this is, where to go next, how to reach them, and
@@ -63,7 +64,7 @@ export function SiteFooter({ content, year }: { content: Chrome; year: number })
                 {/* Same as the header: an empty `src` draws the 36×36 box the
                     attributes reserved rather than nothing at all. */}
                 {brand.logo ? (
-                  <img
+                  <Media
                     src={brand.logo}
                     alt=""
                     aria-hidden

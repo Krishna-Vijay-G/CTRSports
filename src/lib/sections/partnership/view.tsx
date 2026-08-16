@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import type { SectionViewProps } from "@/lib/sections/types";
 import type { Partnership } from "./model";
 import { Reveal } from "@/components/ui/Reveal";
+import { Media } from "@/components/ui/Media";
 
 /**
  * How the championship came about: the signing.
@@ -74,12 +75,14 @@ export function PartnershipView({ value: partnership }: SectionViewProps<Partner
               style={{ "--collage-cell": cellName(index) } as React.CSSProperties}
               className="flex"
             >
-              <figure className="group w-full overflow-hidden rounded-panel border border-line md:h-full">
-                <img
+              {/* `relative` for the sound button; see the grid section. */}
+              <figure className="group relative w-full overflow-hidden rounded-panel border border-line md:h-full">
+                <Media
                   src={shot.image}
                   alt={shot.alt}
                   loading="lazy"
                   decoding="async"
+                  sound
                   className="aspect-[4/3] w-full object-cover transition-transform duration-700 group-hover:scale-105 md:aspect-auto md:h-full"
                 />
               </figure>

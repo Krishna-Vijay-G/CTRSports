@@ -3,6 +3,7 @@ import type { SectionViewProps } from "@/lib/sections/types";
 import type { Posts } from "./model";
 import { ActionButton } from "@/components/ui/ActionButton";
 import { Reveal } from "@/components/ui/Reveal";
+import { Media } from "@/components/ui/Media";
 
 /**
  * The newsroom: posts as cards, photo first.
@@ -58,12 +59,13 @@ export function PostsView({ value: posts }: SectionViewProps<Posts>) {
                 className="panel-card group flex h-full w-full flex-col overflow-hidden transition-colors duration-300 hover:border-accent/40"
               >
                 <span className="relative block overflow-hidden">
-                  <img
+                  <Media
                     src={post.image}
                     alt=""
                     aria-hidden
                     loading="lazy"
                     decoding="async"
+                    sound
                     className="aspect-[16/10] w-full object-cover transition-transform duration-700 group-hover:scale-105"
                   />
                   {post.category ? (

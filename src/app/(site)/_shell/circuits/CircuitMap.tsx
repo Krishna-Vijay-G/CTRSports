@@ -1,5 +1,6 @@
 import { DEFAULT_VIEW_BOX, type Track } from "@/lib/tracks";
 import { cn } from "@/lib/utils";
+import { Media } from "@/components/ui/Media";
 
 /**
  * How a circuit's layout gets drawn, wherever it is drawn.
@@ -82,7 +83,7 @@ export function CircuitMap({
   if (track.map_url) {
     return (
       <span className={cn("flex items-center justify-center bg-white p-3", className)}>
-        <img
+        <Media
           src={track.map_url}
           alt={`Circuit layout — ${track.name}`}
           loading="lazy"
@@ -131,7 +132,7 @@ export function CircuitGhost({ track, className }: { track: Track; className?: s
           className="h-full w-full"
         />
       ) : (
-        <img
+        <Media
           src={track.map_url}
           alt=""
           loading="lazy"

@@ -3,6 +3,7 @@ import { hasLayout, trackHref, type Track } from "@/lib/tracks";
 import type { SiteRef } from "@/lib/sites";
 import { Reveal } from "@/components/ui/Reveal";
 import { CircuitGhost } from "./CircuitMap";
+import { Media } from "@/components/ui/Media";
 
 /**
  * Every circuit, as a stack of wide plates.
@@ -110,7 +111,7 @@ export function CircuitCard({
       {/* ── The place ── */}
       <div className="relative h-56 shrink-0 overflow-hidden bg-black sm:h-auto sm:w-[42%] lg:w-[38%]">
         {track.photo_url ? (
-          <img
+          <Media
             src={track.photo_url}
             alt=""
             aria-hidden

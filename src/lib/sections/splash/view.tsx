@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { Splash } from "./model";
+import { Media } from "@/components/ui/Media";
 
 /**
  * Covers the page while the first banner photo loads, then fades out and unmounts.
@@ -72,7 +73,7 @@ export function SplashScreen({ splash }: { splash: Splash }) {
       }`}
     >
       {splash.logo ? (
-        <img
+        <Media
           src={splash.logo}
           alt={splash.title ? `${splash.title} logo` : ""}
           fetchPriority="high"

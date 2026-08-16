@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils";
 import type { SectionViewProps } from "@/lib/sections/types";
 import type { Grid } from "./model";
 import { Reveal } from "@/components/ui/Reveal";
+import { Media } from "@/components/ui/Media";
 
 /**
  * One grid for the whole country: the circuit on one side, the categories that
@@ -27,12 +28,15 @@ export function GridView({ value: grid }: SectionViewProps<Grid>) {
       <div className="grid gap-10 lg:grid-cols-2 lg:items-center lg:gap-14">
         {grid.image ? (
           <Reveal>
-            <figure className="group overflow-hidden rounded-panel border border-line bg-panel">
-              <img
+            {/* `relative` so the sound button has something to sit in. Nothing
+                else about the figure changes. */}
+            <figure className="group relative overflow-hidden rounded-panel border border-line bg-panel">
+              <Media
                 src={grid.image}
                 alt={grid.imageAlt}
                 loading="lazy"
                 decoding="async"
+                sound
                 className="h-auto w-full transition-transform duration-700 group-hover:scale-[1.03]"
               />
             </figure>
@@ -67,7 +71,7 @@ export function GridView({ value: grid }: SectionViewProps<Grid>) {
 
           {grid.inset ? (
             <figure className="panel-card mt-8 p-5">
-              <img
+              <Media
                 src={grid.inset}
                 alt={grid.insetAlt}
                 loading="lazy"

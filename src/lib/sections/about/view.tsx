@@ -6,6 +6,7 @@ import type { About, LabelledPhoto } from "./model";
 import { ActionButton } from "@/components/ui/ActionButton";
 import { Reveal } from "@/components/ui/Reveal";
 import { SectionHeading } from "@/components/ui/SectionHeading";
+import { Media } from "@/components/ui/Media";
 
 /**
  * Who CTR is: a photo, the copy, a photo. All of it from the database, edited
@@ -85,12 +86,13 @@ function AboutPhoto({ photo, delay = 0 }: { photo?: LabelledPhoto; delay?: numbe
   return (
     <Reveal delay={delay}>
       <figure className="relative h-64 overflow-hidden rounded-panel md:h-full md:min-h-[22rem]">
-        <img
+        <Media
           src={photo.src}
           alt=""
           aria-hidden
           loading="lazy"
           decoding="async"
+          sound
           className="h-full w-full object-cover"
         />
         {photo.label ? (

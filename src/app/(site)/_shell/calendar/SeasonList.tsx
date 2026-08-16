@@ -8,6 +8,7 @@ import { findTrack, type Track } from "@/lib/tracks";
 import type { SiteRef } from "@/lib/sites";
 import { cn } from "@/lib/utils";
 import { Reveal } from "@/components/ui/Reveal";
+import { Media } from "@/components/ui/Media";
 
 /**
  * The season as a list, on its own page.
@@ -151,7 +152,7 @@ function Row({
           40px sliver that tells nobody anything. */}
       {cover ? (
         <div className="hidden w-40 shrink-0 overflow-hidden sm:block lg:w-56">
-          <img
+          <Media
             src={cover}
             alt=""
             aria-hidden

@@ -6,6 +6,7 @@ import {
   parseFolder,
   slugifyFileName,
 } from "@/lib/mediaPaths";
+import { UNSUPPORTED_TYPE, UPLOAD_TYPES, maxBytesFor, megabytes } from "@/lib/media";
 import { guardAnySite, guardFolder } from "@/lib/server/access";
 import { isS3Configured, uploadObject } from "@/lib/server/s3";
 
@@ -13,12 +14,23 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Takes one logo and puts it in the bucket, in the folder the screen asked for.
+ * Takes one picture and puts it in the bucket, in the folder the screen asked for.
  *
  * The browser has already converted it to WebP and capped its longest edge
  * (see src/lib/client/toWebp.ts), so anything arriving here is small. The size
  * ceiling below is a backstop against a caller that skipped that step, not the
  * expected path.
+ *
+ * ── Pictures only, in practice ────────────────────────────────────────────
+ *
+ * The type table is shared with `/api/admin/upload/sign` and admits video, but
+ * nothing sends one here: this route reads the whole file into a serverless
+ * function as form data, and the platform refuses a request body over about
+ * four and a half megabytes. A video goes straight to S3 by a signed PUT
+ * instead. The table is shared rather than split so the two routes cannot
+ * quietly come to admit different things — and a small video posted here still
+ * works, which is the honest behaviour for a limit that is about transport
+ * rather than about what a file is.
  *
  * ── The folder ────────────────────────────────────────────────────────────
  *
@@ -29,14 +41,6 @@ export const dynamic = "force-dynamic";
  * answers that, and it is the only thing standing between a decks editor and
  * the landing page's pictures.
  */
-const MAX_BYTES = 4 * 1024 * 1024;
-
-const EXTENSIONS: Record<string, string> = {
-  "image/webp": "webp",
-  "image/png": "png",
-  "image/jpeg": "jpg",
-  "image/svg+xml": "svg",
-};
 
 export async function POST(request: Request) {
   const denied = await guardAnySite();
@@ -44,7 +48,7 @@ export async function POST(request: Request) {
 
   if (!isS3Configured()) {
     return NextResponse.json(
-      { error: "Image storage is not configured. Paste a logo URL instead." },
+      { error: "Media storage is not configured. Paste a URL instead." },
       { status: 503 }
     );
   }
@@ -74,17 +78,15 @@ export async function POST(request: Request) {
   const refused = await guardFolder(folder, "write");
   if (refused) return refused;
 
-  const extension = EXTENSIONS[file.type];
+  const extension = UPLOAD_TYPES[file.type];
   if (!extension) {
-    return NextResponse.json(
-      { error: "Unsupported file type. Use WebP, PNG, JPEG or SVG." },
-      { status: 415 }
-    );
+    return NextResponse.json({ error: UNSUPPORTED_TYPE }, { status: 415 });
   }
 
-  if (file.size > MAX_BYTES) {
+  const cap = maxBytesFor(file.type);
+  if (file.size > cap) {
     return NextResponse.json(
-      { error: `Image is larger than ${Math.round(MAX_BYTES / 1024 / 1024)} MB.` },
+      { error: `That file is larger than ${megabytes(cap)}.` },
       { status: 413 }
     );
   }
@@ -111,6 +113,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ url, key, folder });
   } catch (error) {
     console.error("[admin/upload]", error);
-    return NextResponse.json({ error: "Could not upload the image." }, { status: 500 });
+    return NextResponse.json({ error: "Could not upload the file." }, { status: 500 });
   }
 }

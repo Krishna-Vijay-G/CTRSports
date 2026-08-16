@@ -8,6 +8,7 @@ import {
 } from "@/lib/mediaPaths";
 import { guardAnySite } from "@/lib/server/access";
 import { getSession } from "@/lib/server/auth";
+import { isVideoUrl, posterKeyFor } from "@/lib/media";
 import { findUsage } from "@/lib/server/mediaUsage";
 import { deleteObjects, isS3Configured, listMedia } from "@/lib/server/s3";
 
@@ -151,7 +152,24 @@ export async function DELETE(request: Request) {
   }
 
   try {
-    await deleteObjects(keys);
+    /*
+     * A video's poster goes with it.
+     *
+     * The still captured at upload time sits beside the video under the same
+     * stem, and nothing in the database points at it — `posterFor` derives the
+     * address rather than storing it, which is what keeps a video one column
+     * instead of two. So the usage scan can never find a reference to a poster,
+     * and deleting a video without this would leave a JPEG nobody can see, in a
+     * folder nobody would think to look in, for ever.
+     *
+     * Derived and appended rather than asked for by the browser: the caller
+     * deleting a video should not have to know it has a companion. A poster that
+     * was never captured is a key that is not there, and `deleteObjects` does
+     * not mind.
+     */
+    const posters = keys.filter(isVideoUrl).map(posterKeyFor);
+
+    await deleteObjects([...keys, ...posters]);
     return NextResponse.json({ ok: true, deleted: keys.length });
   } catch (error) {
     console.error("[admin/media] DELETE", error);

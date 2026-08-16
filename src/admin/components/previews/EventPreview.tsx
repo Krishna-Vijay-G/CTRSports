@@ -12,6 +12,7 @@ import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { PinIcon } from "@/lib/sections/shared/icons";
 import { ArticleBody } from "@/app/(site)/_shell/articles/ArticleBody";
+import { Media } from "@/components/ui/Media";
 
 /**
  * The event's page, rendered from the draft, shrunk to fit beside the fields.
@@ -148,7 +149,7 @@ export function EventPreview({
                     </div>
 
                     {cover ? (
-                      <img
+                      <Media
                         src={cover}
                         alt=""
                         aria-hidden

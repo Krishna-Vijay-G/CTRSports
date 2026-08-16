@@ -15,6 +15,7 @@ import { Reveal } from "@/components/ui/Reveal";
 import { PinIcon } from "@/lib/sections/shared/icons";
 import { ArticleBody } from "../articles/ArticleBody";
 import { SiteShell } from "../SiteShell";
+import { Media } from "@/components/ui/Media";
 
 /**
  * One event, at its own address.
@@ -206,12 +207,15 @@ export async function EventDetail({ site, slug }: { site: Site; slug: string }) 
             </div>
           </Reveal>
 
+          {/* `relative` on the Reveal so the sound button has something to sit
+              in. Nothing else about it changes. */}
           {cover ? (
-            <Reveal delay={0.05} className="mt-8">
-              <img
+            <Reveal delay={0.05} className="relative mt-8">
+              <Media
                 src={cover}
                 alt=""
                 aria-hidden
+                sound
                 className="aspect-[16/7] w-full rounded-card object-cover"
               />
             </Reveal>

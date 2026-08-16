@@ -12,6 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 import { ActionButton } from "@/components/ui/ActionButton";
 import { useBannerViewer } from "./BannerViewer";
+import { Media } from "@/components/ui/Media";
 
 /**
  * The banner layouts, and the lookup that picks between them.
@@ -118,7 +119,7 @@ function Photo({ banner, className }: { banner: Banner; className?: string }) {
   return (
     <>
       {banner.fit === "fit" ? (
-        <img
+        <Media
           src={banner.image}
           alt=""
           aria-hidden
@@ -127,10 +128,14 @@ function Photo({ banner, className }: { banner: Banner; className?: string }) {
         />
       ) : null}
 
-      <img
+      <Media
         src={banner.image}
         alt=""
         aria-hidden
+        // The banner is the one slot on the page where a video is the point, so
+        // it is the one that offers the sound. The blurred backdrop above is the
+        // same file drawn twice and must not offer a second.
+        sound
         // The page's LCP element — fetched at high priority, never lazily.
         fetchPriority="high"
         decoding="async"

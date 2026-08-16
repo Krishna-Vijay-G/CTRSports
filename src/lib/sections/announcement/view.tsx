@@ -6,6 +6,7 @@ import type { Announcement } from "./model";
 import { cn } from "@/lib/utils";
 import { ArrowIcon } from "@/components/ui/ActionButton";
 import { Reveal } from "@/components/ui/Reveal";
+import { Media } from "@/components/ui/Media";
 
 /**
  * One thing worth interrupting for, at the top of the page.
@@ -107,13 +108,14 @@ export function AnnouncementView({
             )}
           >
             {image ? (
-              <img
+              <Media
                 src={image}
                 alt={announcement.imageAlt}
                 loading="lazy"
                 decoding="async"
                 // A tile rather than the card's own radius: it sits inside the
                 // padding, so matching the outer corner would read as a mistake.
+                sound
                 className="block aspect-[16/10] w-full rounded-panel object-cover"
               />
             ) : null}

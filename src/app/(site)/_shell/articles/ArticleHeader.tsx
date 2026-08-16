@@ -1,5 +1,6 @@
 import { articleDate, type Article } from "@/lib/articles";
 import { cn } from "@/lib/utils";
+import { Media } from "@/components/ui/Media";
 
 /**
  * The four things every article carries, above the words.
@@ -27,7 +28,7 @@ export function ArticleHeader({
   return (
     <header className={cn("mx-auto w-full max-w-3xl", className)}>
       {article.cover_image ? (
-        <img
+        <Media
           src={article.cover_image}
           alt=""
           // The one picture on the page that is above the fold, so it is the one

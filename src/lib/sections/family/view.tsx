@@ -3,6 +3,7 @@ import { LinkPill } from "@/lib/sections/shared/LinkPill";
 import { Tricolour } from "@/lib/sections/shared/icons";
 import type { SectionViewProps } from "@/lib/sections/types";
 import type { Family } from "./model";
+import { Media } from "@/components/ui/Media";
 
 /**
  * The one full-bleed moment on the page: who actually makes a race weekend
@@ -32,12 +33,13 @@ export function FamilyView({ value: family }: SectionViewProps<Family>) {
       {/* An <img> with no src is not an empty image: the browser resolves ""
           against the page and re-requests the page itself. */}
       {family.image ? (
-        <img
+        <Media
           src={family.image}
           alt=""
           aria-hidden
           loading="lazy"
           decoding="async"
+          sound
           className="absolute inset-0 h-full w-full object-cover"
         />
       ) : null}

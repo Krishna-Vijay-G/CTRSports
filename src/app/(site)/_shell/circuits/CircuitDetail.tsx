@@ -8,6 +8,7 @@ import { ArrowIcon } from "@/components/ui/ActionButton";
 import { Reveal } from "@/components/ui/Reveal";
 import { CircuitGhost, CircuitMap } from "./CircuitMap";
 import { detailFacts, headlineFacts, splitFact, type Fact } from "./facts";
+import { Media } from "@/components/ui/Media";
 
 /**
  * One circuit.
@@ -117,10 +118,11 @@ export function CircuitDetail({
           <div className="relative isolate flex min-h-[15rem] flex-col justify-end overflow-hidden p-6 sm:min-h-[19rem] sm:p-8 lg:min-h-[23rem] lg:p-10">
             {track.photo_url ? (
               <>
-                <img
+                <Media
                   src={track.photo_url}
                   alt=""
                   aria-hidden
+                  sound
                   className="absolute inset-0 -z-20 h-full w-full object-cover"
                 />
                 <span

@@ -1,5 +1,6 @@
 import type { RichDoc, RichInline, RichListItem, RichNode } from "@/lib/richtext";
 import { cn } from "@/lib/utils";
+import { Media } from "@/components/ui/Media";
 
 /**
  * An article's body, drawn as real elements.
@@ -153,7 +154,7 @@ function Blocks({ nodes }: { nodes: RichNode[] }) {
                   definition — the cover is the one above it and the page draws
                   that itself.
                 */}
-                <img
+                <Media
                   src={node.attrs.src}
                   alt={node.attrs.alt}
                   loading="lazy"

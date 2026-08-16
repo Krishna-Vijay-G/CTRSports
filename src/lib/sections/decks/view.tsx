@@ -4,6 +4,7 @@ import type { SectionViewProps } from "@/lib/sections/types";
 import type { Decks } from "./model";
 import { Reveal } from "@/components/ui/Reveal";
 import { SectionHeading } from "@/components/ui/SectionHeading";
+import { Media } from "@/components/ui/Media";
 
 /**
  * Cards pointing at decks — the entry pack, the regulations, the brief.
@@ -64,7 +65,7 @@ export function DecksView({ value: copy, records }: SectionViewProps<Decks>) {
                   // thing that says what this document actually is before it is
                   // opened.
                   <span className="block aspect-[16/10] w-full overflow-hidden bg-page">
-                    <img
+                    <Media
                       src={deck.cover}
                       alt=""
                       loading="lazy"

@@ -1,3 +1,5 @@
+import { isVideoUrl } from "@/lib/media";
+
 /**
  * The three things the media grid has to render about a file, in one place so
  * the picker and the library cannot disagree about how a kilobyte is spelled.
@@ -44,12 +46,23 @@ export function nameOfKey(key: string): string {
 /**
  * What the grid draws a thumbnail for.
  *
- * Everything this project uploads today is one of these — the upload route's
- * MIME whitelist sees to that — so the fallback exists for an object put in the
- * bucket by hand, not for a path the admin can reach.
+ * Everything this project uploads is one of these or a video — the upload
+ * routes' shared MIME table sees to that — so the icon fallback exists for an
+ * object put in the bucket by hand, not for a path the admin can reach.
  */
 const IMAGE_EXTENSIONS = new Set(["WEBP", "PNG", "JPG", "JPEG", "GIF", "SVG", "AVIF"]);
 
 export function isImageKey(key: string): boolean {
   return IMAGE_EXTENSIONS.has(extensionOf(key));
+}
+
+/**
+ * Whether the grid should draw a `<video>` rather than an `<img>`.
+ *
+ * Asks `isVideoUrl`, which reads the same extension list every renderer on the
+ * public site reads. A key and a URL differ only by the host in front, and that
+ * function looks at neither.
+ */
+export function isVideoKey(key: string): boolean {
+  return isVideoUrl(key);
 }

@@ -5,6 +5,7 @@ import type { SectionViewProps } from "@/lib/sections/types";
 import type { CtaBand } from "./model";
 import { ActionButton } from "@/components/ui/ActionButton";
 import { Reveal } from "@/components/ui/Reveal";
+import { Media } from "@/components/ui/Media";
 
 /**
  * The accent band before the footer.
@@ -41,7 +42,7 @@ export function CtaBandView({ value: band, records }: SectionViewProps<CtaBand>)
       <Reveal>
         <div className="relative overflow-hidden rounded-card bg-accent px-6 py-16 text-center sm:px-10 sm:py-20">
           {crests.map((sport, index) => (
-            <img
+            <Media
               key={sport.id}
               src={sport.logo_url}
               alt=""

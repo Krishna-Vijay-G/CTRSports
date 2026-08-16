@@ -5,6 +5,7 @@ import { FollowButton } from "@/lib/sections/shared/FollowButton";
 import { Tricolour } from "@/lib/sections/shared/icons";
 import type { SectionViewProps } from "@/lib/sections/types";
 import type { Intro, Partner } from "./model";
+import { Media } from "@/components/ui/Media";
 
 /**
  * What the championship is, in one headline and two paragraphs, with the three
@@ -105,7 +106,7 @@ export function IntroView({ value: intro, records }: SectionViewProps<Intro>) {
  */
 function PartnerMark({ partner }: { partner: Partner }) {
   const mark = (
-    <img
+    <Media
       src={partner.logo}
       alt={partner.name}
       loading="lazy"

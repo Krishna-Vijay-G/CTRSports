@@ -19,6 +19,7 @@ import type { SectionPanelProps } from "@/lib/sections/types";
 import { PictureControls } from "./PictureControls";
 import { TemplatePicker } from "./TemplatePicker";
 import type { Banners } from "./model";
+import { Media } from "@/components/ui/Media";
 
 /**
  * The banners at the top of a page.
@@ -147,7 +148,7 @@ export function BannersPanel({ value, onChange, ctx }: SectionPanelProps<Banners
                     </button>
 
                     <span className="h-10 w-16 shrink-0 overflow-hidden rounded border border-border bg-background">
-                      <img src={banner.image} alt="" className="h-full w-full object-cover" />
+                      <Media src={banner.image} alt="" className="h-full w-full object-cover" />
                     </span>
 
                     <button

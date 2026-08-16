@@ -7,6 +7,7 @@ import { Button } from "@/admin/ui/Button";
 import { Dialog } from "@/admin/ui/Dialog";
 import { CaretDownIcon, DragIcon, PencilIcon, PlusIcon, TrashIcon } from "@/admin/ui/icons";
 import { Note, Panel } from "@/admin/components/Fields";
+import { Media } from "@/components/ui/Media";
 
 /**
  * A list of the same thing, edited: add, reorder, remove.
@@ -181,7 +182,7 @@ export function Repeater<T>({
                         imageFit === "contain" ? "bg-white p-1" : "bg-background"
                       )}
                     >
-                      <img
+                      <Media
                         src={head.image}
                         alt=""
                         className={cn(

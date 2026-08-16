@@ -18,6 +18,7 @@ import { Reveal } from "@/components/ui/Reveal";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Countdown, CountdownLine } from "./Countdown";
 import { PinIcon } from "@/lib/sections/shared/icons";
+import { Media } from "@/components/ui/Media";
 
 /**
  * The season, built the way every motorsport calendar worth copying is built.
@@ -175,10 +176,11 @@ function NextEvent({
     <article className="relative isolate overflow-hidden rounded-card border border-line bg-panel">
       {cover ? (
         <>
-          <img
+          <Media
             src={cover}
             alt=""
             aria-hidden
+            sound
             className="absolute inset-0 -z-10 h-full w-full object-cover"
           />
           {/*
@@ -351,7 +353,7 @@ function EventCard({
           card can carry a big numeral without fighting the date block. */}
       <div className="relative h-28 overflow-hidden bg-surface">
         {cover ? (
-          <img
+          <Media
             src={cover}
             alt=""
             aria-hidden

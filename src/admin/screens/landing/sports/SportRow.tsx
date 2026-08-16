@@ -18,6 +18,7 @@ import { ImageField } from "@/admin/components/ImageField";
 import { folderForSports } from "@/lib/mediaPaths";
 import { useSite } from "@/admin/components/SiteScope";
 import { UploadFolder } from "@/admin/components/UploadFolder";
+import { Media } from "@/components/ui/Media";
 
 /**
  * One sport, as a collapsed strip that opens into a form.
@@ -193,7 +194,7 @@ export function SportRow({
         {/* White backing, as on the site: crests carry their own dark ink. */}
         <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded border border-border bg-white">
           {sport.logo_url ? (
-            <img src={sport.logo_url} alt="" className="h-full w-full object-contain p-1" />
+            <Media src={sport.logo_url} alt="" className="h-full w-full object-contain p-1" />
           ) : (
             <span className="text-xs font-semibold text-black">
               {sport.title.slice(0, 1).toUpperCase() || "?"}

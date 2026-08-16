@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Banner } from "@/lib/banners";
+import { Media } from "@/components/ui/Media";
 
 /**
  * A banner, opened full size — the whole picture, and closer if you want it.
@@ -304,9 +305,10 @@ export function BannerViewer({ banner, onClose }: { banner: Banner; onClose: () 
           zoomed ? (dragging ? "cursor-grabbing" : "cursor-grab") : "cursor-zoom-out"
         }`}
       >
-        <img
+        <Media
           src={banner.image}
           alt={banner.title || "Banner"}
+          sound
           draggable={false}
           decoding="async"
           style={{

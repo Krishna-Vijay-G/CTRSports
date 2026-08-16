@@ -6,6 +6,7 @@ import { listPublishedArticles } from "@/lib/server/articlesRepo";
 import type { Site } from "@/lib/sites";
 import { Reveal } from "@/components/ui/Reveal";
 import { SiteShell } from "../SiteShell";
+import { Media } from "@/components/ui/Media";
 
 /**
  * Everything that has been written, newest arrangement first.
@@ -54,7 +55,7 @@ export async function ArticlesIndex({ site }: { site: Site }) {
                           className="panel-card group flex h-full flex-col overflow-hidden transition-colors hover:border-fg-muted/40"
                         >
                           {article.cover_image ? (
-                            <img
+                            <Media
                               src={article.cover_image}
                               alt=""
                               loading="lazy"
