@@ -159,7 +159,20 @@ BEGIN
                  'look at the Accounts screen afterwards.', stranded;
   END IF;
 
-  IF owners = 0 THEN
+  /*
+   * An owner must survive — IF there was anybody to survive.
+   *
+   * This asks whether the collapse from three roles to two lost the account that
+   * can reach everything, and on a database with accounts that is exactly the
+   * right question. On one created from nothing there are no accounts at all,
+   * which is not a lost owner: it is a deployment where nobody has run
+   * `npm run create-admin` yet, and that script makes an owner.
+   *
+   * `members > 0` is the whole of the distinction. Nought owners beside nought
+   * members is an empty table; nought owners beside somebody is the failure this
+   * was written to catch.
+   */
+  IF owners = 0 AND members > 0 THEN
     RAISE EXCEPTION 'No owner survived. Nothing has been written.';
   END IF;
 END $$;

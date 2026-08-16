@@ -56,6 +56,28 @@ BEGIN
     RETURN;
   END IF;
 
+  /*
+   * A page with nothing on it is not a page this has anything to say about.
+   *
+   * Everything below is about POSITION — "second, between the ticker and the
+   * intro" — and on an empty page there is nothing to be second to. Seating a
+   * card at 2 with no card at 1 leaves a running order that starts at two, which
+   * is what the reconcile at the foot of this file then refuses.
+   *
+   * That case did not exist when this was written: this migration was made to
+   * carry a live page forward, and every database it had ever seen had the
+   * fifteen sections it was written against. A database created from nothing has
+   * none of them, and gets its announcement from scripts/seed-data/incrc.json
+   * along with the rest of the page — seeded in the right place, by the file
+   * that decides every other section's place too.
+   */
+  IF NOT EXISTS (
+    SELECT 1 FROM ctr.page_sections WHERE page_key = 'incrc' AND position IS NOT NULL
+  ) THEN
+    RAISE NOTICE 'incrc : the page has no sections yet; the seed will bring the announcement.';
+    RETURN;
+  END IF;
+
   -- Everything from the intro down moves one place. `page_sections` has no
   -- unique index on (page_key, position) — unlike ctr.banners — so this needs no
   -- ordering dance to avoid colliding with itself mid-update.

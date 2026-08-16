@@ -11,6 +11,7 @@
     "webp": "node scripts/convert-webp.mjs",
     "db:migrate": "node --env-file=.env --env-file-if-exists=.env.local scripts/migrate.mjs",
     "db:status": "node --env-file=.env --env-file-if-exists=.env.local scripts/migrate.mjs --status",
+    "db:reconcile": "node --env-file=.env --env-file-if-exists=.env.local scripts/reconcile-checksums.mjs",
     "db:seed": "node --env-file=.env --env-file-if-exists=.env.local scripts/seed.mjs",
     "db:types": "node --env-file=.env --env-file-if-exists=.env.local scripts/gen-types.mjs",
     "migrate:media": "node --env-file=.env --env-file-if-exists=.env.local scripts/migrate-media-domain.mjs",

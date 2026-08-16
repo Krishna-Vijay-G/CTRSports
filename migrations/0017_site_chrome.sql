@@ -119,10 +119,11 @@ UPDATE ctr.page_sections ps SET "position" = o.n FROM ordered o WHERE o.id = ps.
 
 DO $$
 DECLARE
-  sites   int;
-  chromes int;
-  rows_on int;
-  gaps    int;
+  sites       int;
+  chromes     int;
+  rows_on     int;
+  root_chrome int;
+  gaps        int;
 BEGIN
   SELECT count(*) INTO sites   FROM ctr.sites;
   SELECT count(*) INTO chromes FROM ctr.pages WHERE kind = 'chrome';
@@ -136,18 +137,38 @@ BEGIN
   END IF;
 
   /*
-   * Every site must end up with all six. A site short of one would render a
-   * header with a hole in it — `withFixed` in the application would hand the
-   * console a blank to write into, which is the right behaviour for a section
-   * invented later and the wrong way to discover that this migration dropped
-   * one.
+   * Every site must end up with the SAME chrome the root has.
+   *
+   * Not "with six". Six is what the root happens to carry today, and asserting
+   * the number would turn a seventh chrome section — an ordinary thing to add —
+   * into a migration that fails on a database it already ran against. What is
+   * actually being checked is that the copy reached every site, and the root is
+   * the thing it was copied from.
+   *
+   * `root_chrome = 0` is the fresh-install case and passes: a database created
+   * from nothing has no chrome sections to move and none to copy, so every site
+   * legitimately ends up with an empty chrome page. The application draws
+   * BLANK_CHROME for it and `npm run db:seed` fills it in — see the `chrome`
+   * array in the seed files under scripts/seed-data.
+   *
+   * (No glob in that path on purpose: a Postgres block comment NESTS, so the
+   * `/` and `*` of a wildcard opens a second comment that never closes and
+   * takes the rest of the file with it.)
    */
-  IF EXISTS (
+  SELECT count(*) INTO root_chrome
+    FROM ctr.page_sections ps
+    JOIN ctr.pages p ON p.id = ps.page_id AND p.kind = 'chrome'
+    JOIN ctr.sites s ON s.id = p.site_id AND s.kind = 'root';
+
+  IF root_chrome = 0 THEN
+    RAISE NOTICE 'no chrome sections anywhere — a fresh database. The seed will bring them.';
+  ELSIF EXISTS (
     SELECT 1 FROM ctr.pages p
      WHERE p.kind = 'chrome'
-       AND (SELECT count(*) FROM ctr.page_sections ps WHERE ps.page_id = p.id) <> 6
+       AND (SELECT count(*) FROM ctr.page_sections ps WHERE ps.page_id = p.id) <> root_chrome
   ) THEN
-    RAISE EXCEPTION 'A chrome page did not come out with six sections. Nothing has been written.';
+    RAISE EXCEPTION 'A chrome page did not come out with the % section(s) the root has. '
+                    'Nothing has been written.', root_chrome;
   END IF;
 
   /*
