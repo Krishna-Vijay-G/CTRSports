@@ -1,4 +1,4 @@
-import type { SocialIconName } from "@/lib/landingContent";
+import type { SocialIconName } from "@/lib/sections/socials/model";
 
 /**
  * Hand-drawn so the footer costs no icon library. Anything unrecognised falls

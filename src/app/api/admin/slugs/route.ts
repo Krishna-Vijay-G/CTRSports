@@ -1,14 +1,19 @@
 import { NextResponse } from "next/server";
 import { isArticleId } from "@/lib/articles";
 import { isDeckId } from "@/lib/decks";
+import { isEventId } from "@/lib/events";
 import { isFormId } from "@/lib/forms";
-import { isUsableSlug, type SlugCheck, type SlugHolder, type SlugKind } from "@/lib/slug";
-import { guardAnyPage, guardArticle, guardForms, guardPage } from "@/lib/server/access";
+import { type GrantModule } from "@/lib/roles";
+import { isUsableSlug, type SlugCheck, type SlugKind } from "@/lib/slug";
+import { guardRequestSite } from "@/lib/server/access";
+import type { SiteRef } from "@/lib/sites";
 import * as articles from "@/lib/server/articlesRepo";
 import * as decks from "@/lib/server/decksRepo";
+import * as events from "@/lib/server/eventsRepo";
 import * as forms from "@/lib/server/formsRepo";
 import { revalidateArticlePages } from "@/lib/server/revalidateArticles";
 import { revalidateDeckPages } from "@/lib/server/revalidateDecks";
+import { revalidateEventPages } from "@/lib/server/revalidateEvents";
 import { revalidateFormPages } from "@/lib/server/revalidateForms";
 
 export const runtime = "nodejs";
@@ -25,86 +30,92 @@ export const dynamic = "force-dynamic";
  *
  * It is one route for every kind rather than one each, because the question and
  * the answer are identical and only the table differs. What does NOT collapse
- * is the guard: forms, decks and articles are edited by different roles, so the
- * kind decides which one runs, and a deck editor cannot use this to enumerate the
- * registration forms.
+ * is the guard: the kind decides which module is required, so a deck editor
+ * cannot use this to enumerate the registration forms.
  *
  * Each kind is checked SEPARATELY and never against another. They publish under
  * different prefixes — /register/, /deck/ and /articles/ — so `entry-pack` being
  * both a form and a deck is two different pages, not a collision.
+ *
+ * ── Every question is now about one sport ─────────────────────────────────
+ *
+ * `?site=<slug>` is required on both methods. An address is unique within a
+ * site since migration 0014, so "is `opener` free?" has no answer without one —
+ * it is free on pickleball and taken on INCRC, and both are correct.
+ *
+ * That also retires the `guardWrite` hook this route used to carry. It existed
+ * because releasing an ARTICLE's address edited a record whose owner depended
+ * on the page it was on, which `guard` could not know before reading the row.
+ * An article belongs to a site, the site is in the query string, and the guard
+ * knows it before anything is read — so the second guard has nothing left to
+ * ask. `releaseFormerSlug` scopes its own `WHERE` by site as well, so a mistyped
+ * id cannot reach across sports even if this handler were wrong.
  */
 
 type Repo = {
-  findSlugOwner: (slug: string, exceptId?: string) => Promise<SlugHolder | null>;
-  releaseFormerSlug: (slug: string, fromId: string) => Promise<boolean>;
+  /** Which module of the named sport this kind belongs to. */
+  module: GrantModule;
+  findSlugOwner: (
+    siteId: string,
+    slug: string,
+    exceptId?: string
+  ) => Promise<Awaited<ReturnType<typeof decks.findSlugOwner>>>;
+  releaseFormerSlug: (siteId: string, slug: string, fromId: string) => Promise<boolean>;
   isId: (value: unknown) => value is string;
-  guard: () => Promise<NextResponse | null>;
-  /**
-   * A second guard for RELEASING, where the kind alone is not the whole answer.
-   *
-   * Asking whether an address is free is a read, and every account that can reach
-   * this route can already see the screen the answer is for. Releasing one is a
-   * write to somebody else's record, and for an article "somebody else's" depends
-   * on which page that article is on — a question `guard` cannot ask, because it
-   * runs before any id has been read. So the kinds where the answer varies per
-   * record supply this, and POST runs it after it knows `fromId`.
-   */
-  guardWrite?: (fromId: string) => Promise<NextResponse | null>;
-  revalidate: (slug: string) => void;
+  revalidate: (site: SiteRef, slug: string) => void;
 };
 
 const REPOS: Record<SlugKind, Repo> = {
   form: {
+    module: "forms",
     findSlugOwner: forms.findSlugOwner,
     releaseFormerSlug: forms.releaseFormerSlug,
     isId: isFormId,
-    guard: guardForms,
-    // The forms revalidator takes no paths — a form's own page is rendered on
+    // The forms revalidator takes no slug — a form's own page is rendered on
     // demand, so only the pages listing them are cached.
-    revalidate: () => revalidateFormPages(),
+    revalidate: (site) => revalidateFormPages(site),
   },
   deck: {
+    module: "decks",
     findSlugOwner: decks.findSlugOwner,
     releaseFormerSlug: decks.releaseFormerSlug,
     isId: isDeckId,
-    guard: () => guardPage("decks"),
     // The released address stops redirecting, so a cached page sitting under it
     // would keep serving the old deck to anyone on the old link.
-    revalidate: (slug) => revalidateDeckPages([slug]),
+    revalidate: (site, slug) => revalidateDeckPages(site, [slug]),
   },
   article: {
+    module: "articles",
     findSlugOwner: articles.findSlugOwner,
     releaseFormerSlug: articles.releaseFormerSlug,
     isId: isArticleId,
-    // Any page editor may ASK. They all share one screen, and the answer is only
-    // ever "free" or the name of whatever holds it — which is the sentence under
-    // the box on that same screen.
-    guard: guardAnyPage,
-    // Releasing is different: it edits the article that holds the address, and
-    // whether this account may do that depends on the page that article is on.
-    guardWrite: async (fromId) => {
-      const article = await articles.getArticle(fromId);
-      // Nothing to release from. The refusal below says so more usefully than a
-      // 403 would, so this lets it through to be answered there.
-      if (!article) return null;
-      return guardArticle(article.page);
-    },
-    revalidate: (slug) => revalidateArticlePages([slug]),
+    revalidate: (site, slug) => revalidateArticlePages(site, [slug]),
+  },
+  event: {
+    module: "events",
+    findSlugOwner: events.findSlugOwner,
+    releaseFormerSlug: events.releaseFormerSlug,
+    isId: isEventId,
+    // Takes no slug: the events revalidator clears the detail route by its
+    // PATTERN, which covers the address just released along with every other.
+    revalidate: (site) => revalidateEventPages(site),
   },
 };
 
 function repoFor(value: unknown): Repo | null {
-  return value === "form" || value === "deck" || value === "article" ? REPOS[value] : null;
+  return value === "form" || value === "deck" || value === "article" || value === "event"
+    ? REPOS[value]
+    : null;
 }
 
-/** `?kind=form&slug=2026-entry&exceptId=<uuid>` — is this address free? */
+/** `?site=incrc&kind=form&slug=2026-entry&exceptId=<uuid>` — is this address free? */
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const repo = repoFor(url.searchParams.get("kind"));
   if (!repo) return NextResponse.json({ error: "Unknown kind." }, { status: 400 });
 
-  const denied = await repo.guard();
-  if (denied) return denied;
+  const guard = await guardRequestSite(request, repo.module);
+  if (guard.denied) return guard.denied;
 
   const slug = (url.searchParams.get("slug") ?? "").trim().toLowerCase();
 
@@ -120,7 +131,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const holder = await repo.findSlugOwner(slug, exceptId);
+    const holder = await repo.findSlugOwner(guard.site.id, slug, exceptId);
     return NextResponse.json(
       (holder ? { status: "taken", holder } : { status: "free" }) satisfies SlugCheck
     );
@@ -133,10 +144,11 @@ export async function GET(request: Request) {
 /**
  * Hands a FORMER address back, so something else may take it.
  *
- * `{ kind, slug, fromId }`. The row named by `fromId` stops answering to it, and
- * whoever asked is then free to save it as their own — a second step, on
- * purpose, because a save that quietly rewrote another record's redirects on the
- * way past would be the same silent theft this whole change exists to stop.
+ * `?site=<slug>` plus `{ kind, slug, fromId }`. The row named by `fromId` stops
+ * answering to it, and whoever asked is then free to save it as their own — a
+ * second step, on purpose, because a save that quietly rewrote another record's
+ * redirects on the way past would be the same silent theft this whole change
+ * exists to stop.
  *
  * A CURRENT address cannot be released. The repo enforces that in its `WHERE`
  * rather than trusting this handler to have checked, and the check here is only
@@ -159,24 +171,16 @@ export async function POST(request: Request) {
   const repo = repoFor(kind);
   if (!repo) return NextResponse.json({ error: "Unknown kind." }, { status: 400 });
 
-  const denied = await repo.guard();
-  if (denied) return denied;
+  const guard = await guardRequestSite(request, repo.module);
+  if (guard.denied) return guard.denied;
 
   const address = typeof slug === "string" ? slug.trim().toLowerCase() : "";
   if (!isUsableSlug(address) || !repo.isId(fromId)) {
     return NextResponse.json({ error: "Expected an address and an id." }, { status: 400 });
   }
 
-  // The per-record half of the guard, for the kinds that have one. See the note
-  // on `guardWrite` — this is the first point at which `fromId` is known to be an
-  // id at all, which is why it runs here and not beside `repo.guard()`.
-  if (repo.guardWrite) {
-    const refused = await repo.guardWrite(fromId);
-    if (refused) return refused;
-  }
-
   try {
-    const holder = await repo.findSlugOwner(address);
+    const holder = await repo.findSlugOwner(guard.site.id, address);
 
     if (holder?.held === "current") {
       return NextResponse.json(
@@ -185,14 +189,14 @@ export async function POST(request: Request) {
       );
     }
 
-    const released = await repo.releaseFormerSlug(address, fromId);
+    const released = await repo.releaseFormerSlug(guard.site.id, address, fromId);
     if (!released) {
       // Somebody else got there first, or it was already retired. Either way the
       // address is free, which is what the caller wanted.
       return NextResponse.json({ ok: true, released: false });
     }
 
-    repo.revalidate(address);
+    repo.revalidate(guard.site, address);
     return NextResponse.json({ ok: true, released: true });
   } catch (error) {
     console.error("[admin/slugs] POST", error);

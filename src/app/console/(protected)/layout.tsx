@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/server/auth";
+import { listSites } from "@/lib/server/sitesRepo";
 import { AdminShell } from "@/admin/components/AdminShell";
 
 export const metadata: Metadata = {
@@ -9,17 +10,15 @@ export const metadata: Metadata = {
 };
 
 /**
- * Gates every /admin screen except the login page, which sits outside this
- * route group precisely so it is reachable while signed out.
+ * Signed in, and nothing more.
  *
- * Signed in is the whole of what this asks. WHICH screens an account may open
- * is asked by each screen for itself, with `requirePage` and its siblings in
- * src/lib/server/access.ts — a layout cannot know which page is below it, and a
- * layout that tried would be a second place for the answer to live.
+ * Which SCREEN is each screen's own problem — see the note on `requireSite` in
+ * src/lib/server/access.ts. What this adds is the two things the navigation
+ * cannot be drawn without: the account's grants, and the sports that exist.
  *
- * What it does do is hand the role down to the navigation, so the sidebar lists
- * the screens this account can actually open. That is a courtesy, not the
- * enforcement: the screens and the routes refuse on their own.
+ * The sites are read here rather than in every screen because `listSites` is
+ * wrapped in React `cache()`, so the layout and the page below it share one
+ * query — and the navigation needs all of them regardless of which one is open.
  */
 export default async function ProtectedAdminLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession();
@@ -29,8 +28,15 @@ export default async function ProtectedAdminLayout({ children }: { children: Rea
     redirect("/login");
   }
 
+  const sites = await listSites();
+
   return (
-    <AdminShell username={session.username} role={session.role} pages={session.pages}>
+    <AdminShell
+      username={session.username}
+      role={session.role}
+      grants={session.grants}
+      sites={sites}
+    >
       {children}
     </AdminShell>
   );

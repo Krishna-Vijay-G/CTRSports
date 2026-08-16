@@ -9,7 +9,6 @@ import {
   slugify,
   type Form,
 } from "@/lib/forms";
-import { FORM_PAGE_KEYS, PAGE_LABELS } from "@/lib/roles";
 import type { SlugHolder } from "@/lib/slug";
 import { Button } from "@/admin/ui/Button";
 import { Input, Label, Select } from "@/admin/ui/Input";
@@ -139,24 +138,16 @@ export function FormBuilder({
           </Hint>
 
           <Row>
-            <div className="block">
-              <Label>On which page</Label>
-              <Select
-                value={form.page_key}
-                onChange={(event) => set({ page_key: event.target.value as Form["page_key"] })}
-                className="mt-1.5 w-full"
-              >
-                <option value="">— no page —</option>
-                {FORM_PAGE_KEYS.map((page) => (
-                  <option key={page} value={page}>
-                    {PAGE_LABELS[page]}
-                  </option>
-                ))}
-              </Select>
-              <Hint className="mt-1">
-                Who can link to it. A form with no page is still live at its own address.
-              </Hint>
-            </div>
+            {/*
+              The "On which page" select is gone.
+
+              A form belonged to `landing`, `incrc` or nothing, and that choice
+              decided who could link to it. It belongs to a SPORT now, set when
+              it is created from that sport's screen and never moved — so there
+              is nothing here to choose, and offering the choice would be
+              offering to move a form between sports, which is not a thing the
+              slug table or the media folders would survive.
+            */}
 
             <div className="block">
               <Label>Status</Label>
@@ -357,7 +348,6 @@ function ReadOnly({ form }: { form: Form }) {
           </p>
           <p className="text-xs text-muted-fg">
             {STATUS_LABELS[form.status]}
-            {form.page_key ? ` · ${PAGE_LABELS[form.page_key]}` : " · not on a page"}
           </p>
         </div>
       </Panel>

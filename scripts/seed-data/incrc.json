@@ -2,7 +2,7 @@
   "page_key": "incrc",
   "sections": [
     {
-      "section_id": "meta",
+      "type": "meta",
       "position": null,
       "visible": true,
       "data": {
@@ -15,7 +15,7 @@
       }
     },
     {
-      "section_id": "marquee",
+      "type": "marquee",
       "position": 1,
       "visible": true,
       "data": {
@@ -30,7 +30,7 @@
       }
     },
     {
-      "section_id": "announcement",
+      "type": "announcement",
       "position": 2,
       "visible": true,
       "data": {
@@ -39,7 +39,7 @@
       }
     },
     {
-      "section_id": "intro",
+      "type": "intro",
       "position": 3,
       "visible": true,
       "data": {
@@ -52,7 +52,7 @@
       }
     },
     {
-      "section_id": "stats",
+      "type": "stats",
       "position": 4,
       "visible": true,
       "data": {
@@ -77,7 +77,7 @@
       }
     },
     {
-      "section_id": "vision",
+      "type": "vision",
       "position": 5,
       "visible": true,
       "data": {
@@ -108,7 +108,7 @@
       }
     },
     {
-      "section_id": "grid",
+      "type": "grid",
       "position": 6,
       "visible": true,
       "data": {
@@ -123,7 +123,7 @@
       }
     },
     {
-      "section_id": "venues",
+      "type": "venues",
       "position": 7,
       "visible": true,
       "data": {
@@ -136,7 +136,7 @@
       }
     },
     {
-      "section_id": "calendar",
+      "type": "calendar",
       "position": 8,
       "visible": true,
       "data": {
@@ -150,7 +150,7 @@
       }
     },
     {
-      "section_id": "partnership",
+      "type": "partnership",
       "position": 9,
       "visible": true,
       "data": {
@@ -175,7 +175,7 @@
       }
     },
     {
-      "section_id": "family",
+      "type": "family",
       "position": 10,
       "visible": true,
       "data": {
@@ -195,7 +195,7 @@
       }
     },
     {
-      "section_id": "rows",
+      "type": "rows",
       "position": 11,
       "visible": true,
       "data": {
@@ -234,7 +234,7 @@
       }
     },
     {
-      "section_id": "posts",
+      "type": "posts",
       "position": 12,
       "visible": true,
       "data": {
@@ -245,7 +245,7 @@
       }
     },
     {
-      "section_id": "register",
+      "type": "register",
       "position": 13,
       "visible": true,
       "data": {
@@ -257,7 +257,7 @@
       }
     },
     {
-      "section_id": "registrations",
+      "type": "registrations",
       "position": 14,
       "visible": true,
       "data": {
@@ -268,7 +268,7 @@
       }
     },
     {
-      "section_id": "decks",
+      "type": "decks",
       "position": 15,
       "visible": true,
       "data": {
@@ -292,6 +292,100 @@
             "blurb": ""
           }
         ]
+      }
+    }
+  ],
+  "chrome": [
+    {
+      "type": "brand",
+      "position": 1,
+      "visible": true,
+      "data": {
+        "name": "CTR Unified",
+        "subtitle": "Sports Collective",
+        "logo": "/images/brand/ctr-logo.webp"
+      }
+    },
+    {
+      "type": "nav",
+      "position": 2,
+      "visible": true,
+      "data": {
+        "links": [
+          {
+            "label": "Home",
+            "href": "/"
+          },
+          {
+            "label": "CTR x JK Tyre  INCRC",
+            "href": "/incrc"
+          },
+          {
+            "label": "FMSCI",
+            "href": "https://www.fmsci.co.in/"
+          }
+        ],
+        "cta": {
+          "label": "Get in Touch",
+          "href": "#footer"
+        }
+      }
+    },
+    {
+      "type": "splash",
+      "position": 3,
+      "visible": true,
+      "data": {
+        "title": "",
+        "logo": ""
+      }
+    },
+    {
+      "type": "contact",
+      "position": 4,
+      "visible": true,
+      "data": {
+        "heading": "Get in touch",
+        "address": "29, Tilak Street,\nT. Nagar, Chennai,\nTamil Nadu 600017",
+        "phone": "9500016999",
+        "email": "admin@ctrsports.in",
+        "formHeading": "Send a message",
+        "formNote": "Tell us what you need."
+      }
+    },
+    {
+      "type": "socials",
+      "position": 5,
+      "visible": true,
+      "data": [
+        {
+          "label": "Instagram",
+          "href": "https://www.instagram.com/incrc_",
+          "icon": "instagram"
+        },
+        {
+          "label": "Facebook",
+          "href": "https://www.facebook.com/chennaiturboriders",
+          "icon": "facebook"
+        },
+        {
+          "label": "Twitter",
+          "href": "https://twitter.com/chennaiturbo",
+          "icon": "twitter"
+        },
+        {
+          "label": "YouTube",
+          "href": "https://www.youtube.com/@IndianNationalCarRacingChampio",
+          "icon": "youtube"
+        }
+      ]
+    },
+    {
+      "type": "footer",
+      "position": 6,
+      "visible": true,
+      "data": {
+        "blurb": "Athletes, teams and sporting communities under one organisation — from cricket and volleyball to national motorsport."
       }
     }
   ],
@@ -360,56 +454,6 @@
       "subtitle": "",
       "cta_label": "",
       "cta_href": "#"
-    }
-  ],
-  "rounds": [
-    {
-      "position": 1,
-      "round": "01",
-      "venue": "Kari Motor Speedway",
-      "city": "Coimbatore",
-      "date_from": "2026-09-11",
-      "date_to": "2026-09-13",
-      "dates": "",
-      "status": "Entries open",
-      "track_slug": "kari-motor-speedway",
-      "track_id": ""
-    },
-    {
-      "position": 2,
-      "round": "02",
-      "venue": "Kari Motor Speedway",
-      "city": "Coimbatore",
-      "date_from": "2026-10-23",
-      "date_to": "2026-10-25",
-      "dates": "",
-      "status": "Entries open",
-      "track_slug": "kari-motor-speedway",
-      "track_id": ""
-    },
-    {
-      "position": 3,
-      "round": "03",
-      "venue": "Bren Raceway",
-      "city": "Bengaluru",
-      "date_from": "2026-11-13",
-      "date_to": "2026-11-15",
-      "dates": "",
-      "status": "Entries open",
-      "track_slug": "bren-raceway",
-      "track_id": ""
-    },
-    {
-      "position": 4,
-      "round": "04",
-      "venue": "Madras International Circuit",
-      "city": "Chennai",
-      "date_from": "2026-12-11",
-      "date_to": "2026-12-13",
-      "dates": "",
-      "status": "Season finale",
-      "track_slug": "madras-international-circuit",
-      "track_id": ""
     }
   ],
   "posts": [

@@ -2,10 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { SLUG_MAX, isUsableSlug, type SlugCheck, type SlugHolder, type SlugKind } from "@/lib/slug";
+import { siteHref } from "@/lib/sites";
 import { cn } from "@/lib/utils";
 import { Button } from "@/admin/ui/Button";
 import { Label } from "@/admin/ui/Input";
 import { Hint } from "@/admin/components/Fields";
+import { useSite, withSite } from "@/admin/components/SiteScope";
 
 /**
  * The address box, for the two things that have one.
@@ -33,18 +35,33 @@ import { Hint } from "@/admin/components/Fields";
  * another record's redirects on the way past.
  */
 
-const PREFIX: Record<SlugKind, string> = {
-  form: "/register/",
-  deck: "/deck/",
-  article: "/articles/",
+/**
+ * The route each kind publishes under. The SPORT in front of it comes from the
+ * surrounding scope — an address is `/incrc/deck/<slug>`, and this component is
+ * used on every sport's screens.
+ */
+const ROUTE: Record<SlugKind, string> = {
+  form: "register",
+  deck: "deck",
+  article: "articles",
+  // `calendar`, not `events`: the public word for the season is the calendar,
+  // which is what the reserved-slug list in 0012 already holds. `events` is the
+  // admin screen, where the noun is the record.
+  event: "calendar",
 };
-const THING: Record<SlugKind, string> = { form: "form", deck: "deck", article: "article" };
+const THING: Record<SlugKind, string> = {
+  form: "form",
+  deck: "deck",
+  article: "article",
+  event: "event",
+};
 
 /** What an address of this kind tends to look like, when nothing suggests one. */
 const PLACEHOLDER: Record<SlugKind, string> = {
   form: "2026-entry",
   deck: "entry-pack",
   article: "season-opener",
+  event: "round-01",
 };
 
 /** Long enough that typing an address is one request, not fifteen. */
@@ -90,6 +107,11 @@ export function SlugField({
   autoFocus?: boolean;
   label?: string;
 }) {
+  // The sport this screen belongs to. Every write below names it, so the
+  // server guards the right one — see SiteScope.
+  const site = useSite();
+  /* Where this record publishes: `/incrc/deck/`, `/articles/` on the root. */
+  const prefix = `${siteHref(site)}/${ROUTE[kind]}/`;
   const [state, setState] = useState<SlugState>({ kind: "empty" });
   const [busy, setBusy] = useState(false);
 
@@ -131,7 +153,7 @@ export function SlugField({
         const query = new URLSearchParams({ kind, slug });
         if (exceptId) query.set("exceptId", exceptId);
 
-        const response = await fetch(`/api/admin/slugs?${query}`, { signal: stop.signal });
+        const response = await fetch(withSite(`/api/admin/slugs?${query}`, site), { signal: stop.signal });
         const data = (await response.json()) as SlugCheck & { error?: string };
 
         if (!response.ok) {
@@ -165,7 +187,7 @@ export function SlugField({
     setBusy(true);
 
     try {
-      const response = await fetch("/api/admin/slugs", {
+      const response = await fetch(withSite("/api/admin/slugs", site), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ kind, slug, fromId: holder.id }),
@@ -200,7 +222,7 @@ export function SlugField({
           bad ? "border-destructive/60" : "border-input focus-within:border-ring"
         )}
       >
-        <span className="shrink-0 ps-2.5 text-sm text-muted-fg">{PREFIX[kind]}</span>
+        <span className="shrink-0 ps-2.5 text-sm text-muted-fg">{prefix}</span>
         <input
           value={value}
           onChange={(event) => onChange(event.target.value.toLowerCase())}
@@ -226,6 +248,7 @@ export function SlugField({
 
       <Message
         kind={kind}
+        prefix={prefix}
         slug={slug}
         state={state}
         busy={busy}
@@ -239,6 +262,7 @@ export function SlugField({
 /** The one line under the box. Every state says something; none of them lies. */
 function Message({
   kind,
+  prefix,
   slug,
   state,
   busy,
@@ -246,6 +270,8 @@ function Message({
   onTakeOver,
 }: {
   kind: SlugKind;
+  /** The address this field publishes at, up to and including the last slash. */
+  prefix: string;
   slug: string;
   state: SlugState;
   busy: boolean;
@@ -282,7 +308,7 @@ function Message({
       <Hint className="mt-1">
         Free. This {THING[kind]} will live at{" "}
         <span className="text-foreground">
-          {PREFIX[kind]}
+          {prefix}
           {slug}
         </span>
         .
@@ -298,7 +324,7 @@ function Message({
   if (holder.held === "current") {
     return (
       <Warning>
-        {PREFIX[kind]}
+        {prefix}
         {slug} is where <span className="font-medium">{name}</span> lives. Give that{" "}
         {THING[kind]} a different address first, or choose another one here.
       </Warning>
@@ -308,7 +334,7 @@ function Message({
   return (
     <div className="mt-1 space-y-1.5 rounded-md border border-destructive/30 bg-destructive/10 p-2.5">
       <p className="text-[11px] leading-relaxed text-destructive">
-        {PREFIX[kind]}
+        {prefix}
         {slug} is an old address of <span className="font-medium">{name}</span> and still
         redirects there. Taking it stops that redirect — anyone on the old link lands here
         instead.

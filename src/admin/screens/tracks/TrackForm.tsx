@@ -13,7 +13,7 @@ import { TrashIcon } from "@/admin/ui/icons";
 import { Field, Hint, Panel, Row } from "@/admin/components/Fields";
 import { Repeater } from "@/admin/components/Repeater";
 import { ImageField } from "@/admin/components/ImageField";
-import { TrackOutline } from "@/app/(site)/circuits/_components/CircuitMap";
+import { TrackOutline } from "@/app/(site)/_shell/circuits/CircuitMap";
 
 /**
  * Everything about one circuit, in the order the public page reads it.

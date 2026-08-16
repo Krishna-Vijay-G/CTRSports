@@ -4,6 +4,7 @@ import { articleHref, slugFromArticleHref, type ArticleSummary } from "@/lib/art
 import { deckHref, slugFromDeckHref, type DeckSummary } from "@/lib/decks";
 import { Input, Label, Select } from "@/admin/ui/Input";
 import { Hint } from "@/admin/components/Fields";
+import { useSite } from "@/admin/components/SiteScope";
 
 /**
  * Points something at an article, a deck, or anywhere else.
@@ -45,8 +46,18 @@ export function LinkPicker({
   decks: DeckSummary[];
   hint?: string;
 }) {
-  const articleSlug = slugFromArticleHref(value);
-  const deckSlug = slugFromDeckHref(value);
+  /*
+   * The sport this screen belongs to, from the surrounding scope.
+   *
+   * An address is `/incrc/deck/<slug>` now, so building one and reading one back
+   * both need to know which sport. It is a context rather than a prop because
+   * this component sits several levels below the editor that has the site — the
+   * same argument SiteScope itself makes.
+   */
+  const site = useSite();
+
+  const articleSlug = slugFromArticleHref(site, value);
+  const deckSlug = slugFromDeckHref(site, value);
 
   const article = articleSlug ? articles.find((entry) => entry.slug === articleSlug) : undefined;
   const deck = deckSlug ? decks.find((entry) => entry.slug === deckSlug) : undefined;
@@ -64,7 +75,15 @@ export function LinkPicker({
       <Label>{label}</Label>
 
       <Select
-        value={article ? articleHref(article) : deck ? deckHref(deck) : missing ? "__missing" : "__url"}
+        value={
+          article
+            ? articleHref(site, article)
+            : deck
+              ? deckHref(site, deck)
+              : missing
+                ? "__missing"
+                : "__url"
+        }
         onChange={(event) => {
           const picked = event.target.value;
           // Both escape hatches empty the field rather than keeping the last
@@ -82,7 +101,7 @@ export function LinkPicker({
         {articles.length > 0 ? (
           <optgroup label="Articles">
             {articles.map((entry) => (
-              <option key={entry.id} value={articleHref(entry)}>
+              <option key={entry.id} value={articleHref(site, entry)}>
                 {entry.title || entry.slug}
               </option>
             ))}
@@ -92,7 +111,7 @@ export function LinkPicker({
         {decks.length > 0 ? (
           <optgroup label="Decks">
             {decks.map((entry) => (
-              <option key={entry.slug} value={deckHref(entry)}>
+              <option key={entry.slug} value={deckHref(site, entry)}>
                 {entry.name || entry.slug} · {entry.pages} {entry.pages === 1 ? "page" : "pages"}
               </option>
             ))}
@@ -119,12 +138,12 @@ export function LinkPicker({
           </span>
         ) : article ? (
           <>
-            Opens <span className="text-foreground">{articleHref(article)}</span>. The card takes
+            Opens <span className="text-foreground">{articleHref(site, article)}</span>. The card takes
             its picture, its wording and its date from this article unless you fill them in below.
           </>
         ) : deck ? (
           <>
-            Opens <span className="text-foreground">{deckHref(deck)}</span>
+            Opens <span className="text-foreground">{deckHref(site, deck)}</span>
             {deck.pages === 0 ? " — which has no pages in it yet." : "."} A deck carries no date,
             so type one below if the card should show one.
           </>

@@ -1,134 +1,290 @@
 /**
  * Who may edit what.
  *
- * The admin used to be one thing: signed in meant every screen. That works
- * while one person edits the whole site, and stops working the moment the
- * person who owns entry forms is not the person who owns the page a form is
- * linked from — because there is no way to hand someone the forms without also
- * handing them the copy, the photographs and the calendar.
+ * The admin used to be one thing: signed in meant every screen. Then it became
+ * three roles divided by the THING being edited — `pages` plus a list of page
+ * keys, or `registrations`, or `owner` — which was the right axis for a site
+ * with one sport, because "the page" and "the sport" were the same thing.
  *
- * So: three roles, divided by the THING being edited rather than by a list of
- * verbs. A permission bitfield ("can create", "can delete") answers questions
- * nobody asks; "which screens is this account for" is the question actually
- * being asked when an account is made.
+ * With more than one sport that axis is short by a dimension. "May edit decks"
+ * has to mean "may edit INCRC's decks", not everybody's, or the first
+ * pickleball admin can rewrite the championship. So a scope is now a pair:
  *
- *   owner          everything, including who the other accounts are
- *   pages          only the page editors listed on the account
- *   registrations  only the forms screen and the entries under it
+ *     (site, module)
  *
- * A `pages` admin can SEE the forms for their own pages, read-only, and that is
- * deliberate: they have to be able to point a button at one. What they cannot
- * do is build one, change one, or read who has entered.
+ * and the role collapses to the only distinction genuinely about the ACCOUNT
+ * rather than about a site:
  *
- * The predicates below are the only place a role is interpreted. Everything
- * else — the navigation, the console pages, every route guard — asks one of
- * them, so there is one answer to "may they?" rather than one per call site.
+ *   owner    the super admin. Creates sites, creates sport admins, sees all.
+ *   member   reaches exactly what their grants say, and nothing else.
+ *
+ * ── The three shapes a member has ─────────────────────────────────────────
+ *
+ *   sport admin   one grant: (site, "*"). Everything on that site, including
+ *                 handing pieces of it to co-admins — but only on that site,
+ *                 and never another "*".
+ *   co-admin      one grant per module: (site, "articles"), (site, "decks")…
+ *   nothing       no grants. Signs in, reaches no screen. Carried faithfully
+ *                 from the old data, where an account could already be scoped
+ *                 to nothing at all.
+ *
+ * ── What is deliberately NOT a module ─────────────────────────────────────
+ *
+ * `media`. A folder belongs to a site, so "may they open incrc/decks/?" is
+ * already answered by "have they any grant on incrc?". A separate grant would
+ * be a second source of truth for a question the first one answers, and the two
+ * would drift — which is exactly the failure `PAGE_KEYS` doubling as the folder
+ * list was introduced to avoid.
+ *
+ * The predicates below are the only place a role or a grant is interpreted.
+ * Everything else — the navigation, the console screens, every route guard —
+ * asks one of them, so there is one answer to "may they?" rather than one per
+ * call site.
  *
  * Shared by the server and the browser, so nothing here may import
  * `server-only`: the navigation is a client component and asks these too.
  */
 
 import { oneOf } from "@/lib/normalise";
+import { SITE_MODULES, type SiteModule } from "@/lib/sites";
 
-export const ADMIN_ROLES = ["owner", "pages", "registrations"] as const;
+export const ADMIN_ROLES = ["owner", "member"] as const;
 export type AdminRole = (typeof ADMIN_ROLES)[number];
 
 export const ROLE_LABELS: Record<AdminRole, string> = {
   owner: "Owner",
-  pages: "Page editor",
-  registrations: "Registrations",
+  member: "Team member",
 };
 
 export const ROLE_HINTS: Record<AdminRole, string> = {
-  owner: "Every screen, and the accounts.",
-  pages: "Only the pages ticked below. Can point a button at a form, but not edit one.",
-  registrations: "Only the entry forms and the entries. No page copy.",
+  owner: "Every sport, every screen, and the accounts.",
+  member: "Only the sports and screens granted below.",
 };
 
 /**
- * Every screen a `pages` admin can be given.
+ * Everything an account can be granted on one site.
  *
- * One entry per page editor in the admin. Adding a screen means adding a key
- * here, a line in the navigation, and a guard on its route — and until it is
- * here, nobody can be scoped to it.
+ * `SITE_MODULES` are the features a site may or may not have. These three are
+ * on every site by construction, so they are here and not there:
+ *
+ *   page     the home page's sections
+ *   chrome   the header and footer
+ *   team     the co-admins for this site — grantable on its own, so somebody
+ *            can run the roster without being able to edit the copy
+ *
+ * `*` is not a module, it is "all of the above and any added later". A sport
+ * admin holds one and does not have to be re-granted when a feature is
+ * switched on.
  */
-export const PAGE_KEYS = ["landing", "incrc", "circuits", "decks"] as const;
-export type PageKey = (typeof PAGE_KEYS)[number];
+export const GRANT_MODULES = ["*", "page", "chrome", "team", ...SITE_MODULES] as const;
+export type GrantModule = (typeof GRANT_MODULES)[number];
 
-export const PAGE_LABELS: Record<PageKey, string> = {
-  landing: "Landing page",
-  incrc: "INCRC",
-  circuits: "Circuits",
+export const GRANT_LABELS: Record<GrantModule, string> = {
+  "*": "Everything on this sport",
+  page: "The page",
+  chrome: "Header and footer",
+  team: "Co-admins",
   decks: "Decks",
+  forms: "Registrations",
+  articles: "Articles",
+  events: "Calendar",
+  circuits: "Circuits",
 };
 
 /**
- * The pages a FORM can belong to.
+ * One grant.
  *
- * Circuits is not one. A circuit page is a record of a place — there is nothing
- * on it anyone registers for, and a form assigned there would have nowhere to
- * be shown. Nor is a deck, which is a run of images with nothing on it at all.
+ * Carries the site's SLUG as well as its id, because two different questions
+ * are asked of it and they want different keys: a route guard has a site id
+ * from the database, and the media library has a folder name, which is a slug.
+ * Looking the second one up would mean a query inside a predicate that the
+ * browser also calls.
  */
-export const FORM_PAGE_KEYS = ["landing", "incrc"] as const;
-export type FormPageKey = (typeof FORM_PAGE_KEYS)[number];
+export type Grant = {
+  siteId: string;
+  siteSlug: string;
+  module: GrantModule;
+};
 
 /** Everything the predicates need. `AdminSession` satisfies it. */
-export type Scoped = { role: AdminRole; pages: PageKey[] };
+export type Scoped = { role: AdminRole; grants: Grant[] };
 
-export function canEditPage(session: Scoped | null | undefined, page: PageKey): boolean {
+/* ─────────────────────────────── The tests ──────────────────────────────── */
+
+const grantsOn = (session: Scoped | null | undefined, match: (grant: Grant) => boolean): Grant[] =>
+  session?.grants.filter(match) ?? [];
+
+/** An owner passes everything; a member needs the module or a `*` on that site. */
+function holds(
+  session: Scoped | null | undefined,
+  match: (grant: Grant) => boolean,
+  module: GrantModule
+): boolean {
   if (!session) return false;
-  return session.role === "owner" || (session.role === "pages" && session.pages.includes(page));
+  if (session.role === "owner") return true;
+  return session.grants.some(
+    (grant) => match(grant) && (grant.module === "*" || grant.module === module)
+  );
 }
 
-/** Whether any page editor at all is open to them — what the uploads need. */
-export function canEditAnyPage(session: Scoped | null | undefined): boolean {
-  if (!session) return false;
-  return session.role === "owner" || (session.role === "pages" && session.pages.length > 0);
+/** May this account edit one module of one site? The question every guard asks. */
+export function canEdit(
+  session: Scoped | null | undefined,
+  siteId: string,
+  module: GrantModule
+): boolean {
+  return holds(session, (grant) => grant.siteId === siteId, module);
 }
 
-/** Build, edit, publish, and read the entries. */
-export function canManageForms(session: Scoped | null | undefined): boolean {
-  return session?.role === "owner" || session?.role === "registrations";
+/** The same, addressed by slug — what the media folder predicates have. */
+export function canEditSlug(
+  session: Scoped | null | undefined,
+  siteSlug: string,
+  module: GrantModule
+): boolean {
+  return holds(session, (grant) => grant.siteSlug === siteSlug, module);
+}
+
+/** Any reach at all into one site. What "may they see this sport?" means. */
+export function canSeeSite(session: Scoped | null | undefined, siteId: string): boolean {
+  if (!session) return false;
+  if (session.role === "owner") return true;
+  return session.grants.some((grant) => grant.siteId === siteId);
+}
+
+/** The same, by slug. The outer door to a site's media folder. */
+export function canSeeSiteSlug(session: Scoped | null | undefined, siteSlug: string): boolean {
+  if (!session) return false;
+  if (session.role === "owner") return true;
+  return session.grants.some((grant) => grant.siteSlug === siteSlug);
+}
+
+/** Any reach at all, into anything. The outer door to the console. */
+export function canSeeAnySite(session: Scoped | null | undefined): boolean {
+  if (!session) return false;
+  return session.role === "owner" || session.grants.length > 0;
 }
 
 /**
- * The same, plus a page admin — who needs the LIST to point a button at one.
+ * A sport admin: `*` on this site.
  *
- * "Any page" is not the test, because not every page can carry a form:
- * `FORM_PAGE_KEYS` leaves out the circuits, which are a record rather than
- * somewhere an entry is asked for. An admin scoped only to those was given a
- * Registrations screen whose entire content was a sentence explaining it had
- * nothing for them. A screen that exists only to say that should not exist.
+ * Distinct from `canEdit(session, site, "team")` because the two answer
+ * different questions. A `team` grant lets somebody manage the roster; `*`
+ * makes them the person the site belongs to, and only that person may grant
+ * `team` in the first place.
  */
-export function canSeeForms(session: Scoped | null | undefined): boolean {
-  return canManageForms(session) || visibleFormPages(session).length > 0;
+export function isSportAdmin(session: Scoped | null | undefined, siteId: string): boolean {
+  if (!session) return false;
+  if (session.role === "owner") return true;
+  return session.grants.some((grant) => grant.siteId === siteId && grant.module === "*");
+}
+
+/** May they change who else works on this site? */
+export function canManageTeam(session: Scoped | null | undefined, siteId: string): boolean {
+  return canEdit(session, siteId, "team");
 }
 
 /**
- * Which pages' forms this account may see.
+ * Which modules may this account grant to somebody else on this site?
  *
- * An owner or a registrations admin sees every form, including the ones on no
- * page at all. A page admin sees only the forms for the pages they edit, which
- * is what keeps one page's picker from listing another page's entry form.
+ * Never `*`, and never on a site they do not run. A sport admin can hand out
+ * every piece of their own sport and cannot clone themselves — the only account
+ * that can create another sport admin is the owner, which is what keeps "who
+ * owns this sport" answerable.
  */
-export function visibleFormPages(session: Scoped | null | undefined): FormPageKey[] {
+export function grantableModules(
+  session: Scoped | null | undefined,
+  siteId: string
+): GrantModule[] {
+  if (!canManageTeam(session, siteId)) return [];
+  return GRANT_MODULES.filter((module) => module !== "*");
+}
+
+/** The site ids this account can reach. An owner's answer is "all", so: null. */
+export function siteIdsFor(session: Scoped | null | undefined): string[] | null {
   if (!session) return [];
-  if (canManageForms(session)) return [...FORM_PAGE_KEYS];
-  return FORM_PAGE_KEYS.filter((page) => session.pages.includes(page));
+  if (session.role === "owner") return null;
+  return [...new Set(session.grants.map((grant) => grant.siteId))];
+}
+
+/** The site slugs this account can reach, for the media library's root list. */
+export function siteSlugsFor(session: Scoped | null | undefined): string[] {
+  if (!session) return [];
+  return [...new Set(grantsOn(session, () => true).map((grant) => grant.siteSlug))].sort();
+}
+
+/** Which of a site's modules this account may actually open. Drives the nav. */
+export function modulesFor(
+  session: Scoped | null | undefined,
+  siteId: string,
+  available: readonly GrantModule[] = GRANT_MODULES
+): GrantModule[] {
+  return available.filter((module) => module !== "*" && canEdit(session, siteId, module));
 }
 
 export function canManageAdmins(session: Scoped | null | undefined): boolean {
   return session?.role === "owner";
 }
 
-/** An unknown or missing role reads as the least privileged one, never the most. */
-export function normaliseRole(value: unknown): AdminRole {
-  return oneOf(value, ADMIN_ROLES, "pages");
+/** Creating and deleting sports is the owner's, and only the owner's. */
+export function canManageSites(session: Scoped | null | undefined): boolean {
+  return session?.role === "owner";
 }
 
-/** Unknown keys dropped, duplicates collapsed, always in PAGE_KEYS order. */
-export function normalisePageKeys(value: unknown): PageKey[] {
+/* ───────────────────────────── Normalising ──────────────────────────────── */
+
+/** An unknown or missing role reads as the least privileged one, never the most. */
+export function normaliseRole(value: unknown): AdminRole {
+  return oneOf(value, ADMIN_ROLES, "member");
+}
+
+export function normaliseGrantModule(value: unknown): GrantModule | null {
+  return typeof value === "string" && (GRANT_MODULES as readonly string[]).includes(value)
+    ? (value as GrantModule)
+    : null;
+}
+
+/**
+ * Grants as stored, made safe to interpret.
+ *
+ * Unknown modules are dropped rather than carried — a retired module stops
+ * being an access grant the moment it stops being a module, with no migration.
+ * A row missing either identifier is dropped whole: a grant that does not name
+ * its site is not a narrower grant, it is an unanswerable one.
+ */
+export function normaliseGrants(value: unknown): Grant[] {
+  if (!Array.isArray(value)) return [];
+
+  const out: Grant[] = [];
+  const seen = new Set<string>();
+
+  for (const entry of value) {
+    if (!entry || typeof entry !== "object") continue;
+    const row = entry as Record<string, unknown>;
+
+    const siteId = typeof row.siteId === "string" ? row.siteId : "";
+    const siteSlug = typeof row.siteSlug === "string" ? row.siteSlug : "";
+    const module = normaliseGrantModule(row.module);
+    if (!siteId || !siteSlug || !module) continue;
+
+    const key = `${siteId}:${module}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    out.push({ siteId, siteSlug, module });
+  }
+
+  return out;
+}
+
+/** A module list from a form, in a fixed order and with the unknown dropped. */
+export function normaliseGrantModules(value: unknown): GrantModule[] {
   if (!Array.isArray(value)) return [];
   const wanted = new Set(value.filter((entry): entry is string => typeof entry === "string"));
-  return PAGE_KEYS.filter((page) => wanted.has(page));
+  return GRANT_MODULES.filter((module) => wanted.has(module));
+}
+
+/** A grant module that is also a site feature, for filtering against `site.modules`. */
+export function isSiteModule(module: GrantModule): module is SiteModule {
+  return (SITE_MODULES as readonly string[]).includes(module);
 }

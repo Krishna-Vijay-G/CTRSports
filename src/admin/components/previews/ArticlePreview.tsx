@@ -1,14 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { articleIsEmpty, type Article } from "@/lib/articles";
-import type { LandingContent } from "@/lib/landingContent";
+import type { Article } from "@/lib/articles";
+import { richTextIsEmpty } from "@/lib/richtext";
+import type { Chrome } from "@/lib/chrome";
 import { cn } from "@/lib/utils";
 import { PreviewMode } from "@/components/ui/PreviewMode";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SiteHeader } from "@/components/layout/SiteHeader";
-import { ArticleBody } from "@/app/(site)/articles/_components/ArticleBody";
-import { ArticleHeader } from "@/app/(site)/articles/_components/ArticleHeader";
+import { ArticleBody } from "@/app/(site)/_shell/articles/ArticleBody";
+import { ArticleHeader } from "@/app/(site)/_shell/articles/ArticleHeader";
 
 /**
  * The real article page, rendered from the draft, shrunk to fit beside the
@@ -37,7 +38,7 @@ export function ArticlePreview({
 }: {
   /** The draft being edited, or null when no article is open. */
   article: Article | null;
-  chrome: LandingContent;
+  chrome: Chrome;
   year: number;
   className?: string;
 }) {
@@ -65,7 +66,7 @@ export function ArticlePreview({
     paneRef.current?.scrollTo({ top: 0 });
   }, [article?.id]);
 
-  const empty = !article || (articleIsEmpty(article.body) && !article.title && !article.cover_image);
+  const empty = !article || (richTextIsEmpty(article.body) && !article.title && !article.cover_image);
 
   return (
     <div

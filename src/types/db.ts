@@ -14,9 +14,10 @@
  * has `pages`, and no row does.
  */
 
-export type AdminPagesRow = {
+export type AdminGrantsRow = {
   admin_id: string;
-  page_key: string;
+  site_id: string;
+  module: string;
 };
 
 export type AdminsRow = {
@@ -29,7 +30,6 @@ export type AdminsRow = {
 
 export type ArticlesRow = {
   id: string;
-  page_key: string | null;
   title: string;
   subtext: string;
   cover_image: string;
@@ -39,10 +39,10 @@ export type ArticlesRow = {
   sort_order: number;
   created_at: Date;
   updated_at: Date;
+  site_id: string;
 };
 
 export type BannersRow = {
-  page_key: string;
   banner_id: string;
   position: number;
   template: string;
@@ -54,19 +54,7 @@ export type BannersRow = {
   subtitle: string;
   cta_label: string;
   cta_href: string;
-};
-
-export type CalendarRoundsRow = {
-  page_key: string;
-  position: number;
-  round: string;
-  venue: string;
-  city: string;
-  date_from: string | null;
-  date_to: string | null;
-  dates: string;
-  status: string;
-  track_id: string | null;
+  section_id: string;
 };
 
 export type DeckPagesRow = {
@@ -85,6 +73,7 @@ export type DecksRow = {
   sort_order: number;
   created_at: Date;
   updated_at: Date;
+  site_id: string;
 };
 
 export type EnquiriesRow = {
@@ -96,6 +85,28 @@ export type EnquiriesRow = {
   ip: string;
   user_agent: string;
   created_at: Date;
+};
+
+export type EventsRow = {
+  id: string;
+  site_id: string;
+  round: string;
+  title: string;
+  subtitle: string;
+  venue: string;
+  city: string;
+  track_id: string | null;
+  form_id: string | null;
+  date_from: string | null;
+  date_to: string | null;
+  dates: string;
+  badge: string;
+  status: string;
+  cover_image: string;
+  body: unknown;
+  sort_order: number;
+  created_at: Date;
+  updated_at: Date;
 };
 
 export type FormEntriesRow = {
@@ -133,7 +144,6 @@ export type FormNoncesRow = {
 export type FormsRow = {
   id: string;
   name: string;
-  page_key: string;
   status: string;
   blurb: string;
   intro_title: string;
@@ -151,33 +161,37 @@ export type FormsRow = {
   sort_order: number;
   created_at: Date;
   updated_at: Date;
+  site_id: string;
 };
 
 export type PageSectionsRow = {
-  page_key: string;
-  section_id: string;
-  position: number | null;
+  type: string;
+  position: number;
   visible: boolean;
   data: unknown;
   updated_at: Date;
+  page_id: string;
+  id: string;
 };
 
 export type PagesRow = {
-  key: string;
+  id: string;
+  site_id: string;
+  kind: string;
+  slug: string;
   name: string;
   sort_order: number;
 };
 
 export type PartnersRow = {
-  page_key: string;
   position: number;
   name: string;
   logo: string;
   href: string;
+  section_id: string;
 };
 
 export type PostsRow = {
-  page_key: string;
   post_id: string;
   position: number;
   image: string;
@@ -186,6 +200,7 @@ export type PostsRow = {
   title: string;
   excerpt: string;
   href: string;
+  section_id: string;
 };
 
 export type SchemaMigrationsRow = {
@@ -202,12 +217,30 @@ export type SessionsRow = {
   created_at: Date;
 };
 
+export type SiteModulesRow = {
+  site_id: string;
+  module: string;
+};
+
+export type SitesRow = {
+  id: string;
+  slug: string;
+  name: string;
+  kind: string;
+  status: string;
+  accent: string;
+  sort_order: number;
+  created_at: Date;
+  updated_at: Date;
+};
+
 export type SlugsRow = {
   entity_type: string;
   slug: string;
   entity_id: string;
   is_current: boolean;
   created_at: Date;
+  site_id: string;
 };
 
 export type SportsRow = {
@@ -222,6 +255,7 @@ export type SportsRow = {
   is_visible: boolean;
   created_at: Date;
   updated_at: Date;
+  site_id: string | null;
 };
 
 export type TrackLinksRow = {
@@ -258,18 +292,19 @@ export type TracksRow = {
   created_at: Date;
   updated_at: Date;
   slug: string;
+  site_id: string;
 };
 
 /** Every table in the schema, by name. */
 export type CtrTables = {
-  admin_pages: AdminPagesRow;
+  admin_grants: AdminGrantsRow;
   admins: AdminsRow;
   articles: ArticlesRow;
   banners: BannersRow;
-  calendar_rounds: CalendarRoundsRow;
   deck_pages: DeckPagesRow;
   decks: DecksRow;
   enquiries: EnquiriesRow;
+  events: EventsRow;
   form_entries: FormEntriesRow;
   form_entry_answers: FormEntryAnswersRow;
   form_entry_files: FormEntryFilesRow;
@@ -281,6 +316,8 @@ export type CtrTables = {
   posts: PostsRow;
   schema_migrations: SchemaMigrationsRow;
   sessions: SessionsRow;
+  site_modules: SiteModulesRow;
+  sites: SitesRow;
   slugs: SlugsRow;
   sports: SportsRow;
   track_links: TrackLinksRow;

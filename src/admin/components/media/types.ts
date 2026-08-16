@@ -9,8 +9,6 @@
  * string here and always was.
  */
 
-import type { PageKey } from "@/lib/roles";
-
 export type MediaObject = {
   key: string;
   url: string;
@@ -34,5 +32,5 @@ export type Listing = {
   roots?: string[];
 };
 
-export type UsageRef = { kind: string; label: string; page: PageKey | null };
+export type UsageRef = { kind: string; label: string; site: string | null };
 export type KeyUsage = { key: string; refs: UsageRef[] };

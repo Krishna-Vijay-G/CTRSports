@@ -1,16 +1,13 @@
 "use client";
 
 import {
-  ALL_PAGES_LABEL,
   ARTICLE_LIMITS,
   ARTICLE_STATUSES,
   ARTICLE_STATUS_LABELS,
-  articlePage,
   type Article,
-  type ArticleDoc,
   type ArticleStatus,
 } from "@/lib/articles";
-import { PAGE_KEYS, PAGE_LABELS, canEditPage, type PageKey, type Scoped } from "@/lib/roles";
+import type { RichDoc } from "@/lib/richtext";
 import type { SlugHolder } from "@/lib/slug";
 import { Button } from "@/admin/ui/Button";
 import { Label, Select } from "@/admin/ui/Input";
@@ -33,7 +30,6 @@ import { RichText } from "@/admin/components/richtext/RichText";
  */
 export function ArticleForm({
   article,
-  scope,
   siteUrl,
   onChange,
   onDelete,
@@ -41,8 +37,6 @@ export function ArticleForm({
   busy,
 }: {
   article: Article;
-  /** The signed-in account, which decides what "Appears on" may be set to. */
-  scope: Scoped;
   siteUrl: string;
   onChange: (next: Article) => void;
   onDelete: () => void;
@@ -50,24 +44,6 @@ export function ArticleForm({
   busy?: boolean;
 }) {
   const set = (patch: Partial<Article>) => onChange({ ...article, ...patch });
-
-  const owner = scope.role === "owner";
-  /*
-   * The pages this account may put an article on.
-   *
-   * "All pages" is the owner's alone — an article belonging to no page belongs to
-   * every page, and only the account that can see all of them may write one. The
-   * rest is whatever `canEditPage` says, which is exactly what the route will
-   * check again on the way in. Offering an option the server would refuse is how
-   * somebody writes an article and then cannot save it.
-   */
-  const pages: (PageKey | null)[] = [
-    ...(owner ? [null] : []),
-    ...PAGE_KEYS.filter((page) => canEditPage(scope, page)),
-  ];
-
-  // Nothing to choose between. Shown anyway, so it is clear where this went.
-  const fixed = pages.length <= 1;
 
   return (
     <div className="space-y-2.5">
@@ -108,31 +84,16 @@ export function ArticleForm({
           />
 
           <Row>
-            <label className="block">
-              <Label>Appears on</Label>
-              <Select
-                value={article.page ?? ""}
-                onChange={(event) =>
-                  set({ page: event.target.value ? articlePage(event.target.value) : null })
-                }
-                disabled={busy || fixed}
-                className="mt-1.5"
-              >
-                {pages.map((page) => (
-                  <option key={page ?? "all"} value={page ?? ""}>
-                    {page === null ? ALL_PAGES_LABEL : PAGE_LABELS[page]}
-                  </option>
-                ))}
-              </Select>
-              <Hint className="mt-1">
-                {owner
-                  ? "Who can edit this article. “All pages” is the owner's alone."
-                  : fixed
-                    ? "Articles you write belong to this page."
-                    : "Which of your pages this article belongs to."}
-              </Hint>
-            </label>
+            {/*
+              "Appears on" is gone.
 
+              It chose between the pages this account could reach, plus an
+              owner-only "All pages" that meant the article belonged to none of
+              them. An article belongs to a SPORT now, set from the screen it
+              was created on, so there is nothing to pick — and the option that
+              would have been interesting, moving one between sports, is the one
+              thing the addresses and the media folders could not follow.
+            */}
             <label className="block">
               <Label>Status</Label>
               <Select
@@ -197,7 +158,7 @@ export function ArticleForm({
           // history per instance, and history that spans two articles would let
           // Ctrl-Z paste one into the other.
           key={article.id}
-          value={article.body as ArticleDoc}
+          value={article.body as RichDoc}
           onChange={(body) => set({ body })}
           disabled={busy}
         />

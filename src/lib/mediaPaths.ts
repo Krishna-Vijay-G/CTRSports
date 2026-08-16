@@ -31,10 +31,8 @@
  */
 
 import {
-  PAGE_KEYS,
-  canEditAnyPage,
-  canEditPage,
-  type PageKey,
+  canSeeAnySite,
+  canSeeSiteSlug,
   type Scoped,
 } from "@/lib/roles";
 
@@ -62,32 +60,54 @@ export const MAX_FOLDER_DEPTH = 4;
 /** Long enough for "2025 season launch", short enough to read in a breadcrumb. */
 export const MAX_SEGMENT = 48;
 
-/** Where a tile upload goes when nobody chose. */
+/**
+ * Where a tile upload goes when nobody chose, and where a file is rescued to
+ * when the record owning its folder is deleted.
+ *
+ * A root of its own rather than `_shared/uploads`, which is what the plan for
+ * this phase sketched. The `_` was there to make a shared folder impossible to
+ * confuse with a site's, and nothing needs it: `uploads` is in
+ * `RESERVED_SITE_SLUGS` and in the CHECK constraint on `ctr.sites.slug`, so no
+ * sport can ever be called that. Adding a leading underscore would instead mean
+ * widening `SEGMENT` — the validator that keeps `..` and `/` out of a folder
+ * name — to admit one reserved spelling. That is a poor trade for a problem the
+ * database already refuses.
+ */
 export const DEFAULT_UPLOAD_FOLDER = "uploads";
 
 /**
- * The root of each page editor's own tree, for the case where there is no one
- * record to name a folder after — a screen with nothing open yet.
+ * The folder a module's records live in, under their own site.
  *
- * These are the `PAGE_KEYS` strings, and `pageOfFolder` further down depends on
- * their being exactly that. See the note beside it.
- */
-export const DECK_UPLOAD_FOLDER = "decks";
-export const CIRCUIT_UPLOAD_FOLDER = "circuits";
-
-/** Sports have no address of their own to be named after; see `visibleRoots`. */
-export const SPORTS_UPLOAD_FOLDER = "landing/sports";
-
-/**
- * Where an article's pictures go when the article belongs to no page.
+ * `incrc/decks/world-of-ctr`, `landing/articles/season-opener`. Three segments:
+ * the site, the module, then the record — which is inside `MAX_FOLDER_DEPTH`,
+ * leaves the FIRST segment a site slug so `folderOwner` scopes it with no
+ * special case, and keeps a site's own page uploads findable at its root instead
+ * of buried among a folder per deck.
  *
- * A page article nests under its page — `incrc/articles/<slug>` — so the first
- * segment is the page key and `pageOfFolder` scopes it with no further change. An
- * ALL-PAGES article has no page to nest under, so it takes a root of its own,
- * which is shared for the same reason `uploads` is: it is cross-cutting by
- * construction and cannot belong to one page. See `folderForArticle`.
+ * ── What this replaced ────────────────────────────────────────────────────
+ *
+ * `decks/`, `circuits/` and `articles/` were top-level roots named after a
+ * MODULE, from when there was one sport and the distinction did not exist. They
+ * were the last thing in the project still organised by what a record IS rather
+ * than by whose it is, and they came with a permission rule of their own —
+ * `canEditAnywhere`, "may this account edit that module on ANY site?" — which
+ * with two sports would have let a pickleball admin into the championship's
+ * media pack. `scripts/migrate-media-sites.mjs` moved them; this is what they
+ * became.
+ *
+ * `forms` is deliberately absent. A registration's attachments live under
+ * `ENTRY_PREFIX`, a sibling of the media prefix, and are never public — so a
+ * form has no folder here to name.
  */
-export const ARTICLES_UPLOAD_FOLDER = "articles";
+export const MODULE_FOLDERS = {
+  decks: "decks",
+  circuits: "circuits",
+  articles: "articles",
+  events: "events",
+} as const;
+
+/** The modules that have a media folder. Not every site module does. */
+export type MediaModule = keyof typeof MODULE_FOLDERS;
 
 /**
  * Names that would be confusing, dangerous or both.
@@ -265,70 +285,109 @@ export function folderOfKey(key: string): string {
   return cut < 0 ? "" : rest.slice(0, cut);
 }
 
-/* ─────────────────── Which page owns a folder, and who may touch it ─────────────────── */
+/* ─────────────────── Which site owns a folder, and who may touch it ─────────────────── */
 
 /**
- * The top-level folder for each page editor IS its page key.
+ * The top-level folder is the SITE's slug.
  *
- * `decks/`, `circuits/`, `landing/`, `incrc/` — the same four strings as
- * `PAGE_KEYS`, deliberately, so `pageOfFolder` is a set-membership test rather
- * than a mapping table somebody has to remember to extend. Adding a page editor
- * gives it a media folder for free; a second list would drift from the first,
- * which is the exact failure the note on `MEDIA_PREFIX` above records.
+ * It used to be the page key — `landing/`, `incrc/`, `decks/`, `circuits/` —
+ * which worked because `PAGE_KEYS` was a fixed tuple and the same tuple named
+ * both the folders and the access scopes. Sports are rows now, so there is no
+ * tuple to test against, and the test becomes: does this account hold a grant
+ * on a site of that name?
  *
- * None of the four collides with `RESERVED`.
+ * That is a better question than the old one, not just a different one. It
+ * needs no list of every site to be passed around, it fails closed for a
+ * folder naming a site that does not exist, and the browser can answer it from
+ * the session alone — which is what keeps this file free of the database and
+ * shared with the media explorer.
  *
- * The role predicates are composed from `src/lib/roles.ts` rather than
- * reimplemented. That file is explicit that it is the only place a role is
- * interpreted, and this is a question about folders that ends in a question
- * about roles — so it asks, the way every route guard does.
+ * ── The two things that are not a site ───────────────────────────────────
+ *
+ * `uploads/` belongs to no site by construction — it is where an unchosen
+ * upload lands and where a deleted record's shared files are rescued to — and
+ * the media ROOT holds every file uploaded before folders existed at all, which
+ * is unattributed and un-attributable.
+ *
+ * There used to be a third kind. `decks/`, `circuits/` and `articles/` were
+ * roots named after a MODULE, from when there was one sport and the distinction
+ * did not exist, and they carried a permission rule of their own: "may this
+ * account edit that module on ANY site?". With two sports that rule would have
+ * let a pickleball admin into the championship's media pack. Phase 6 moved them
+ * under the site whose records they hold, so the question a folder asks is one
+ * question — whose site is this? — with two named exceptions rather than a
+ * second permission model beside it.
  */
 
 /**
- * Folders belonging to no page in particular.
+ * Folders belonging to no site in particular.
  *
  * `uploads` is where a tile upload goes when nobody chose, and where a shared
  * file is rescued to when the entity owning its folder is deleted. It is
- * cross-cutting by construction, so it cannot belong to one page.
+ * cross-cutting by construction, so it cannot belong to one site.
  */
-export const SHARED_ROOTS: string[] = [DEFAULT_UPLOAD_FOLDER, ARTICLES_UPLOAD_FOLDER];
+export const SHARED_ROOTS: string[] = [DEFAULT_UPLOAD_FOLDER];
+
+/** What a folder's first segment turns out to name. */
+export type FolderOwner =
+  | { kind: "root" }
+  | { kind: "shared"; root: string }
+  | { kind: "site"; slug: string };
 
 /**
- * Which page editor a folder belongs to, or null for one that belongs to none.
+ * Whose folder is this?
  *
- * Null covers two different things that need the same answer here and different
- * answers in `canWriteFolder`: the shared folders above, and the media ROOT,
- * where every upload made before folders existed still sits — unattributed, and
- * un-attributable.
+ * `root` is the media root, where every upload made before folders existed
+ * still sits — unattributed, and un-attributable. It reads like `shared` and
+ * writes like nothing else, which is why the two are separate cases here even
+ * though `canBrowseFolder` treats them alike.
  */
-export function pageOfFolder(folder: string): PageKey | null {
+export function folderOwner(folder: string): FolderOwner | null {
   const clean = parseFolder(folder);
-  if (clean === null || clean === "") return null;
+  if (clean === null) return null;
+  if (clean === "") return { kind: "root" };
 
-  const root = clean.split("/")[0] as PageKey;
-  return PAGE_KEYS.includes(root) ? root : null;
+  const root = clean.split("/")[0];
+
+  if (SHARED_ROOTS.includes(root)) return { kind: "shared", root };
+
+  return { kind: "site", slug: root };
 }
 
 /**
  * Whether this account may LIST a folder.
  *
- * A page's folder is that page's editors and the owner. Everything with no page
- * — the shared folders and the legacy root — is readable by any page editor,
- * because the root is where every image on the site currently lives and hiding
- * it would leave a scoped editor with nothing to pick from.
+ * A site's folder is that site's team and the owner. Everything belonging to no
+ * site — the shared folder and the media root — is readable by anyone with any
+ * grant at all, because the root is where a good deal of the site's imagery
+ * still lives and hiding it would leave a scoped editor with nothing to pick
+ * from.
+ *
+ * Three cases where there were four. Losing the fourth is the point of phase 6:
+ * a folder's first segment names a site or it names one of two things that
+ * deliberately belong to nobody, and there is no longer a shape that answers
+ * "anyone who edits decks, on any sport".
  */
 export function canBrowseFolder(session: Scoped | null | undefined, folder: string): boolean {
-  const page = pageOfFolder(folder);
-  return page === null ? canEditAnyPage(session) : canEditPage(session, page);
+  const owner = folderOwner(folder);
+  if (owner === null) return false;
+
+  switch (owner.kind) {
+    case "root":
+    case "shared":
+      return canSeeAnySite(session);
+    case "site":
+      return canSeeSiteSlug(session, owner.slug);
+  }
 }
 
 /**
  * Whether this account may UPLOAD INTO or DELETE FROM a folder.
  *
  * Identical to browsing except at the root, which is owners only. Those files
- * are unattributed, they are the ones most likely to be shared between pages,
- * and there is no scan that can prove otherwise — so the account that may remove
- * one is the account that can see every page it might be on.
+ * are unattributed, they are the ones most likely to be shared between sites,
+ * and there is no scan that can prove otherwise — so the account that may
+ * remove one is the account that can see every site it might be on.
  */
 export function canWriteFolder(session: Scoped | null | undefined, folder: string): boolean {
   const clean = parseFolder(folder);
@@ -338,38 +397,53 @@ export function canWriteFolder(session: Scoped | null | undefined, folder: strin
   return canBrowseFolder(session, clean);
 }
 
-/** The top-level folders to draw for this account, page folders first. */
-export function visibleRoots(session: Scoped | null | undefined): string[] {
-  if (!canEditAnyPage(session)) return [];
+/**
+ * The top-level folders to draw for this account, site folders first.
+ *
+ * `allSiteSlugs` is passed in rather than derived from the session, because an
+ * owner holds no grants — their reach is the role, not a list — and the
+ * explorer still has to show them every site. A member's own slugs come from
+ * their grants and the argument is ignored.
+ */
+export function visibleRoots(
+  session: Scoped | null | undefined,
+  allSiteSlugs: string[] = []
+): string[] {
+  if (!canSeeAnySite(session)) return [];
 
-  return [...PAGE_KEYS.filter((page) => canEditPage(session, page)), ...SHARED_ROOTS];
+  const sites =
+    session?.role === "owner"
+      ? [...allSiteSlugs]
+      : [...new Set((session?.grants ?? []).map((grant) => grant.siteSlug))].sort();
+
+  return [...sites, ...SHARED_ROOTS];
 }
 
 /**
  * Whether this account may delete a file that something still points at.
  *
- * The second lock, and the one folder permission cannot provide. A landing
- * editor owns `landing/`, so they may delete out of it — but the media library
- * offers every picture to every screen, so a file in `landing/` may well be the
- * photograph on an INCRC section. Deleting it would break a page they do not
+ * The second lock, and the one folder permission cannot provide. An INCRC
+ * editor owns `incrc/`, so they may delete out of it — but the media library
+ * offers every picture to every screen, so a file in `incrc/` may well be the
+ * photograph on the landing page. Deleting it would break a site they do not
  * administer, from inside a folder they do.
  *
  * So: an UNREFERENCED file may be deleted by anyone who may write its folder,
- * and a referenced one only if every page named is one they administer. The gate
- * bites exactly where it matters and nowhere else.
+ * and a referenced one only if every site named is one they administer. The
+ * gate bites exactly where it matters and nowhere else.
  *
- * A ref belonging to no page — a form, or something the code itself pins — takes
- * an owner. That is the strict reading of `null`, and the right one: nobody else
- * can see the thing that would break.
+ * A ref belonging to no site — something the code itself pins — takes an owner.
+ * That is the strict reading of `null`, and the right one: nobody else can see
+ * the thing that would break.
  */
 export function canOverrideUsage(
   session: Scoped | null | undefined,
-  refs: { page: PageKey | null }[]
+  refs: { site: string | null }[]
 ): boolean {
   if (!session) return false;
   if (session.role === "owner") return true;
 
-  return refs.every((ref) => ref.page !== null && canEditPage(session, ref.page));
+  return refs.every((ref) => ref.site !== null && canSeeSiteSlug(session, ref.site));
 }
 
 /* ─────────────────────────── An entity's own folder ─────────────────────────── */
@@ -408,30 +482,55 @@ export function entitySegment(slug: string, id: string): string {
   return parseSegment(head ? `${head}-${short}` : short) ?? short;
 }
 
-/** `decks/world-of-ctr`. The root is the page key; see the note above. */
-export function folderForEntity(page: PageKey, slug: string, id: string): string {
-  return `${page}/${entitySegment(slug, id)}`;
+/**
+ * `incrc/decks/world-of-ctr`. Where one record's pictures live.
+ *
+ * Three builders became this one. `folderForEntity(root, slug, id)` took a
+ * module root, `folderForArticle(site, …)` and `folderForEvent(site, …)` each
+ * hardcoded their own module underneath a site, and the three could not be told
+ * apart by anything except which one the caller happened to import. There is one
+ * shape now and the module is a parameter of it.
+ *
+ * The first segment is the site slug, so `folderOwner` scopes the result with no
+ * special case — which is the whole of what phase 6 bought.
+ *
+ * DETERMINISM is the requirement, as it was: this is called once to decide where
+ * an upload goes and again later to find that same folder in order to move or
+ * delete it. The two calls have to agree, so nothing here may be random or
+ * time-based.
+ */
+export function folderForEntity(
+  siteSlug: string,
+  module: MediaModule,
+  slug: string,
+  id: string
+): string {
+  return `${siteSlug}/${MODULE_FOLDERS[module]}/${entitySegment(slug, id)}`;
 }
 
 /**
- * `incrc/articles/season-opener`, or `articles/season-opener` for an all-pages one.
+ * A module's folder on one site, with no record named: `incrc/decks`.
  *
- * Three segments rather than two, deliberately. A page's root is where that
- * screen's own uploads land, and articles would otherwise fill it with a folder
- * per article; nesting them under `articles/` keeps the page's own pictures
- * findable. Three is inside `MAX_FOLDER_DEPTH`, and the FIRST segment is still the
- * page key, so `pageOfFolder` scopes it exactly as it scopes a deck.
- *
- * An article with no page has no page key to lead with, so it takes
- * `ARTICLES_UPLOAD_FOLDER`, which is a shared root. Note what that means: a page
- * editor can write into it. That is the same access they already have to
- * `uploads/`, and it is not a way to reach the article — writing the ROW is
- * guarded separately, by `guardArticle`, and an all-pages article takes the owner.
- *
- * Deterministic, like `folderForEntity`: called once to place an upload and again
- * later to find that folder to move or delete it.
+ * What an editor's uploads fall back to before anything is open — a screen with
+ * no deck selected still has to put a dropped file somewhere, and somewhere
+ * under the sport is better than the shared folder.
  */
-export function folderForArticle(page: PageKey | null, slug: string, id: string): string {
-  const segment = entitySegment(slug, id);
-  return page ? `${page}/${ARTICLES_UPLOAD_FOLDER}/${segment}` : `${ARTICLES_UPLOAD_FOLDER}/${segment}`;
+export function folderForModule(siteSlug: string, module: MediaModule): string {
+  return `${siteSlug}/${MODULE_FOLDERS[module]}`;
+}
+
+/**
+ * `landing/sports` — the cards on the landing page.
+ *
+ * Not a module: a sports card is a row of `ctr.sports` with no address of its
+ * own, so there is no record to name a folder after and no module list it
+ * belongs to. It is still nested under the site whose screen edits it, which is
+ * the rule the rest of this file now follows without exception.
+ *
+ * Took no argument until phase 6, when it was the literal `landing/sports` —
+ * correct, because the root site's slug IS `landing`, and one hardcoded slug too
+ * many in a file about who owns what.
+ */
+export function folderForSports(siteSlug: string): string {
+  return `${siteSlug}/sports`;
 }

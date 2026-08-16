@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
-import { articlePage, isArticleId } from "@/lib/articles";
-import { folderForArticle } from "@/lib/mediaPaths";
-import { guardAnyPage, guardArticle } from "@/lib/server/access";
+import { isArticleId } from "@/lib/articles";
+import { folderForEntity } from "@/lib/mediaPaths";
+import { guardRequestSite } from "@/lib/server/access";
 import { deleteArticle, getArticle, updateArticle } from "@/lib/server/articlesRepo";
 import { deleteEntityFolder, moveEntityFolder } from "@/lib/server/entityMedia";
 import { revalidateArticlePages } from "@/lib/server/revalidateArticles";
+import { getSiteById } from "@/lib/server/sitesRepo";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,22 +16,26 @@ const DUPLICATE = "23505";
 type Params = { params: Promise<{ id: string }> };
 
 /**
- * ── Why these routes guard TWICE, and why the first one is here ───────────
+ * ── One guard now, where there used to be two ─────────────────────────────
  *
- * Which account may touch an article depends on the page it is on, and that is
- * not known until the row has been read. Guarding only after the read would mean
- * a signed-out request reaching the database and getting a 404 that tells it
- * whether an id exists — the wrong order, and not what any other route here does.
+ * These routes used to guard twice: an outer `guardAnyPage` before anything
+ * happened, and an inner `guardArticle` once the row had been read and its page
+ * was known — plus a THIRD check on save, because an article could be moved
+ * between pages and both the old and the new one had to allow it.
  *
- * So the OUTER door is `guardAnyPage`, answered before anything else happens: a
- * signed-out request and a registrations admin never get as far as a query. The
- * INNER door is `guardArticle`, answered once the row's page is known. It is the
- * same arrangement the media library uses, for the same reason — see the note on
- * `guardAnyPage` in src/lib/server/access.ts.
+ * None of that is needed any more. The sport is named in the query string, so
+ * it is known before the body is read, and it is not something an article can
+ * be moved between: a site is set once, at create. So the shape is the same as
+ * every other record route — guard the sport, then check the row belongs to it.
+ *
+ * That second check is not redundant with the guard. The guard proves the
+ * account may edit THIS sport's articles; it says nothing about whether the id
+ * in the path is one of them, and without the check an INCRC co-admin could
+ * edit a pickleball article by naming their own sport in the query string.
  */
 export async function PUT(request: Request, { params }: Params) {
-  const denied = await guardAnyPage();
-  if (denied) return denied;
+  const guard = await guardRequestSite(request, "articles");
+  if (guard.denied) return guard.denied;
 
   const { id } = await params;
   if (!isArticleId(id)) {
@@ -51,34 +56,18 @@ export async function PUT(request: Request, { params }: Params) {
 
   let before: Awaited<ReturnType<typeof getArticle>>;
   try {
-    // Read before the guard: the guard's question is "may you touch THIS
-    // article", and the answer depends on the page it is on right now.
     before = await getArticle(id);
   } catch (error) {
     console.error("[admin/articles] PUT read", error);
     return NextResponse.json({ error: "Could not save the article." }, { status: 500 });
   }
 
-  if (!before) {
+  // An article of another sport is not "forbidden", it is not there. Saying so
+  // is also what stops the id space being probed from a sport somebody does
+  // happen to administer.
+  if (!before || before.site_id !== guard.site.id) {
     return NextResponse.json({ error: "No such article." }, { status: 404 });
   }
-
-  /*
-   * TWO guards, and both are load-bearing.
-   *
-   * The first asks whether this account may touch the article AS IT STANDS. The
-   * second asks whether it may put it WHERE IT IS ASKING. Dropping either one
-   * opens a hole in the opposite direction: with only the second, a circuits
-   * editor takes over an INCRC article by claiming it as their own; with only the
-   * first, they push their own article onto a page they do not administer. Moving
-   * an article between two pages is an edit to both of them.
-   */
-  const stayed = await guardArticle(before.page);
-  if (stayed) return stayed;
-
-  const wanted = articlePage((body as { page?: unknown })?.page);
-  const moving = await guardArticle(wanted);
-  if (moving) return moving;
 
   try {
     const notes: string[] = [];
@@ -88,18 +77,18 @@ export async function PUT(request: Request, { params }: Params) {
     }
 
     /*
-     * The pictures follow the address AND the page.
+     * The pictures follow the address.
      *
-     * An article's folder is named after both — `incrc/articles/<slug>` — so
-     * either changing leaves a folder behind, and the rows pointing into it have
-     * to be re-addressed in the same breath. That second half is what decks does
-     * not have to think about, because a deck cannot change page.
+     * An article's folder is named after its sport and its address —
+     * `incrc/articles/<slug>` — and only the second half can change, because a
+     * site is set at create and never moved. So this is the same one-dimensional
+     * rename decks does, and the old "it can also change page" case is gone.
      *
      * Never fatal. The row is already written; answering 500 here would tell the
      * writer their article was lost when it was not.
      */
-    const from = folderForArticle(before.page, before.slug, id);
-    const to = folderForArticle(article.page, article.slug, id);
+    const from = folderForEntity(guard.site.slug, "articles", before.slug, id);
+    const to = folderForEntity(guard.site.slug, "articles", article.slug, id);
 
     let moved = false;
     if (before.slug && from !== to) {
@@ -126,7 +115,7 @@ export async function PUT(request: Request, { params }: Params) {
      */
     const fresh = moved ? ((await getArticle(id)) ?? article) : article;
 
-    revalidateArticlePages([fresh.slug, before.slug]);
+    revalidateArticlePages(guard.site, [fresh.slug, before.slug]);
     return NextResponse.json({ article: fresh, notes });
   } catch (error) {
     if ((error as { code?: string })?.code === DUPLICATE) {
@@ -141,10 +130,9 @@ export async function PUT(request: Request, { params }: Params) {
   }
 }
 
-export async function DELETE(_request: Request, { params }: Params) {
-  // The outer door. See the note on PUT.
-  const denied = await guardAnyPage();
-  if (denied) return denied;
+export async function DELETE(request: Request, { params }: Params) {
+  const guard = await guardRequestSite(request, "articles");
+  if (guard.denied) return guard.denied;
 
   const { id } = await params;
   if (!isArticleId(id)) {
@@ -159,14 +147,9 @@ export async function DELETE(_request: Request, { params }: Params) {
     return NextResponse.json({ error: "Could not delete the article." }, { status: 500 });
   }
 
-  if (!before) {
+  if (!before || before.site_id !== guard.site.id) {
     return NextResponse.json({ error: "No such article." }, { status: 404 });
   }
-
-  // The inner door. The page it is on decides who may remove it — one check
-  // here, because a delete has no "where to" to ask about.
-  const refused = await guardArticle(before.page);
-  if (refused) return refused;
 
   try {
     const removed = await deleteArticle(id);
@@ -186,7 +169,7 @@ export async function DELETE(_request: Request, { params }: Params) {
     if (before.slug) {
       try {
         const { deleted, rescued } = await deleteEntityFolder(
-          folderForArticle(before.page, before.slug, id)
+          folderForEntity(guard.site.slug, "articles", before.slug, id)
         );
 
         if (rescued > 0) {
@@ -204,7 +187,7 @@ export async function DELETE(_request: Request, { params }: Params) {
       }
     }
 
-    revalidateArticlePages([before.slug, ...before.former_slugs]);
+    revalidateArticlePages(guard.site, [before.slug, ...before.former_slugs]);
     return NextResponse.json({ ok: true, notes });
   } catch (error) {
     console.error("[admin/articles] DELETE", error);

@@ -5,7 +5,7 @@ import { createHash, randomBytes, scrypt as scryptCb, timingSafeEqual } from "no
 import { promisify } from "node:util";
 import { cookies } from "next/headers";
 import { getSql } from "@/lib/server/db";
-import { normalisePageKeys, normaliseRole, type AdminRole, type PageKey } from "@/lib/roles";
+import { normaliseGrants, normaliseRole, type AdminRole, type Grant } from "@/lib/roles";
 
 const scrypt = promisify(scryptCb) as (
   password: string,
@@ -74,7 +74,14 @@ export type AdminSession = {
   adminId: string;
   username: string;
   role: AdminRole;
-  pages: PageKey[];
+  /**
+   * Every (site, module) pair this account holds, each carrying the site's slug
+   * as well as its id. Both are here because two different questions are asked
+   * of a grant: a route guard has an id from the database, and the media
+   * library has a folder name, which is a slug. Carrying the slug costs one
+   * join here and saves a query inside a predicate the browser also runs.
+   */
+  grants: Grant[];
 };
 
 /**
@@ -90,26 +97,30 @@ export const getSession = cache(async (): Promise<AdminSession | null> => {
     const sql = getSql();
     const rows = (await sql`
       SELECT a.id AS admin_id, a.username, a.role,
-             (SELECT coalesce(jsonb_agg(p.page_key ORDER BY k.sort_order), '[]'::jsonb)
-                FROM ctr.admin_pages p JOIN ctr.pages k ON k.key = p.page_key
-               WHERE p.admin_id = a.id) AS pages
+             (SELECT coalesce(jsonb_agg(jsonb_build_object(
+                       'siteId', g.site_id, 'siteSlug', site.slug, 'module', g.module)
+                       ORDER BY site.sort_order, g.module), '[]'::jsonb)
+                FROM ctr.admin_grants g
+                JOIN ctr.sites site ON site.id = g.site_id
+               WHERE g.admin_id = a.id) AS grants
         FROM ctr.sessions s
         JOIN ctr.admins a ON a.id = s.admin_id
        WHERE s.token_hash = ${hashToken(token)}
          AND s.expires_at > now()
-    `) as { admin_id: string; username: string; role: unknown; pages: unknown }[];
+    `) as { admin_id: string; username: string; role: unknown; grants: unknown }[];
 
     const row = rows[0];
     if (!row) return null;
 
-    // Normalised here rather than trusted: the column has no CHECK constraint,
-    // deliberately, so this is where an unknown role becomes the least
-    // privileged one instead of an unhandled string.
+    // Normalised here rather than trusted. The role does have a CHECK now, but
+    // a grant module can be retired by a later migration while a session
+    // predating it is still live — and an unrecognised grant has to read as no
+    // grant, never as a wider one.
     return {
       adminId: row.admin_id,
       username: row.username,
       role: normaliseRole(row.role),
-      pages: normalisePageKeys(row.pages),
+      grants: normaliseGrants(row.grants),
     };
   } catch {
     // A database that is down reads as "not signed in", which sends the visitor

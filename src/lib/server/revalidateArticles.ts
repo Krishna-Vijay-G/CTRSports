@@ -1,26 +1,26 @@
 import "server-only";
 
 import { revalidatePath } from "next/cache";
+import { articleHref, articlesHref } from "@/lib/articles";
+import { type SiteRef } from "@/lib/sites";
 
 /**
  * The pages that draw an article, cleared after one changes.
  *
- * `/articles` is the index. A new article has to appear on it, and one
- * unpublished or renamed has to stop being offered under the old title.
+ * The index has to gain a new article, and stop offering one unpublished or
+ * renamed under its old title.
  *
- * `/articles/<slug>` is the article itself, cached for a minute like the rest of
- * the public site. The OLD address is cleared as well as the new one, because
- * after a rename the stale copy sits under the address that is now a redirect —
- * so anybody on the old link would keep getting the pre-rename page instead of
- * being sent to the new one.
+ * The article itself is cached for a minute like the rest of the public site.
+ * The OLD address is cleared as well as the new one, because after a rename the
+ * stale copy sits under the address that is now a redirect — so anybody on the
+ * old link would keep getting the pre-rename page instead of being sent on.
  *
- * The same shape `revalidateDeckPages` uses, and for the same reason: one list, so
- * a route that changes an article cannot forget one of the pages that shows it.
+ * Both are the SITE's paths. See the note in revalidateDecks.ts.
  */
-export function revalidateArticlePages(slugs: readonly string[] = []): void {
-  revalidatePath("/articles");
+export function revalidateArticlePages(site: SiteRef, slugs: readonly string[] = []): void {
+  revalidatePath(articlesHref(site));
 
   for (const slug of new Set(slugs)) {
-    if (slug) revalidatePath(`/articles/${slug}`);
+    if (slug) revalidatePath(articleHref(site, { slug }));
   }
 }

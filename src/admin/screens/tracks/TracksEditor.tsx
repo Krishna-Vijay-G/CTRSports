@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { Round } from "@/lib/incrcContent";
-import type { LandingContent } from "@/lib/landingContent";
-import { CIRCUIT_UPLOAD_FOLDER, folderForEntity } from "@/lib/mediaPaths";
+import type { EventSummary } from "@/lib/events";
+import type { Chrome } from "@/lib/chrome";
+import { folderForEntity, folderForModule } from "@/lib/mediaPaths";
 import { BLANK_TRACK, trackSlug, type Track } from "@/lib/tracks";
 import { cn } from "@/lib/utils";
 import { Button } from "@/admin/ui/Button";
 import { MapIcon, PlusIcon } from "@/admin/ui/icons";
+import { useSite, withSite } from "@/admin/components/SiteScope";
 import { AdminRailSlot } from "@/admin/components/AdminShell";
 import { EditorToolbar } from "@/admin/components/EditorToolbar";
 import { SectionRail, type RailItem } from "@/admin/components/SectionRail";
@@ -41,16 +42,19 @@ const ORDER_SAVE_DELAY = 500;
 export function TracksEditor({
   initialTracks,
   chrome,
-  rounds,
+  season,
   year,
 }: {
   initialTracks: Track[];
   /** The landing document — the header and footer the preview draws. */
-  chrome: LandingContent;
+  chrome: Chrome;
   /** The season, so the preview can show which weekends visit a circuit. */
-  rounds: Round[];
+  season: readonly EventSummary[];
   year: number;
 }) {
+  // The sport this screen belongs to. Every write below names it, so the
+  // server guards the right one — see SiteScope.
+  const site = useSite();
   const [tracks, setTracks] = useState<Track[]>(initialTracks);
   const [saved, setSaved] = useState<Track[]>(initialTracks);
 
@@ -98,7 +102,7 @@ export function TracksEditor({
     setError(null);
 
     try {
-      const response = await fetch("/api/admin/tracks", {
+      const response = await fetch(withSite("/api/admin/tracks", site), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids }),
@@ -151,7 +155,7 @@ export function TracksEditor({
     setError(null);
 
     try {
-      const response = await fetch(`/api/admin/tracks/${active.id}`, {
+      const response = await fetch(withSite(`/api/admin/tracks/${active.id}`, site), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(active),
@@ -182,7 +186,7 @@ export function TracksEditor({
     setError(null);
 
     try {
-      const response = await fetch("/api/admin/tracks", {
+      const response = await fetch(withSite("/api/admin/tracks", site), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -219,7 +223,7 @@ export function TracksEditor({
     setError(null);
 
     try {
-      const response = await fetch(`/api/admin/tracks/${active.id}`, { method: "DELETE" });
+      const response = await fetch(withSite(`/api/admin/tracks/${active.id}`, site), { method: "DELETE" });
 
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
@@ -273,8 +277,8 @@ export function TracksEditor({
    * moves — see the note at the top of src/app/api/admin/tracks/[id]/route.ts.
    */
   const uploadFolder = activeSaved
-    ? folderForEntity("circuits", trackSlug(activeSaved), activeSaved.id)
-    : CIRCUIT_UPLOAD_FOLDER;
+    ? folderForEntity(site.slug, "circuits", trackSlug(activeSaved), activeSaved.id)
+    : folderForModule(site.slug, "circuits");
 
   return (
     <UploadFolder folder={uploadFolder}>
@@ -322,7 +326,7 @@ export function TracksEditor({
           tracks={tracks}
           track={active}
           chrome={chrome}
-          rounds={rounds}
+          season={season}
           year={year}
           className="hidden lg:block lg:min-w-0 lg:flex-1"
         />

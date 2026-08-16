@@ -2,6 +2,7 @@ import "server-only";
 
 import { normaliseAdminInput, type AdminAccount } from "@/lib/admins";
 import { hashPassword } from "@/lib/server/auth";
+import { type Grant } from "@/lib/roles";
 import { getSql } from "@/lib/server/db";
 
 /**
@@ -17,19 +18,26 @@ import { getSql } from "@/lib/server/db";
  * end when they change one.
  *
  * `pages` — which editors a scoped account may open — is a join table now
- * rather than a JSONB array on the row, so a page key is a real foreign key
- * into `ctr.pages`. A key that is not a page cannot be granted, and retiring a
- * page takes its grants with it instead of leaving them to be filtered out on
- * every read. It still reads back as the same array of strings.
+ * rather than a JSONB array on the row, so a grant is a real foreign key into
+ * both `ctr.admins` and `ctr.sites`. A site that is not a site cannot be
+ * granted, and deleting a sport takes its grants with it instead of leaving
+ * them to be filtered out on every read.
+ *
+ * What changed in phase 1 is the shape of a grant: it was a page key and is now
+ * a (site, module) pair, so `ctr.admin_pages` became `ctr.admin_grants`. The
+ * site's SLUG is selected alongside its id for the reason `AdminSession` gives
+ * — the media predicates compare folders, and a folder is named by slug.
  */
 
 export async function listAdmins(): Promise<AdminAccount[]> {
   const sql = getSql();
   const rows = (await sql`
     SELECT a.id, a.username, a.role, a.created_at,
-           (SELECT coalesce(jsonb_agg(p.page_key ORDER BY k.sort_order), '[]'::jsonb)
-             FROM ctr.admin_pages p JOIN ctr.pages k ON k.key = p.page_key
-            WHERE p.admin_id = a.id) AS pages
+           (SELECT coalesce(jsonb_agg(jsonb_build_object(
+                     'siteId', g.site_id, 'siteSlug', s.slug, 'module', g.module)
+                     ORDER BY s.sort_order, g.module), '[]'::jsonb)
+             FROM ctr.admin_grants g JOIN ctr.sites s ON s.id = g.site_id
+            WHERE g.admin_id = a.id) AS grants
       FROM ctr.admins a
      ORDER BY a.username ASC
   `) as AdminAccount[];
@@ -41,9 +49,11 @@ export async function getAdmin(id: string): Promise<AdminAccount | null> {
   const sql = getSql();
   const rows = (await sql`
     SELECT a.id, a.username, a.role, a.created_at,
-           (SELECT coalesce(jsonb_agg(p.page_key ORDER BY k.sort_order), '[]'::jsonb)
-             FROM ctr.admin_pages p JOIN ctr.pages k ON k.key = p.page_key
-            WHERE p.admin_id = a.id) AS pages
+           (SELECT coalesce(jsonb_agg(jsonb_build_object(
+                     'siteId', g.site_id, 'siteSlug', s.slug, 'module', g.module)
+                     ORDER BY s.sort_order, g.module), '[]'::jsonb)
+             FROM ctr.admin_grants g JOIN ctr.sites s ON s.id = g.site_id
+            WHERE g.admin_id = a.id) AS grants
       FROM ctr.admins a
      WHERE a.id = ${id}
   `) as AdminAccount[];
@@ -52,20 +62,21 @@ export async function getAdmin(id: string): Promise<AdminAccount | null> {
 }
 
 /**
- * The account's page grants, replaced wholesale.
+ * The account's grants, replaced wholesale.
  *
- * A key that is not a page is refused by the foreign key rather than silently
+ * A site that does not exist is refused by the foreign key rather than silently
  * dropped, which is the difference this table makes: `normalisePages` filtered
  * unknown keys out on the way in, and nothing checked what was already stored.
  */
-async function writePages(id: string, pages: readonly string[]): Promise<void> {
+async function writeGrants(id: string, grants: readonly Grant[]): Promise<void> {
   const sql = getSql();
 
   await sql.transaction([
-    sql`DELETE FROM ctr.admin_pages WHERE admin_id = ${id}`,
-    ...pages.map(
-      (page) => sql`
-        INSERT INTO ctr.admin_pages (admin_id, page_key) VALUES (${id}, ${page})
+    sql`DELETE FROM ctr.admin_grants WHERE admin_id = ${id}`,
+    ...grants.map(
+      (grant) => sql`
+        INSERT INTO ctr.admin_grants (admin_id, site_id, module)
+        VALUES (${id}, ${grant.siteId}, ${grant.module})
         ON CONFLICT DO NOTHING
       `
     ),
@@ -99,7 +110,7 @@ export async function createAdmin(input: unknown, password: string): Promise<Adm
     RETURNING id
   `) as { id: string }[];
 
-  await writePages(rows[0].id, account.pages);
+  await writeGrants(rows[0].id, account.grants);
 
   const created = await getAdmin(rows[0].id);
   if (!created) throw new Error("The account was not written.");
@@ -131,7 +142,7 @@ export async function updateAdmin(
 
   if (rows.length === 0) return null;
 
-  await writePages(id, account.pages);
+  await writeGrants(id, account.grants);
 
   const updated = await getAdmin(id);
   if (!updated || !password) return updated;
@@ -141,6 +152,38 @@ export async function updateAdmin(
   await sql`DELETE FROM ctr.sessions WHERE admin_id = ${id}`;
 
   return updated;
+}
+
+/**
+ * One account's grants on ONE site, replaced wholesale.
+ *
+ * The narrow write behind the per-sport Co-admins screen. `writeGrants` above
+ * replaces an account's grants everywhere, which is right for the owner's
+ * Accounts screen and wrong for a sport admin: they may change who works on
+ * their sport and must not be able to touch anybody's reach into another.
+ *
+ * So this deletes and re-inserts within one site and one transaction. Grants on
+ * every other site are untouched because the `WHERE` cannot see them.
+ */
+export async function setSiteGrants(
+  adminId: string,
+  siteId: string,
+  grants: readonly Grant[]
+): Promise<void> {
+  const sql = getSql();
+
+  await sql.transaction([
+    sql`DELETE FROM ctr.admin_grants WHERE admin_id = ${adminId} AND site_id = ${siteId}`,
+    ...grants
+      .filter((grant) => grant.siteId === siteId)
+      .map(
+        (grant) => sql`
+          INSERT INTO ctr.admin_grants (admin_id, site_id, module)
+          VALUES (${adminId}, ${siteId}, ${grant.module})
+          ON CONFLICT DO NOTHING
+        `
+      ),
+  ]);
 }
 
 /** Sessions go with it: the row is referenced ON DELETE CASCADE. */

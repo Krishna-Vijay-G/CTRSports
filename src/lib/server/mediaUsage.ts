@@ -1,6 +1,5 @@
 import "server-only";
 
-import { PAGE_KEYS, PAGE_LABELS, type PageKey } from "@/lib/roles";
 import { getSql } from "@/lib/server/db";
 
 /**
@@ -69,24 +68,29 @@ import { getSql } from "@/lib/server/db";
  */
 
 export type UsageRef = {
-  kind: "content" | "deck" | "sport" | "track" | "form" | "article" | "source";
+  kind: "content" | "deck" | "sport" | "track" | "form" | "article" | "event" | "source";
   label: string;
   /**
-   * The page editor this reference belongs to, or null for one that belongs to
-   * no page.
+   * The SLUG of the site this reference belongs to, or null for one that
+   * belongs to no site.
    *
    * Carried so a delete can be REFUSED rather than merely warned about. Folder
-   * permission stops a decks editor reaching into `landing/`; it does not stop
-   * them deleting a file out of their own folder that the INCRC page happens to
-   * use, because the media library offers every picture to every screen. This
-   * field is what closes that: you may confirm past a usage warning only if
-   * every page named is one you administer. See `canOverrideUsage`.
+   * permission stops a pickleball editor reaching into `incrc/`; it does not
+   * stop them deleting a file out of their own folder that the INCRC page
+   * happens to use, because the media library offers every picture to every
+   * screen. This field is what closes that: you may confirm past a usage
+   * warning only if every site named is one you administer. See
+   * `canOverrideUsage`.
    *
-   * Null is deliberately the STRICTEST value, not the most permissive — a form
-   * belongs to the registrations admin, who cannot reach the media library at
-   * all, so only an owner can override one.
+   * A slug rather than an id, because that is what the folder predicates in
+   * `src/lib/mediaPaths.ts` compare against and what a human reading the
+   * warning recognises.
+   *
+   * Null is deliberately the STRICTEST value, not the most permissive: only an
+   * owner can override it, which is the right answer for a file the code
+   * itself depends on.
    */
-  page: PageKey | null;
+  site: string | null;
 };
 
 export type KeyUsage = { key: string; refs: UsageRef[] };
@@ -94,19 +98,6 @@ export type KeyUsage = { key: string; refs: UsageRef[] };
 /** Past this, the pull-it-all-in-memory bet stops being a good one. */
 const TOO_MANY = 2000;
 let warned = false;
-
-/**
- * A `page_key` column narrowed to a page editor, or null for one nobody edits.
- *
- * `ctr.pages` is a lookup table and can hold a key `PAGE_KEYS` does not, so this
- * is a check rather than a cast: an unrecognised page reads as "no editor owns
- * this", which makes it overridable by an owner alone. Unknown means stricter,
- * never looser — the same posture `normaliseRole` takes.
- */
-function pageKeyOf(value: string | null): PageKey | null {
-  if (value === null) return null;
-  return (PAGE_KEYS as readonly string[]).includes(value) ? (value as PageKey) : null;
-}
 
 /**
  * Nothing is pinned from the source any more, and there is nothing left to pin.
@@ -149,46 +140,69 @@ export async function findUsage(keys: string[]): Promise<KeyUsage[]> {
   const sql = getSql();
   const encoded = wanted.map((key) => encodeURI(key));
 
-  const [sections, banners, posts, partners, deckPages, columns, documents, articles] =
+  const [sections, banners, posts, partners, deckPages, columns, documents, articles, events] =
     await Promise.all([
-    sql`SELECT page_key, section_id, data::text AS blob FROM ctr.page_sections`,
+    sql`SELECT si.slug AS site, si.name AS site_name, ps.type, ps.data::text AS blob
+           FROM ctr.page_sections ps
+           JOIN ctr.pages pg ON pg.id = ps.page_id
+           JOIN ctr.sites si ON si.id = pg.site_id`,
 
-    sql`SELECT b.page_key, b.image AS url FROM ctr.banners b
-         WHERE b.image = ANY(${wanted}::text[]) OR b.image = ANY(${encoded}::text[])
-            OR EXISTS (SELECT 1 FROM unnest(${wanted}::text[]) AS k(key)
-                        WHERE position(k.key in b.image) > 0)`,
+    sql`SELECT si.slug AS site, si.name AS site_name, b.image AS url
+           FROM ctr.banners b
+           JOIN ctr.page_sections ps ON ps.id = b.section_id
+           JOIN ctr.pages pg ON pg.id = ps.page_id
+           JOIN ctr.sites si ON si.id = pg.site_id
+          WHERE b.image = ANY(${wanted}::text[]) OR b.image = ANY(${encoded}::text[])
+             OR EXISTS (SELECT 1 FROM unnest(${wanted}::text[]) AS k(key)
+                         WHERE position(k.key in b.image) > 0)`,
 
-    sql`SELECT p.page_key, p.image AS url FROM ctr.posts p
-         WHERE EXISTS (SELECT 1 FROM unnest(${wanted}::text[]) AS k(key)
-                        WHERE position(k.key in p.image) > 0)`,
+    sql`SELECT si.slug AS site, si.name AS site_name, p.image AS url
+           FROM ctr.posts p
+           JOIN ctr.page_sections ps ON ps.id = p.section_id
+           JOIN ctr.pages pg ON pg.id = ps.page_id
+           JOIN ctr.sites si ON si.id = pg.site_id
+          WHERE EXISTS (SELECT 1 FROM unnest(${wanted}::text[]) AS k(key)
+                         WHERE position(k.key in p.image) > 0)`,
 
-    sql`SELECT pr.page_key, pr.logo AS url FROM ctr.partners pr
-         WHERE EXISTS (SELECT 1 FROM unnest(${wanted}::text[]) AS k(key)
-                        WHERE position(k.key in pr.logo) > 0)`,
+    sql`SELECT si.slug AS site, si.name AS site_name, pr.logo AS url
+           FROM ctr.partners pr
+           JOIN ctr.page_sections ps ON ps.id = pr.section_id
+           JOIN ctr.pages pg ON pg.id = ps.page_id
+           JOIN ctr.sites si ON si.id = pg.site_id
+          WHERE EXISTS (SELECT 1 FROM unnest(${wanted}::text[]) AS k(key)
+                         WHERE position(k.key in pr.logo) > 0)`,
 
-    sql`SELECT d.name, p.url FROM ctr.deck_pages p JOIN ctr.decks d ON d.id = p.deck_id
-         WHERE EXISTS (SELECT 1 FROM unnest(${wanted}::text[]) AS k(key)
-                        WHERE position(k.key in p.url) > 0)`,
+    sql`SELECT d.name, si.slug AS site, p.url
+           FROM ctr.deck_pages p
+           JOIN ctr.decks d ON d.id = p.deck_id
+           JOIN ctr.sites si ON si.id = d.site_id
+          WHERE EXISTS (SELECT 1 FROM unnest(${wanted}::text[]) AS k(key)
+                         WHERE position(k.key in p.url) > 0)`,
 
     // The plain columns, all at once. Every one of these is a whole URL, so the
     // database can answer without anything being pulled into memory.
     sql`
       SELECT 'sport' AS kind, s.title AS label,
-             coalesce(s.logo_url, '') || ' ' || coalesce(s.photo_url, '') AS blob
+             coalesce(s.logo_url, '') || ' ' || coalesce(s.photo_url, '') AS blob,
+             (SELECT slug FROM ctr.sites WHERE kind = 'root') AS site
         FROM ctr.sports s
       UNION ALL
       SELECT 'track', t.name,
-             coalesce(t.photo_url, '') || ' ' || coalesce(t.map_url, '')
+             coalesce(t.photo_url, '') || ' ' || coalesce(t.map_url, ''),
+             (SELECT slug FROM ctr.sites WHERE id = t.site_id)
         FROM ctr.tracks t
       UNION ALL
-      SELECT 'track', t.name, l.href
+      SELECT 'track', t.name, l.href,
+             (SELECT slug FROM ctr.sites WHERE id = t.site_id)
         FROM ctr.track_links l JOIN ctr.tracks t ON t.id = l.track_id
     `,
 
     // `fields` and `sections` stay JSONB on purpose — a form definition is
     // written and read as one atomic unit — so a URL pasted into a question's
     // help text is inside a document and has to be matched as text.
-    sql`SELECT name, fields::text || ' ' || sections::text AS blob FROM ctr.forms`,
+    sql`SELECT f.name, si.slug AS site,
+                  f.fields::text || ' ' || f.sections::text AS blob
+             FROM ctr.forms f JOIN ctr.sites si ON si.id = f.site_id`,
 
     /*
      * An article is both shapes at once: `cover_image` is a plain column and
@@ -201,16 +215,38 @@ export async function findUsage(keys: string[]): Promise<KeyUsage[]> {
      * the complete text of every article ever written in order to report on the
      * handful that mention these keys.
      */
-    sql`SELECT a.title, a.page_key,
+    sql`SELECT a.title, si.slug AS site,
                coalesce(a.cover_image, '') || ' ' || a.body::text AS blob
-          FROM ctr.articles a
+          FROM ctr.articles a JOIN ctr.sites si ON si.id = a.site_id
          WHERE EXISTS (SELECT 1 FROM unnest(${wanted}::text[]) AS k(key)
                         WHERE position(k.key in coalesce(a.cover_image, '')) > 0
                            OR position(k.key in a.body::text) > 0)`,
+
+    /*
+     * An event, which is an article's two shapes again: a cover column and a
+     * report holding whatever pictures were dropped into it. Filtered in SQL for
+     * the same reason — no point pulling the whole season's writing to report on
+     * the one weekend that mentions these keys.
+     *
+     * The name is whichever of its title, its circuit or its venue it has, which
+     * is the same fallback the calendar card prints. An event headed only by its
+     * circuit would otherwise show in the media library as an empty label.
+     */
+    sql`SELECT coalesce(nullif(e.title, ''), t.name, nullif(e.venue, ''), '') AS title,
+               si.slug AS site,
+               coalesce(e.cover_image, '') || ' ' || e.body::text AS blob
+          FROM ctr.events e
+          JOIN ctr.sites si ON si.id = e.site_id
+          LEFT JOIN ctr.tracks t ON t.id = e.track_id
+         WHERE EXISTS (SELECT 1 FROM unnest(${wanted}::text[]) AS k(key)
+                        WHERE position(k.key in coalesce(e.cover_image, '')) > 0
+                           OR position(k.key in e.body::text) > 0)`,
   ]);
 
-  const sectionRows = sections as { page_key: string; section_id: string; blob: string }[];
-  const formRows = documents as { name: string; blob: string }[];
+  const sectionRows = sections as {
+    site: string; site_name: string; type: string; blob: string;
+  }[];
+  const formRows = documents as { name: string; site: string; blob: string }[];
 
   if (!warned && (sectionRows.length > TOO_MANY || formRows.length > TOO_MANY)) {
     warned = true;
@@ -243,40 +279,50 @@ export async function findUsage(keys: string[]): Promise<KeyUsage[]> {
   };
 
   for (const row of sectionRows) {
-    const page = PAGE_LABELS[row.page_key as keyof typeof PAGE_LABELS] ?? row.page_key;
     scan(row.blob, () => ({
       kind: "content",
-      label: `${page} — ${row.section_id}`,
-      page: pageKeyOf(row.page_key),
+      label: `${row.site_name} — ${row.type}`,
+      site: row.site,
     }));
   }
 
-  // A form belongs to the registrations admin, who has no media library at all,
-  // so there is no page editor who can be said to own one.
+  // A form belongs to a site now — migration 0014 gave it one — so unlike
+  // before there IS somebody who can be said to own it, and a sport admin can
+  // override a warning about their own form without having to fetch an owner.
   for (const row of formRows) {
-    scan(row.blob, () => ({ kind: "form", label: `Form: ${row.name}`, page: null }));
+    scan(row.blob, () => ({ kind: "form", label: `Form: ${row.name}`, site: row.site }));
   }
 
   /*
-   * An article's page is the page whose editors wrote it — and NULL for one
-   * written for the whole site, which makes it overridable by an owner alone.
-   * That is the right answer for the same reason it is the right answer on the
-   * article itself: nobody but an owner can see every page it appears on.
+   * Every article belongs to exactly one site now. The old NULL — "written for
+   * every page, overridable by an owner alone" — has no equivalent and needs
+   * none: migration 0014 gave those articles the root site.
    */
-  for (const row of articles as { title: string; page_key: string | null; blob: string }[]) {
+  for (const row of articles as { title: string; site: string; blob: string }[]) {
     scan(row.blob, () => ({
       kind: "article",
       label: `Article: ${row.title || "Untitled"}`,
-      page: pageKeyOf(row.page_key),
+      site: row.site,
     }));
   }
 
-  for (const row of columns as { kind: string; label: string; blob: string }[]) {
+  for (const row of events as { title: string; site: string; blob: string }[]) {
+    scan(row.blob, () => ({
+      kind: "event",
+      label: `Event: ${row.title || "Untitled"}`,
+      site: row.site,
+    }));
+  }
+
+  for (const row of columns as {
+    kind: string; label: string; blob: string; site: string | null;
+  }[]) {
     scan(row.blob, () => ({
       kind: row.kind === "sport" ? "sport" : "track",
       label: `${row.kind === "sport" ? "Sport" : "Circuit"}: ${row.label}`,
-      // A sport is edited on the landing screen and a circuit on its own.
-      page: row.kind === "sport" ? "landing" : "circuits",
+      // A sports card is edited on the root site's own screen; a circuit
+      // belongs to the sport that races on it.
+      site: row.site,
     }));
   }
 
@@ -294,40 +340,41 @@ export async function findUsage(keys: string[]): Promise<KeyUsage[]> {
     }
   };
 
-  const pageLabel = (key: string): string =>
-    PAGE_LABELS[key as keyof typeof PAGE_LABELS] ?? key;
-
   attribute(
     banners as unknown[],
     (row: { url: string }) => row.url,
-    (row: { page_key: string }) => ({
+    (row: { site: string; site_name: string }) => ({
       kind: "content",
-      label: `${pageLabel(row.page_key)} — banner`,
-      page: pageKeyOf(row.page_key),
+      label: `${row.site_name} — banner`,
+      site: row.site,
     })
   );
   attribute(
     posts as unknown[],
     (row: { url: string }) => row.url,
-    (row: { page_key: string }) => ({
+    (row: { site: string; site_name: string }) => ({
       kind: "content",
-      label: `${pageLabel(row.page_key)} — newsroom`,
-      page: pageKeyOf(row.page_key),
+      label: `${row.site_name} — newsroom`,
+      site: row.site,
     })
   );
   attribute(
     partners as unknown[],
     (row: { url: string }) => row.url,
-    (row: { page_key: string }) => ({
+    (row: { site: string; site_name: string }) => ({
       kind: "content",
-      label: `${pageLabel(row.page_key)} — partners`,
-      page: pageKeyOf(row.page_key),
+      label: `${row.site_name} — partners`,
+      site: row.site,
     })
   );
   attribute(
     deckPages as unknown[],
     (row: { url: string }) => row.url,
-    (row: { name: string }) => ({ kind: "deck", label: `Deck: ${row.name}`, page: "decks" })
+    (row: { name: string; site: string }) => ({
+      kind: "deck",
+      label: `Deck: ${row.name}`,
+      site: row.site,
+    })
   );
 
   /*
@@ -337,9 +384,9 @@ export async function findUsage(keys: string[]): Promise<KeyUsage[]> {
   const pinned = sourcePinnedKeys();
   for (const key of wanted) {
     if (pinned.has(key)) {
-      // No page owns the source. Only an owner could ever override this one,
+      // No site owns the source. Only an owner could ever override this one,
       // which is the right answer for a file the code itself depends on.
-      add(key, { kind: "source", label: "Built into the code (src/config/images.ts)", page: null });
+      add(key, { kind: "source", label: "Built into the code (src/config/images.ts)", site: null });
     }
   }
 

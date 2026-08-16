@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { isDeckId } from "@/lib/decks";
 import { folderForEntity } from "@/lib/mediaPaths";
-import { guardPage } from "@/lib/server/access";
+import { guardRequestSite } from "@/lib/server/access";
 import { deleteDeck, getDeck, updateDeck } from "@/lib/server/decksRepo";
 import { deleteEntityFolder, moveEntityFolder } from "@/lib/server/entityMedia";
 import { revalidateDeckPages } from "@/lib/server/revalidateDecks";
@@ -15,8 +15,8 @@ const DUPLICATE = "23505";
 type Params = { params: Promise<{ id: string }> };
 
 export async function PUT(request: Request, { params }: Params) {
-  const denied = await guardPage("decks");
-  if (denied) return denied;
+  const guard = await guardRequestSite(request, "decks");
+  if (guard.denied) return guard.denied;
 
   const { id } = await params;
   if (!isDeckId(id)) {
@@ -41,6 +41,9 @@ export async function PUT(request: Request, { params }: Params) {
     // address is only in `former_slugs`, and a stale page there would keep
     // serving the deck instead of redirecting.
     const before = await getDeck(id);
+    if (before && before.site_id !== guard.site.id) {
+      return NextResponse.json({ error: "No such deck." }, { status: 404 });
+    }
 
     const notes: string[] = [];
     const deck = await updateDeck(id, body, notes);
@@ -62,8 +65,8 @@ export async function PUT(request: Request, { params }: Params) {
     if (before?.slug && before.slug !== deck.slug) {
       try {
         await moveEntityFolder(
-          folderForEntity("decks", before.slug, id),
-          folderForEntity("decks", deck.slug, id)
+          folderForEntity(guard.site.slug, "decks", before.slug, id),
+          folderForEntity(guard.site.slug, "decks", deck.slug, id)
         );
         moved = true;
       } catch (error) {
@@ -86,7 +89,7 @@ export async function PUT(request: Request, { params }: Params) {
     const fresh = moved ? ((await getDeck(id)) ?? deck) : deck;
 
     // After the move, so the rebuilt pages are built from the rewritten rows.
-    revalidateDeckPages([fresh.slug, before?.slug ?? ""]);
+    revalidateDeckPages(guard.site, [fresh.slug, before?.slug ?? ""]);
     return NextResponse.json({ deck: fresh, notes });
   } catch (error) {
     if ((error as { code?: string })?.code === DUPLICATE) {
@@ -101,9 +104,9 @@ export async function PUT(request: Request, { params }: Params) {
   }
 }
 
-export async function DELETE(_request: Request, { params }: Params) {
-  const denied = await guardPage("decks");
-  if (denied) return denied;
+export async function DELETE(request: Request, { params }: Params) {
+  const guard = await guardRequestSite(request, "decks");
+  if (guard.denied) return guard.denied;
 
   const { id } = await params;
   if (!isDeckId(id)) {
@@ -114,6 +117,9 @@ export async function DELETE(_request: Request, { params }: Params) {
     // Same reason as the PUT: the addresses it answered to have to be cleared,
     // and after the delete there is nothing left to read them from.
     const before = await getDeck(id);
+    if (before && before.site_id !== guard.site.id) {
+      return NextResponse.json({ error: "No such deck." }, { status: 404 });
+    }
 
     const removed = await deleteDeck(id);
     if (!removed) {
@@ -135,7 +141,7 @@ export async function DELETE(_request: Request, { params }: Params) {
     if (before?.slug) {
       try {
         const { deleted, rescued } = await deleteEntityFolder(
-          folderForEntity("decks", before.slug, id)
+          folderForEntity(guard.site.slug, "decks", before.slug, id)
         );
 
         if (rescued > 0) {
@@ -153,7 +159,7 @@ export async function DELETE(_request: Request, { params }: Params) {
       }
     }
 
-    revalidateDeckPages(before ? [before.slug, ...before.former_slugs] : []);
+    revalidateDeckPages(guard.site, before ? [before.slug, ...before.former_slugs] : []);
     return NextResponse.json({ ok: true, notes });
   } catch (error) {
     console.error("[admin/decks] DELETE", error);

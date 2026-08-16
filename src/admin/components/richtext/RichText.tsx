@@ -7,10 +7,10 @@ import Underline from "@tiptap/extension-underline";
 import { EditorContent, useEditor, type Editor, type JSONContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import {
-  ARTICLE_MAX_IMAGES,
-  normaliseArticleBody,
-  type ArticleDoc,
-} from "@/lib/articles";
+  RICH_MAX_IMAGES,
+  normaliseRichText,
+  type RichDoc,
+} from "@/lib/richtext";
 import { DOCUMENT_EDGE, toWebp } from "@/lib/client/toWebp";
 import { link as safeLink } from "@/lib/normalise";
 import { cn } from "@/lib/utils";
@@ -52,7 +52,7 @@ import { useUploadFolder } from "@/admin/components/UploadFolder";
  *
  * ── What it is allowed to produce ─────────────────────────────────────────
  *
- * Exactly the node types in `ArticleDoc`, which is why `strike`, `code` and
+ * Exactly the node types in `RichDoc`, which is why `strike`, `code` and
  * `codeBlock` are switched OFF in StarterKit below rather than left on and
  * dropped later. An editor that can make something the storage layer then
  * silently removes is an editor that loses somebody's work between pressing a
@@ -83,8 +83,8 @@ export function RichText({
   onChange,
   disabled,
 }: {
-  value: ArticleDoc;
-  onChange: (doc: ArticleDoc) => void;
+  value: RichDoc;
+  onChange: (doc: RichDoc) => void;
   disabled?: boolean;
 }) {
   const folder = useUploadFolder();
@@ -103,7 +103,7 @@ export function RichText({
    * describe — which would be a blank screen rather than a degraded one. Read
    * through the same rules as a write, like everything else here.
    */
-  const initial = useRef<ArticleDoc>(normaliseArticleBody(value));
+  const initial = useRef<RichDoc>(normaliseRichText(value));
 
   /*
    * ── Why these two are refs and not plain closures ─────────────────────
@@ -134,7 +134,7 @@ export function RichText({
     extensions: [
       StarterKit.configure({
         heading: { levels: [2, 3] },
-        // Not in ArticleDoc, so not offered. See the note above.
+        // Not in RichDoc, so not offered. See the note above.
         strike: false,
         code: false,
         codeBlock: false,
@@ -191,7 +191,7 @@ export function RichText({
       },
     },
     onUpdate: ({ editor: current }) => {
-      onChangeRef.current(current.getJSON() as ArticleDoc);
+      onChangeRef.current(current.getJSON() as RichDoc);
     },
   });
 
@@ -238,9 +238,9 @@ export function RichText({
       if (!editor || files.length === 0) return;
       setError(null);
 
-      const room = ARTICLE_MAX_IMAGES - imageCount(editor);
+      const room = RICH_MAX_IMAGES - imageCount(editor);
       if (room <= 0) {
-        setError(`An article holds ${ARTICLE_MAX_IMAGES} pictures, and this one is full.`);
+        setError(`An article holds ${RICH_MAX_IMAGES} pictures, and this one is full.`);
         return;
       }
 
@@ -285,7 +285,7 @@ export function RichText({
         setError(`${count}${reason ? ` ${reason}` : ""}`);
       } else if (overflow > 0) {
         setError(
-          `An article holds ${ARTICLE_MAX_IMAGES} pictures, so the last ${overflow} were not added.`
+          `An article holds ${RICH_MAX_IMAGES} pictures, so the last ${overflow} were not added.`
         );
       }
     },

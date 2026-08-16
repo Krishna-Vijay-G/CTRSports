@@ -1,6 +1,6 @@
 "use client";
 
-import type { LandingContent } from "@/lib/landingContent";
+import type { Chrome } from "@/lib/chrome";
 import { cn } from "@/lib/utils";
 import { BackButton } from "./BackButton";
 
@@ -56,7 +56,7 @@ export function SiteHeader({
   home,
   className,
 }: {
-  content: LandingContent;
+  content: Chrome;
   home: boolean;
   className?: string;
 }) {

@@ -3,7 +3,7 @@
  * than of the page.
  *
  * Everything a person would want to reword now lives in the database and is
- * edited at /admin/landing (copy and photography) or /admin/sports (the cards).
+ * edited at /console/site/landing (copy and photography) or /console/sports (the sites).
  * What is left here is what a content editor has no business changing: the
  * canonical URL the sitemap and Open Graph tags are built from, plus the search
  * metadata.

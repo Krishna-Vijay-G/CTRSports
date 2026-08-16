@@ -24,10 +24,10 @@ import { normaliseTrackInput, trackSlug, type Track, type TrackLink } from "@/li
  * that was two full scans of the table on every request. `cache()` dedupes
  * within one request and nothing wider, so an edit is still visible at once.
  */
-export const listTracks = cache(async (): Promise<Track[]> => {
+export const listTracks = cache(async (siteId: string): Promise<Track[]> => {
   const sql = getSql();
   const rows = (await sql`
-    SELECT id, name, slug, location, photo_url, map_url, svg_path, svg_view_box,
+    SELECT id, site_id, name, slug, location, photo_url, map_url, svg_path, svg_view_box,
            length, turns, direction, opened, broke_ground, former_names, owner,
            fia_grade, coordinates, capacity, major_events, races_held,
            lap_record_time, lap_record_year, note, sort_order,
@@ -35,6 +35,7 @@ export const listTracks = cache(async (): Promise<Track[]> => {
                      ORDER BY l.position), '[]'::jsonb)
              FROM ctr.track_links l WHERE l.track_id = t.id) AS links
       FROM ctr.tracks t
+     WHERE t.site_id = ${siteId}
      ORDER BY t.sort_order ASC, t.name ASC
   `) as Track[];
 
@@ -45,7 +46,7 @@ export const listTracks = cache(async (): Promise<Track[]> => {
 export async function getTrack(id: string): Promise<Track | null> {
   const sql = getSql();
   const rows = (await sql`
-    SELECT id, name, slug, location, photo_url, map_url, svg_path, svg_view_box,
+    SELECT id, site_id, name, slug, location, photo_url, map_url, svg_path, svg_view_box,
            length, turns, direction, opened, broke_ground, former_names, owner,
            fia_grade, coordinates, capacity, major_events, races_held,
            lap_record_time, lap_record_year, note, sort_order,
@@ -88,12 +89,16 @@ async function writeLinks(id: string, links: TrackLink[]): Promise<void> {
  * the same shape the forms and decks loops use, and for the same reason:
  * something has to be invented, because nobody typed it.
  */
-async function freeSlug(name: string): Promise<string> {
+async function freeSlug(siteId: string, name: string): Promise<string> {
   const sql = getSql();
   const wanted = trackSlug({ id: "", name }) || "circuit";
 
+  // Scoped to the sport: `tracks_slug_idx` is UNIQUE (site_id, slug) since
+  // migration 0014, so two sports may each have a `main-circuit` and neither
+  // has to wear a -2 it did not ask for.
   const taken = (await sql`
-    SELECT slug FROM ctr.tracks WHERE slug = ${wanted} OR slug LIKE ${wanted + "-%"}
+    SELECT slug FROM ctr.tracks
+     WHERE site_id = ${siteId} AND (slug = ${wanted} OR slug LIKE ${wanted + "-%"})
   `) as { slug: string }[];
 
   const used = new Set(taken.map((row) => row.slug));
@@ -106,19 +111,19 @@ async function freeSlug(name: string): Promise<string> {
   throw new Error("Could not find a free address for the circuit.");
 }
 
-export async function createTrack(input: unknown): Promise<Track> {
+export async function createTrack(siteId: string, input: unknown): Promise<Track> {
   const sql = getSql();
   const t = normaliseTrackInput(input);
 
   const rows = (await sql`
     INSERT INTO ctr.tracks (
-      name, slug, location, photo_url, map_url, svg_path, svg_view_box,
+      site_id, name, slug, location, photo_url, map_url, svg_path, svg_view_box,
       length, turns, direction, opened, broke_ground, former_names, owner,
       fia_grade, coordinates, capacity, major_events, races_held,
       lap_record_time, lap_record_year, note, sort_order
     )
     VALUES (
-      ${t.name}, ${await freeSlug(t.name)}, ${t.location}, ${t.photo_url}, ${t.map_url},
+      ${siteId}, ${t.name}, ${await freeSlug(siteId, t.name)}, ${t.location}, ${t.photo_url}, ${t.map_url},
       ${t.svg_path}, ${t.svg_view_box},
       ${t.length}, ${t.turns}, ${t.direction}, ${t.opened}, ${t.broke_ground},
       ${t.former_names}, ${t.owner}, ${t.fia_grade}, ${t.coordinates}, ${t.capacity},

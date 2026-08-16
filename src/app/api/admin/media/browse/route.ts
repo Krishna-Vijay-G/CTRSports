@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { canBrowseFolder, canWriteFolder, parseFolder, visibleRoots } from "@/lib/mediaPaths";
-import { guardAnyPage, guardFolder } from "@/lib/server/access";
+import { guardAnySite, guardFolder } from "@/lib/server/access";
 import { getSession } from "@/lib/server/auth";
 import { isS3Configured, listFolder } from "@/lib/server/s3";
 
@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
  * ── What an account is allowed to see ─────────────────────────────────────
  *
  * At the ROOT, the folder list is the roots this account may browse, not every
- * root that exists. An INCRC editor does not see that `decks/` is there, which
+ * root that exists. An INCRC editor does not see that `pickle/` is there, which
  * is the difference between a locked door and a door that is not drawn — and the
  * second is the better answer, because the first invites the handle to be tried.
  *
@@ -38,7 +38,7 @@ export const dynamic = "force-dynamic";
  * a folder somebody else has just deleted is worse than one showing nothing.
  */
 export async function GET(request: Request) {
-  const denied = await guardAnyPage();
+  const denied = await guardAnySite();
   if (denied) return denied;
 
   const asked = new URL(request.url).searchParams.get("folder") ?? "";

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { cellName, collageGrid, layoutsFor, type CollageLayout } from "@/lib/collage";
-import type { Shot } from "@/lib/incrcContent";
+import type { Shot } from "@/lib/sections/partnership/model";
 import { cn } from "@/lib/utils";
 import { Note } from "@/admin/components/Fields";
 import { CheckIcon } from "@/admin/ui/icons";

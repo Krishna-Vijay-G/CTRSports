@@ -6,17 +6,21 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   ROLE_LABELS,
-  canEditAnyPage,
-  canEditPage,
+  canEdit,
   canManageAdmins,
-  canSeeForms,
+  canManageSites,
+  canManageTeam,
+  canSeeAnySite,
   type AdminRole,
-  type PageKey,
+  type Grant,
 } from "@/lib/roles";
+import type { Site } from "@/lib/sites";
 import { cn } from "@/lib/utils";
 import { Button } from "@/admin/ui/Button";
 import {
+  CalendarIcon,
   CaretDownIcon,
+  ChromeIcon,
   FlagIcon,
   FolderIcon,
   ImagesIcon,
@@ -82,46 +86,113 @@ type NavItem = {
   href: string;
   label: string;
   icon: (props: { className?: string }) => React.ReactElement;
-  /** The page editor this screen is. */
-  page?: PageKey;
-  /** Or the other thing it needs. */
-  needs?: "forms" | "owner" | "anyPage";
+  /** Which sport this row belongs to, for grouping. Absent for the global rows. */
+  siteId?: string;
 };
 
-const NAV: NavItem[] = [
-  { href: "/landing", label: "Landing page", icon: ImagesIcon, page: "landing" },
-  { href: "/incrc", label: "INCRC", icon: FlagIcon, page: "incrc" },
-  { href: "/tracks", label: "Circuits", icon: MapIcon, page: "circuits" },
-  { href: "/decks", label: "Decks", icon: StackIcon, page: "decks" },
-  /*
-   * `anyPage` rather than a `page` of its own, on purpose.
-   *
-   * Articles are scoped BY the four pages above, not alongside them: an INCRC
-   * editor writes the INCRC articles and the owner writes the ones that belong to
-   * the whole site. There is no fifth `PageKey` to grant, so the door is the same
-   * one the media library uses, and what narrows the screen is the list it draws —
-   * `listArticles` returns only the articles this account may open.
-   */
-  { href: "/articles", label: "Articles", icon: NewsIcon, needs: "anyPage" },
+/**
+ * The screens of one sport.
+ *
+ * `NAV` used to be a constant: eight rows with a `PageKey` on each, filtered by
+ * what the account held. It cannot be a constant any more, because the rows
+ * depend on which sports exist, which modules each has switched on, and which
+ * of them this account can reach — three things that are rows in a table now.
+ *
+ * So it is built. The order is fixed here rather than taken from `site.modules`
+ * so that two sports with the same modules always read the same way down the
+ * list.
+ */
+function siteNav(site: Site, scope: { role: AdminRole; grants: Grant[] }): NavItem[] {
+  const base = `/site/${site.slug}`;
+  const has = (module: Parameters<typeof canEdit>[2]) => canEdit(scope, site.id, module);
+  const on = (module: string) => (site.modules as readonly string[]).includes(module);
+
+  const rows: NavItem[] = [];
+
+  if (has("page")) {
+    rows.push({
+      href: base,
+      label: site.kind === "root" ? "Landing page" : "Page",
+      icon: site.kind === "root" ? ImagesIcon : FlagIcon,
+      siteId: site.id,
+    });
+  }
+  // Straight after the page, because it is the frame around it — and because
+  // the two are the pair a sport admin moves between while a site is being set
+  // up. A separate grant from the page: see /site/[sport]/chrome.
+  if (has("chrome")) {
+    rows.push({
+      href: `${base}/chrome`,
+      label: "Header and footer",
+      icon: ChromeIcon,
+      siteId: site.id,
+    });
+  }
+  if (on("circuits") && has("circuits")) {
+    rows.push({ href: `${base}/tracks`, label: "Circuits", icon: MapIcon, siteId: site.id });
+  }
+  if (on("events") && has("events")) {
+    rows.push({ href: `${base}/events`, label: "Season", icon: CalendarIcon, siteId: site.id });
+  }
+  if (on("decks") && has("decks")) {
+    rows.push({ href: `${base}/decks`, label: "Decks", icon: StackIcon, siteId: site.id });
+  }
+  if (on("articles") && has("articles")) {
+    rows.push({ href: `${base}/articles`, label: "Articles", icon: NewsIcon, siteId: site.id });
+  }
+  if (on("forms") && has("forms")) {
+    rows.push({
+      href: `${base}/forms`,
+      label: "Registrations",
+      icon: TicketIcon,
+      siteId: site.id,
+    });
+  }
+  if (canManageTeam(scope, site.id)) {
+    rows.push({ href: `${base}/team`, label: "Co-admins", icon: UsersIcon, siteId: site.id });
+  }
+
+  return rows;
+}
+
+/**
+ * Every row this account may open, sports first and the global screens last.
+ *
+ * The label carries the sport's name when there is more than one, and does not
+ * when there is one — "Decks" is unambiguous on a deployment with a single
+ * sport, and "INCRC · Decks" on every row is noise until the day it is not.
+ */
+function allowedNav(
+  scope: { role: AdminRole; grants: Grant[] },
+  sites: Site[]
+): NavItem[] {
+  const reachable = sites.filter((site) => siteNav(site, scope).length > 0);
+  const many = reachable.length > 1;
+
+  const rows = reachable.flatMap((site) =>
+    siteNav(site, scope).map((item) => ({
+      ...item,
+      label: many ? `${site.name} · ${item.label}` : item.label,
+    }))
+  );
+
   /*
    * `FolderIcon` rather than `ImagesIcon`: the latter is already the landing
    * page's glyph and two rows sharing one shape defeats the point of the rail.
    * It is also what the "Library" button inside every image field wears, so the
    * glyph and the destination match.
    */
-  { href: "/media", label: "Media", icon: FolderIcon, needs: "anyPage" },
-  { href: "/forms", label: "Registrations", icon: TicketIcon, needs: "forms" },
-  { href: "/admins", label: "Accounts", icon: UsersIcon, needs: "owner" },
-];
+  if (canSeeAnySite(scope)) {
+    rows.push({ href: "/media", label: "Media", icon: FolderIcon });
+  }
+  if (canManageSites(scope)) {
+    rows.push({ href: "/sports", label: "Sports", icon: PanelIcon });
+  }
+  if (canManageAdmins(scope)) {
+    rows.push({ href: "/admins", label: "Accounts", icon: UsersIcon });
+  }
 
-function allowedNav(scope: { role: AdminRole; pages: PageKey[] }): NavItem[] {
-  return NAV.filter((item) => {
-    if (item.page) return canEditPage(scope, item.page);
-    if (item.needs === "forms") return canSeeForms(scope);
-    if (item.needs === "owner") return canManageAdmins(scope);
-    if (item.needs === "anyPage") return canEditAnyPage(scope);
-    return true;
-  });
+  return rows;
 }
 
 const RAIL_SLOT_ID = "admin-rail-slot";
@@ -287,18 +358,21 @@ function PagesDrawer({
 export function AdminShell({
   username,
   role,
-  pages,
+  grants,
+  sites,
   children,
 }: {
   username: string;
   role: AdminRole;
-  /** The page editors this account is scoped to. Empty for the other two roles. */
-  pages: PageKey[];
+  /** Every (sport, module) pair this account holds. Empty for an owner. */
+  grants: Grant[];
+  /** Every sport, so the navigation can be built from what exists. */
+  sites: Site[];
   children: React.ReactNode;
 }) {
   const pathname = usePathname() ?? "/";
   const router = useRouter();
-  const nav = allowedNav({ role, pages });
+  const nav = allowedNav({ role, grants }, sites);
 
   // Starts expanded and corrects itself on mount. Reading localStorage during
   // render would differ from what the server drew and break hydration.

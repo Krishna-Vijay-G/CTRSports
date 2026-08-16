@@ -8,7 +8,7 @@ import {
   type Form,
   type FormEntry,
 } from "@/lib/forms";
-import { guardForms } from "@/lib/server/access";
+import { guardFormById } from "@/lib/server/access";
 import {
   CREATED_KEY,
   MAX_BULK_DELETE,
@@ -56,10 +56,10 @@ const ADDED_BY_HAND = "Added in the admin";
  * passing a caller's string into a query shape is not one to keep.
  */
 export async function GET(request: Request, { params }: Params) {
-  const denied = await guardForms();
-  if (denied) return denied;
-
   const { id } = await params;
+
+  const guard = await guardFormById(id);
+  if (guard.denied) return guard.denied;
   if (!isFormId(id)) {
     return NextResponse.json({ error: "No such form." }, { status: 404 });
   }
@@ -156,10 +156,10 @@ export async function GET(request: Request, { params }: Params) {
  * against a stranger, and this route is already behind `guardForms`.
  */
 export async function POST(request: Request, { params }: Params) {
-  const denied = await guardForms();
-  if (denied) return denied;
-
   const { id } = await params;
+
+  const guard = await guardFormById(id);
+  if (guard.denied) return guard.denied;
   if (!isFormId(id)) {
     return NextResponse.json({ error: "No such form." }, { status: 404 });
   }
@@ -212,10 +212,10 @@ export async function POST(request: Request, { params }: Params) {
  * a table nobody can make sense of.
  */
 export async function DELETE(request: Request, { params }: Params) {
-  const denied = await guardForms();
-  if (denied) return denied;
-
   const { id } = await params;
+
+  const guard = await guardFormById(id);
+  if (guard.denied) return guard.denied;
   if (!isFormId(id)) {
     return NextResponse.json({ error: "No such form." }, { status: 404 });
   }

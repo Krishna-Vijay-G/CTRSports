@@ -10,7 +10,6 @@ import {
   type FormSummary,
 } from "@/lib/forms";
 import { oneOf } from "@/lib/normalise";
-import { FORM_PAGE_KEYS, type FormPageKey } from "@/lib/roles";
 import { type SlugHolder } from "@/lib/slug";
 import { getSql } from "@/lib/server/db";
 import { deleteObjects } from "@/lib/server/s3";
@@ -66,12 +65,11 @@ function hydrate(row: Form): Form {
 
   return {
     ...row,
-    // `status` and `page_key` are plain text columns with no CHECK constraint —
-    // this project's stated way of retiring a value is `oneOf` on read, not a
+    // `status` is a text column. It has a CHECK constraint, but `oneOf` stays,
+    // because this project's way of RETIRING a value is a code change and not a
     // migration. Without it, a row holding anything unexpected made
     // `STATUS_LABELS[row.status]` undefined, and the picker threw calling
-    // `.toLowerCase()` on it. The doc above promised this protection and
-    // delivered it for one column out of sixteen.
+    // `.toLowerCase()` on it.
     status: oneOf(row.status, FORM_STATUSES, "draft"),
     // `timestamptz` arrives as a Date. The type says string, and this is the
     // boundary that has to make that true — the same lesson the CSV export
@@ -79,7 +77,6 @@ function hydrate(row: Form): Form {
     opens_at: asIso(row.opens_at),
     closes_at: asIso(row.closes_at),
     max_entries: Number(row.max_entries) || 0,
-    page_key: oneOf(row.page_key, FORM_PAGE_KEYS, "" as FormPageKey | ""),
     slug: row.slug ?? "",
     former_slugs: row.former_slugs ?? [],
     // Both together: the questions are sorted into section order, so reading one
@@ -105,12 +102,12 @@ function hydrate(row: Form): Form {
  *
  * No argument means no filter, which is what an owner gets.
  */
-export const listForms = cache(async (pages?: readonly string[]): Promise<Form[]> => {
+export const listForms = cache(async (siteIds?: readonly string[] | null): Promise<Form[]> => {
   const sql = getSql();
-  const wanted = pages ? [...pages] : null;
+  const wanted = siteIds ? [...siteIds] : null;
 
   const rows = (await sql`
-    SELECT id, name, page_key, status, blurb, intro_title, intro_body,
+    SELECT id, site_id, name, status, blurb, intro_title, intro_body,
            submit_label, success_title, success_body, closed_note, notify_to,
            opens_at, closes_at, max_entries,
            fields, sections, sort_order,
@@ -119,7 +116,7 @@ export const listForms = cache(async (pages?: readonly string[]): Promise<Form[]
            (SELECT coalesce(jsonb_agg(s.slug ORDER BY s.created_at), '[]'::jsonb) FROM ctr.slugs s
              WHERE s.entity_type = 'form' AND s.entity_id = f.id AND NOT s.is_current) AS former_slugs
       FROM ctr.forms f
-     WHERE ${wanted}::text[] IS NULL OR f.page_key = ANY(${wanted}::text[])
+     WHERE ${wanted}::uuid[] IS NULL OR f.site_id = ANY(${wanted}::uuid[])
      ORDER BY f.sort_order ASC, f.name ASC
   `) as Form[];
 
@@ -127,26 +124,26 @@ export const listForms = cache(async (pages?: readonly string[]): Promise<Form[]
 });
 
 /**
- * The forms on one page, for the site and for the picker.
+ * The forms of one sport, for its page and for the picker.
  *
  * Drafts are left out everywhere this is used: the page cards and the picker
  * both point at something a visitor will click, and a draft is not on the
  * internet at all.
  */
-export async function listFormsForPage(page: FormPageKey): Promise<FormSummary[]> {
+export async function listFormsForSite(siteId: string): Promise<FormSummary[]> {
   const sql = getSql();
 
   // The count comes back with the row rather than one query per card: a card
   // cannot say "full" without knowing it, and a page with six forms should not
   // be seven round trips.
   const rows = (await sql`
-    SELECT f.id, f.name, f.page_key, f.status, f.blurb, f.sort_order,
+    SELECT f.id, f.name, f.site_id, f.status, f.blurb, f.sort_order,
            f.opens_at, f.closes_at, f.max_entries,
            (SELECT s.slug FROM ctr.slugs s
              WHERE s.entity_type = 'form' AND s.entity_id = f.id AND s.is_current) AS slug,
            (SELECT count(*)::int FROM ctr.form_entries e WHERE e.form_id = f.id) AS entries
       FROM ctr.forms f
-     WHERE f.page_key = ${page}
+     WHERE f.site_id = ${siteId}
        AND f.status <> 'draft'
      ORDER BY f.sort_order ASC, f.name ASC
   `) as FormSummary[];
@@ -164,7 +161,7 @@ export async function listFormsForPage(page: FormPageKey): Promise<FormSummary[]
 export async function getForm(id: string): Promise<Form | null> {
   const sql = getSql();
   const rows = (await sql`
-    SELECT id, name, page_key, status, blurb, intro_title, intro_body,
+    SELECT id, site_id, name, status, blurb, intro_title, intro_body,
            submit_label, success_title, success_body, closed_note, notify_to,
            opens_at, closes_at, max_entries,
            fields, sections, sort_order,
@@ -180,6 +177,23 @@ export async function getForm(id: string): Promise<Form | null> {
 }
 
 /**
+ * Just the sport a form belongs to.
+ *
+ * A whole `getForm` would parse the questions and sort them into sections in
+ * order to answer a one-column question, and every `/api/admin/forms/[id]/…`
+ * route asks it before doing anything else. Null means no such form, which the
+ * guard turns into a 404 rather than a 403 — an id that does not exist and one
+ * that is not yours should not be told apart from outside.
+ */
+export async function getFormSiteId(id: string): Promise<string | null> {
+  const rows = (await getSql()`
+    SELECT site_id FROM ctr.forms WHERE id = ${id}
+  `) as { site_id: string }[];
+
+  return rows[0]?.site_id ?? null;
+}
+
+/**
  * The form at an address, current or former.
  *
  * One indexed lookup in `slugs` and then the row, instead of the old
@@ -187,8 +201,11 @@ export async function getForm(id: string): Promise<Form | null> {
  * page turns a former match into a permanent redirect, so a printed link or a
  * QR code corrects itself in the address bar.
  */
-export async function getFormBySlug(slug: string): Promise<Form | null> {
-  const found = await resolveSlug("form", slug);
+export async function getFormBySlug(
+  siteId: string,
+  slug: string
+): Promise<Form | null> {
+  const found = await resolveSlug("form", siteId, slug);
   return found ? getForm(found.id) : null;
 }
 
@@ -221,7 +238,11 @@ function taken(message: string): Error & { code?: string } {
  * has to be invented and the alternative is refusing to create the row at all.
  * That path is for the check scripts and anything else posting a bare name.
  */
-export async function createForm(input: unknown, notes?: string[]): Promise<Form> {
+export async function createForm(
+  siteId: string,
+  input: unknown,
+  notes?: string[]
+): Promise<Form> {
   const first = normaliseFormInput(input, notes);
   const asked = typeof (input as { slug?: unknown })?.slug === "string"
     && (input as { slug: string }).slug.trim() !== "";
@@ -230,10 +251,10 @@ export async function createForm(input: unknown, notes?: string[]): Promise<Form
     // The unique index cannot see this one: a former address lives in a JSONB
     // array. Without the check a new form can take an address another form's
     // poster still resolves through, and that poster silently changes meaning.
-    const holder = await findSlugOwner(first.slug);
+    const holder = await findSlugOwner(siteId, first.slug);
     if (holder) throw taken(heldBy(first.slug, holder));
 
-    return insertForm(first);
+    return insertForm(siteId, first);
   }
 
   for (let attempt = 1; attempt <= 20; attempt += 1) {
@@ -242,10 +263,10 @@ export async function createForm(input: unknown, notes?: string[]): Promise<Form
     // Skipped rather than attempted: the insert would succeed, because a former
     // address is not the unique column, and the collision would only show up as
     // somebody else's old link opening this form.
-    if (await findSlugOwner(slug)) continue;
+    if (await findSlugOwner(siteId, slug)) continue;
 
     try {
-      const form = await insertForm({ ...first, slug });
+      const form = await insertForm(siteId, { ...first, slug });
       if (attempt > 1) notes?.push(`The address “${first.slug}” was taken, so this one is “${slug}”.`);
       return form;
     } catch (error) {
@@ -276,8 +297,12 @@ function heldBy(slug: string, holder: SlugHolder): string {
  * The current address wins the tie, because that is the answer that decides
  * whether the address can be handed over at all — see `SlugHolder`.
  */
-export async function findSlugOwner(slug: string, exceptId = ""): Promise<SlugHolder | null> {
-  return findOwner("form", slug, exceptId);
+export async function findSlugOwner(
+  siteId: string,
+  slug: string,
+  exceptId = ""
+): Promise<SlugHolder | null> {
+  return findOwner("form", siteId, slug, exceptId);
 }
 
 /**
@@ -288,21 +313,28 @@ export async function findSlugOwner(slug: string, exceptId = ""): Promise<SlugHo
  * form, and "reassign" would mean deleting somebody's live page as a side
  * effect of typing in a box on a different screen.
  */
-export async function releaseFormerSlug(slug: string, fromId: string): Promise<boolean> {
-  return releaseFormer("form", slug, fromId);
+export async function releaseFormerSlug(
+  siteId: string,
+  slug: string,
+  fromId: string
+): Promise<boolean> {
+  return releaseFormer("form", siteId, slug, fromId);
 }
 
-async function insertForm(f: Omit<Form, "id">): Promise<Form> {
+async function insertForm(
+  siteId: string,
+  f: Omit<Form, "id" | "site_id">
+): Promise<Form> {
   const sql = getSql();
 
   const rows = (await sql`
     INSERT INTO ctr.forms (
-      name, page_key, status, blurb, intro_title, intro_body,
+      site_id, name, status, blurb, intro_title, intro_body,
       submit_label, success_title, success_body, closed_note, notify_to,
       opens_at, closes_at, max_entries, fields, sections, sort_order
     )
     VALUES (
-      ${f.name}, ${f.page_key}, ${f.status}, ${f.blurb},
+      ${siteId}, ${f.name}, ${f.status}, ${f.blurb},
       ${f.intro_title}, ${f.intro_body}, ${f.submit_label}, ${f.success_title},
       ${f.success_body}, ${f.closed_note}, ${f.notify_to},
       ${f.opens_at || null}, ${f.closes_at || null}, ${f.max_entries},
@@ -312,7 +344,7 @@ async function insertForm(f: Omit<Form, "id">): Promise<Form> {
     RETURNING id
   `) as { id: string }[];
 
-  await writeSlugs("form", rows[0].id, f.slug, []);
+  await writeSlugs("form", siteId, rows[0].id, f.slug, []);
 
   const created = await getForm(rows[0].id);
   if (!created) throw new Error("The form was not written.");
@@ -387,7 +419,6 @@ export async function updateForm(
   const rows = (await sql`
     UPDATE ctr.forms
        SET name          = ${f.name},
-           page_key      = ${f.page_key},
            status        = ${f.status},
            blurb         = ${f.blurb},
            intro_title   = ${f.intro_title},
@@ -409,7 +440,7 @@ export async function updateForm(
 
   if (rows.length === 0) return null;
 
-  await writeSlugs("form", id, f.slug, formerSlugs);
+  await writeSlugs("form", existing.site_id, id, f.slug, formerSlugs);
 
   return getForm(id);
 }

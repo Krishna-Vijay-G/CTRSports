@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { guardPage } from "@/lib/server/access";
+import { guardRequestSite } from "@/lib/server/access";
 import { revalidateTrackPages } from "@/lib/server/revalidateTracks";
 import { createTrack, listTracks, reorderTracks } from "@/lib/server/tracksRepo";
 import { isTrackId } from "@/lib/tracks";
@@ -8,12 +8,12 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /** The whole list. */
-export async function GET() {
-  const denied = await guardPage("circuits");
-  if (denied) return denied;
+export async function GET(request: Request) {
+  const guard = await guardRequestSite(request, "circuits");
+  if (guard.denied) return guard.denied;
 
   try {
-    return NextResponse.json({ tracks: await listTracks() });
+    return NextResponse.json({ tracks: await listTracks(guard.site.id) });
   } catch (error) {
     console.error("[admin/tracks] GET", error);
     return NextResponse.json({ error: "Could not load the circuits." }, { status: 500 });
@@ -22,8 +22,8 @@ export async function GET() {
 
 /** Adds one. A circuit with no name is not a circuit, so that is the only rule. */
 export async function POST(request: Request) {
-  const denied = await guardPage("circuits");
-  if (denied) return denied;
+  const guard = await guardRequestSite(request, "circuits");
+  if (guard.denied) return guard.denied;
 
   let body: unknown;
   try {
@@ -38,8 +38,8 @@ export async function POST(request: Request) {
   }
 
   try {
-    const track = await createTrack(body);
-    revalidateTrackPages();
+    const track = await createTrack(guard.site.id, body);
+    revalidateTrackPages(guard.site);
     return NextResponse.json({ track });
   } catch (error) {
     console.error("[admin/tracks] POST", error);
@@ -55,8 +55,8 @@ export async function POST(request: Request) {
  * the match, so the path would land in the [id] handler.
  */
 export async function PATCH(request: Request) {
-  const denied = await guardPage("circuits");
-  if (denied) return denied;
+  const guard = await guardRequestSite(request, "circuits");
+  if (guard.denied) return guard.denied;
 
   let ids: unknown;
   try {
@@ -75,7 +75,7 @@ export async function PATCH(request: Request) {
 
   try {
     await reorderTracks(ids);
-    revalidateTrackPages();
+    revalidateTrackPages(guard.site);
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("[admin/tracks] PATCH", error);

@@ -2,12 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { BLANK_DECK, DECK_STATUS_LABELS, type Deck } from "@/lib/decks";
-import { DECK_UPLOAD_FOLDER, folderForEntity } from "@/lib/mediaPaths";
-import type { LandingContent } from "@/lib/landingContent";
+import { folderForEntity, folderForModule } from "@/lib/mediaPaths";
+import type { Chrome } from "@/lib/chrome";
 import type { SlugHolder } from "@/lib/slug";
 import { cn } from "@/lib/utils";
 import { Button } from "@/admin/ui/Button";
 import { ImagesIcon, PlusIcon } from "@/admin/ui/icons";
+import { useSite, withSite } from "@/admin/components/SiteScope";
 import { AdminRailSlot } from "@/admin/components/AdminShell";
 import { EditorToolbar } from "@/admin/components/EditorToolbar";
 import { Note, Panel } from "@/admin/components/Fields";
@@ -42,7 +43,7 @@ export function DecksEditor({
 }: {
   initialDecks: Deck[];
   /** The landing document — the header and footer the preview draws. */
-  chrome: LandingContent;
+  chrome: Chrome;
   /**
    * Where the public site answers. The admin is on a different hostname, so a
    * relative link to a deck's page from here would resolve against the admin
@@ -51,6 +52,9 @@ export function DecksEditor({
   siteUrl: string;
   year: number;
 }) {
+  // The sport this screen belongs to. Every write below names it, so the
+  // server guards the right one — see SiteScope.
+  const site = useSite();
   const [decks, setDecks] = useState<Deck[]>(initialDecks);
   const [saved, setSaved] = useState<Deck[]>(initialDecks);
 
@@ -125,7 +129,7 @@ export function DecksEditor({
       if (!ids || ids.join(",") === savedOrder.current) return;
 
       // `keepalive` so it survives the page it was fired from going away.
-      void fetch("/api/admin/decks", {
+      void fetch(withSite("/api/admin/decks", site), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids }),
@@ -141,7 +145,7 @@ export function DecksEditor({
     setError(null);
 
     try {
-      const response = await fetch("/api/admin/decks", {
+      const response = await fetch(withSite("/api/admin/decks", site), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids }),
@@ -200,7 +204,7 @@ export function DecksEditor({
     setNotes(null);
 
     try {
-      const response = await fetch(`/api/admin/decks/${active.id}`, {
+      const response = await fetch(withSite(`/api/admin/decks/${active.id}`, site), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(active),
@@ -241,7 +245,7 @@ export function DecksEditor({
     setNotes(null);
 
     try {
-      const response = await fetch("/api/admin/decks", {
+      const response = await fetch(withSite("/api/admin/decks", site), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -300,7 +304,7 @@ export function DecksEditor({
     setError(null);
 
     try {
-      const response = await fetch(`/api/admin/decks/${active.id}`, { method: "DELETE" });
+      const response = await fetch(withSite(`/api/admin/decks/${active.id}`, site), { method: "DELETE" });
 
       // A 404 means it is already gone, which is what was being asked for.
       // Treating it as a failure leaves a phantom row nothing can remove.
@@ -363,8 +367,8 @@ export function DecksEditor({
    * src/app/api/admin/decks/[id]/route.ts.
    */
   const uploadFolder = activeSaved
-    ? folderForEntity("decks", activeSaved.slug, activeSaved.id)
-    : DECK_UPLOAD_FOLDER;
+    ? folderForEntity(site.slug, "decks", activeSaved.slug, activeSaved.id)
+    : folderForModule(site.slug, "decks");
 
   return (
     <UploadFolder folder={uploadFolder}>

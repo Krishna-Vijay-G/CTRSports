@@ -1,7 +1,16 @@
 "use client";
 
 import { MIN_PASSWORD, type AdminAccount } from "@/lib/admins";
-import { ADMIN_ROLES, PAGE_KEYS, PAGE_LABELS, ROLE_HINTS, ROLE_LABELS } from "@/lib/roles";
+import {
+  ADMIN_ROLES,
+  GRANT_LABELS,
+  GRANT_MODULES,
+  ROLE_HINTS,
+  ROLE_LABELS,
+  type Grant,
+  type GrantModule,
+} from "@/lib/roles";
+import type { Site } from "@/lib/sites";
 import { cn } from "@/lib/utils";
 import { Button } from "@/admin/ui/Button";
 import { Input, Label, Select } from "@/admin/ui/Input";
@@ -11,10 +20,21 @@ import { Field, Hint, Note, Panel } from "@/admin/components/Fields";
 /**
  * One account's record.
  *
- * The page tick-boxes appear only for the `pages` role, because for the other
- * two they decide nothing: an owner has every screen and a registrations admin
- * has none, and showing a list of ticks that changes nothing is how an admin
- * ends up believing it did.
+ * The grant grid appears only for a `member`, because for an owner it decides
+ * nothing — they have every sport already — and showing a list of ticks that
+ * changes nothing is how an admin ends up believing it did.
+ *
+ * ── The grid, and why it is a grid ────────────────────────────────────────
+ *
+ * A scope is a pair now: which sport, and which part of it. That is two
+ * dimensions, so it is drawn as two — a row per sport, a button per module —
+ * rather than as one flat list of "INCRC decks, INCRC articles, Pickle
+ * articles" that nobody can scan.
+ *
+ * `Everything` is the first button in each row and it is the sport-admin grant.
+ * Ticking it is what makes somebody the person that sport belongs to, and it
+ * greys the rest because they would all be redundant: `*` already covers every
+ * module, including ones switched on later.
  *
  * The password field is blank on an account that already exists, and blank
  * means "leave it alone" rather than "clear it" — there is no such thing as an
@@ -24,6 +44,7 @@ import { Field, Hint, Note, Panel } from "@/admin/components/Fields";
  */
 export function AdminForm({
   account,
+  sites,
   password,
   isNew,
   isSelf,
@@ -33,6 +54,8 @@ export function AdminForm({
   busy,
 }: {
   account: AdminAccount;
+  /** Every sport, so the grid has a row per one. */
+  sites: Site[];
   /** Held by the editor, not on the record — it is never read back. */
   password: string;
   isNew: boolean;
@@ -45,10 +68,46 @@ export function AdminForm({
 }) {
   const set = (patch: Partial<AdminAccount>) => onChange({ ...account, ...patch });
 
-  function togglePage(page: (typeof PAGE_KEYS)[number]) {
-    const has = account.pages.includes(page);
-    set({ pages: PAGE_KEYS.filter((key) => (key === page ? !has : account.pages.includes(key))) });
+  const holds = (siteId: string, module: GrantModule): boolean =>
+    account.grants.some((grant) => grant.siteId === siteId && grant.module === module);
+
+  /**
+   * Adds or removes one (sport, module) pair.
+   *
+   * Ticking `*` drops that sport's other grants rather than keeping them
+   * alongside: they are all implied, and leaving them would mean unticking `*`
+   * later silently left a scope behind that nobody chose.
+   */
+  function toggle(site: Site, module: GrantModule) {
+    const on = holds(site.id, module);
+    const others = account.grants.filter((grant) => grant.siteId !== site.id);
+    const mine = account.grants.filter(
+      (grant) => grant.siteId === site.id && grant.module !== module
+    );
+
+    const next: Grant[] = on
+      ? [...others, ...mine]
+      : module === "*"
+        ? [...others, { siteId: site.id, siteSlug: site.slug, module: "*" }]
+        : [
+            ...others,
+            ...mine.filter((grant) => grant.module !== "*"),
+            { siteId: site.id, siteSlug: site.slug, module },
+          ];
+
+    set({ grants: next });
   }
+
+  /** A module is only offered where the sport has it switched on. */
+  const modulesFor = (site: Site): GrantModule[] =>
+    GRANT_MODULES.filter(
+      (module) =>
+        module === "*" ||
+        module === "page" ||
+        module === "chrome" ||
+        module === "team" ||
+        (site.modules as readonly string[]).includes(module)
+    );
 
   return (
     <>
@@ -102,30 +161,46 @@ export function AdminForm({
             <Hint className="mt-1">{ROLE_HINTS[account.role]}</Hint>
           </div>
 
-          {account.role === "pages" ? (
+          {account.role === "member" ? (
             <div className="block">
-              <Label>Pages</Label>
-              <div className="mt-1.5 flex flex-wrap gap-1.5">
-                {PAGE_KEYS.map((page) => {
-                  const on = account.pages.includes(page);
+              <Label>What they can reach</Label>
+              <div className="mt-1.5 space-y-2.5">
+                {sites.map((site) => {
+                  const everything = holds(site.id, "*");
 
                   return (
-                    <Button
-                      key={page}
-                      variant={on ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => togglePage(page)}
-                      aria-pressed={on}
-                    >
-                      {on ? <CheckIcon /> : null}
-                      {PAGE_LABELS[page]}
-                    </Button>
+                    <div key={site.id}>
+                      <p className="text-xs font-medium text-muted-fg">{site.name}</p>
+                      <div className="mt-1 flex flex-wrap gap-1.5">
+                        {modulesFor(site).map((module) => {
+                          const on = module === "*" ? everything : holds(site.id, module);
+                          // Every other button is implied by `*`, so it is shown
+                          // as on and refuses to be changed while `*` is set.
+                          const implied = everything && module !== "*";
+
+                          return (
+                            <Button
+                              key={module}
+                              variant={on || implied ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => toggle(site, module)}
+                              disabled={implied}
+                              aria-pressed={on || implied}
+                            >
+                              {on || implied ? <CheckIcon /> : null}
+                              {GRANT_LABELS[module]}
+                            </Button>
+                          );
+                        })}
+                      </div>
+                    </div>
                   );
                 })}
               </div>
               <Hint className="mt-1">
-                Only these screens open for them. They can point a button at a registration form
-                for one of these pages, but not build or change one.
+                “Everything on this sport” makes them its admin: every screen it has, and the
+                right to hand pieces of it to co-admins. Anything narrower opens only what is
+                ticked.
               </Hint>
             </div>
           ) : null}

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { BLANK_ADMIN, describeAccess, type AdminAccount } from "@/lib/admins";
+import type { Site } from "@/lib/sites";
 import { ROLE_LABELS } from "@/lib/roles";
 import { Button } from "@/admin/ui/Button";
 import { PlusIcon, UsersIcon } from "@/admin/ui/icons";
@@ -34,12 +35,17 @@ const DRAFT = "";
 
 export function AdminsEditor({
   initialAdmins,
+  sites,
   currentAdminId,
 }: {
   initialAdmins: AdminAccount[];
+  /** Every sport, for the grant grid and for naming a grant in the rail. */
+  sites: Site[];
   /** Whose session this is. They cannot delete themselves. */
   currentAdminId: string;
 }) {
+  // id → name, so `describeAccess` can print "INCRC: articles" rather than a uuid.
+  const siteNames = Object.fromEntries(sites.map((site) => [site.id, site.name]));
   const [admins, setAdmins] = useState<AdminAccount[]>(initialAdmins);
   const [saved, setSaved] = useState<AdminAccount[]>(initialAdmins);
 
@@ -65,7 +71,7 @@ export function AdminsEditor({
           activeSaved &&
           (active.username !== activeSaved.username ||
             active.role !== activeSaved.role ||
-            active.pages.join(",") !== activeSaved.pages.join(",") ||
+            JSON.stringify(active.grants) !== JSON.stringify(activeSaved.grants) ||
             password.length > 0)
       );
 
@@ -166,7 +172,7 @@ export function AdminsEditor({
       id: admin.id,
       short: admin.username || "Unnamed",
       title: admin.username || "Unnamed",
-      hint: `${ROLE_LABELS[admin.role]} · ${describeAccess(admin)}`,
+      hint: `${ROLE_LABELS[admin.role]} · ${describeAccess(admin, siteNames)}`,
       Icon: UsersIcon,
     })),
     ...(draft ? [{ id: DRAFT, short: "New account", hint: "Not saved yet", Icon: UsersIcon }] : []),
@@ -234,6 +240,7 @@ export function AdminsEditor({
             ) : (
               <>
                 <AdminForm
+                  sites={sites}
                   account={active}
                   password={password}
                   isNew={isDraft}

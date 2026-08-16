@@ -1,15 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { Round } from "@/lib/incrcContent";
-import type { LandingContent } from "@/lib/landingContent";
+import type { EventSummary } from "@/lib/events";
+import type { Chrome } from "@/lib/chrome";
 import type { Track } from "@/lib/tracks";
 import { cn } from "@/lib/utils";
 import { PreviewMode } from "@/components/ui/PreviewMode";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SiteHeader } from "@/components/layout/SiteHeader";
-import { CircuitDetail } from "@/app/(site)/circuits/_components/CircuitDetail";
-import { CircuitIndex } from "@/app/(site)/circuits/_components/CircuitIndex";
+import { useSite } from "@/admin/components/SiteScope";
+import { CircuitDetail } from "@/app/(site)/_shell/circuits/CircuitDetail";
+import { CircuitIndex } from "@/app/(site)/_shell/circuits/CircuitIndex";
 
 /**
  * The real circuits pages, rendered from the editor's draft, shrunk to fit
@@ -37,7 +38,7 @@ export function CircuitPreview({
   tracks,
   track,
   chrome,
-  rounds,
+  season,
   year,
   className,
 }: {
@@ -45,11 +46,15 @@ export function CircuitPreview({
   tracks: Track[];
   /** The one being edited, or null for the index page. */
   track: Track | null;
-  chrome: LandingContent;
-  rounds: Round[];
+  chrome: Chrome;
+  season: readonly EventSummary[];
   year: number;
   className?: string;
 }) {
+  /* The sport whose circuits these are — every link the preview draws is under
+     it, and the preview draws the real components. */
+  const site = useSite();
+
   const paneRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.5);
 
@@ -100,18 +105,14 @@ export function CircuitPreview({
           <div className="bg-page p-3">
             <div className="overflow-hidden rounded-card bg-surface">
               {track ? (
-                <CircuitDetail
-                  track={track}
-                  tracks={tracks}
-                  rounds={rounds}
-                  header={
-                    <SiteHeader
-                      content={chrome}
-                      home={false}
-                      className="relative z-20 border-b border-line bg-surface"
-                    />
-                  }
-                />
+                <>
+                  <SiteHeader
+                    content={chrome}
+                    home={false}
+                    className="relative z-20 border-b border-line bg-surface"
+                  />
+                  <CircuitDetail site={site} track={track} tracks={tracks} season={season} />
+                </>
               ) : (
                 <>
                   <SiteHeader
@@ -119,7 +120,7 @@ export function CircuitPreview({
                     home={false}
                     className="relative z-20 border-b border-line bg-surface"
                   />
-                  <CircuitIndex tracks={tracks} />
+                  <CircuitIndex site={site} tracks={tracks} />
                 </>
               )}
 

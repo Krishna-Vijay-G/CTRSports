@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { isFormId, validateSubmission, withOrphans } from "@/lib/forms";
-import { guardForms } from "@/lib/server/access";
+import { guardFormById } from "@/lib/server/access";
 import { deleteEntry, getEntry, updateEntry } from "@/lib/server/entriesRepo";
 import { getForm } from "@/lib/server/formsRepo";
 
@@ -23,10 +23,10 @@ type Params = { params: Promise<{ id: string; entryId: string }> };
  * questions since deleted. `withOrphans` is what keeps those.
  */
 export async function PUT(request: Request, { params }: Params) {
-  const denied = await guardForms();
-  if (denied) return denied;
-
   const { id, entryId } = await params;
+
+  const guard = await guardFormById(id);
+  if (guard.denied) return guard.denied;
   if (!isFormId(id) || !isFormId(entryId)) {
     return NextResponse.json({ error: "No such entry." }, { status: 404 });
   }
@@ -89,10 +89,10 @@ export async function PUT(request: Request, { params }: Params) {
  * reach across to another form's entries.
  */
 export async function DELETE(_request: Request, { params }: Params) {
-  const denied = await guardForms();
-  if (denied) return denied;
-
   const { id, entryId } = await params;
+
+  const guard = await guardFormById(id);
+  if (guard.denied) return guard.denied;
   if (!isFormId(id) || !isFormId(entryId)) {
     return NextResponse.json({ error: "No such entry." }, { status: 404 });
   }

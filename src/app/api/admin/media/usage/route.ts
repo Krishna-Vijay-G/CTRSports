@@ -6,7 +6,7 @@ import {
   isMediaKey,
   parseFolder,
 } from "@/lib/mediaPaths";
-import { guardAnyPage, guardFolder } from "@/lib/server/access";
+import { guardAnySite, guardFolder } from "@/lib/server/access";
 import { getSession } from "@/lib/server/auth";
 import { findUsage } from "@/lib/server/mediaUsage";
 import { isS3Configured, listFolderDeep } from "@/lib/server/s3";
@@ -38,7 +38,7 @@ const MAX_KEYS = 200;
  * folder.
  */
 export async function POST(request: Request) {
-  const denied = await guardAnyPage();
+  const denied = await guardAnySite();
   if (denied) return denied;
 
   let body: unknown;

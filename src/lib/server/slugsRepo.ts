@@ -17,11 +17,26 @@ import { getSql } from "@/lib/server/db";
  *   `new-deck` at once, and `/deck/new-deck` resolved to an empty draft that
  *   404s. See docs/defaults-sync.md.
  *
- * `ctr.slugs` makes that unrepresentable: PRIMARY KEY (entity_type, slug) means
- * an address belongs to exactly one thing, and a partial unique index over
- * (entity_type, entity_id) WHERE is_current means a thing has exactly one live
- * address. Resolution is one indexed lookup instead of
+ * `ctr.slugs` makes that unrepresentable: PRIMARY KEY (site_id, entity_type,
+ * slug) means an address belongs to exactly one thing, and a partial unique
+ * index over (entity_type, entity_id) WHERE is_current means a thing has
+ * exactly one live address. Resolution is one indexed lookup instead of
  * `slug = $1 OR former_slugs @> $2::jsonb` against an unindexed column.
+ *
+ * ── Why the site is part of the key ───────────────────────────────────────
+ *
+ * It was (entity_type, slug): one namespace for the whole deployment, which is
+ * what `/deck/<slug>` needed in order to resolve without knowing the sport.
+ * Phase 3 puts the sport in the URL, so the namespace is per site and
+ * `/incrc/deck/opener` and `/pickle/deck/opener` are two decks that never have
+ * to hear about each other.
+ *
+ * `slugs_one_current_idx` stays keyed on (entity_type, entity_id) with no site
+ * in it, deliberately: an entity_id is a uuid and already identifies the record
+ * and therefore its site. Widening it would exclude nothing and would stop
+ * `ctr.forget_slugs()` — which deletes by (entity_type, entity_id) on every
+ * delete — from using it. So the reads below that address one KNOWN record do
+ * not take a site either.
  *
  * ── Why the table name is spelled out twice ───────────────────────────────
  *
@@ -31,7 +46,7 @@ import { getSql } from "@/lib/server/db";
  * job is addresses somebody else could claim.
  */
 
-export type SlugEntity = "deck" | "form" | "article";
+export type SlugEntity = "deck" | "form" | "article" | "event";
 
 /** Deleting the row cleans these up — see the trigger in migrations/0002. */
 
@@ -44,6 +59,7 @@ export type SlugEntity = "deck" | "form" | "article";
  */
 export async function findSlugOwner(
   entity: SlugEntity,
+  siteId: string,
   slug: string,
   exceptId = ""
 ): Promise<SlugHolder | null> {
@@ -53,8 +69,9 @@ export async function findSlugOwner(
   const except = exceptId || "00000000-0000-0000-0000-000000000000";
 
   /*
-   * Three branches, spelled out. An article's readable name is its `title`, so it
-   * is aliased to `name` here rather than the caller learning a third column —
+   * Four branches, spelled out. An article's readable name is its `title` and an
+   * event's is whichever of its title, circuit or venue it has, so both are
+   * aliased to `name` rather than the caller learning a column per kind —
    * `SlugHolder` says "name" because that is what the sentence under the address
    * box prints.
    */
@@ -63,22 +80,36 @@ export async function findSlugOwner(
       ? await sql`
           SELECT d.id, d.name, s.is_current
             FROM ctr.slugs s JOIN ctr.decks d ON d.id = s.entity_id
-           WHERE s.entity_type = 'deck' AND s.slug = ${slug} AND d.id <> ${except}
+           WHERE s.site_id = ${siteId} AND s.entity_type = 'deck'
+             AND s.slug = ${slug} AND d.id <> ${except}
            LIMIT 1
         `
       : entity === "article"
         ? await sql`
             SELECT a.id, a.title AS name, s.is_current
               FROM ctr.slugs s JOIN ctr.articles a ON a.id = s.entity_id
-             WHERE s.entity_type = 'article' AND s.slug = ${slug} AND a.id <> ${except}
+             WHERE s.site_id = ${siteId} AND s.entity_type = 'article'
+               AND s.slug = ${slug} AND a.id <> ${except}
              LIMIT 1
           `
-        : await sql`
-            SELECT f.id, f.name, s.is_current
-              FROM ctr.slugs s JOIN ctr.forms f ON f.id = s.entity_id
-             WHERE s.entity_type = 'form' AND s.slug = ${slug} AND f.id <> ${except}
-             LIMIT 1
-          `
+        : entity === "event"
+          ? await sql`
+              SELECT e.id,
+                     coalesce(nullif(e.title, ''), t.name, nullif(e.venue, ''), '') AS name,
+                     s.is_current
+                FROM ctr.slugs s JOIN ctr.events e ON e.id = s.entity_id
+                LEFT JOIN ctr.tracks t ON t.id = e.track_id
+               WHERE s.site_id = ${siteId} AND s.entity_type = 'event'
+                 AND s.slug = ${slug} AND e.id <> ${except}
+               LIMIT 1
+            `
+          : await sql`
+              SELECT f.id, f.name, s.is_current
+                FROM ctr.slugs s JOIN ctr.forms f ON f.id = s.entity_id
+               WHERE s.site_id = ${siteId} AND s.entity_type = 'form'
+                 AND s.slug = ${slug} AND f.id <> ${except}
+               LIMIT 1
+            `
   ) as { id: string; name: string; is_current: boolean }[];
 
   const row = rows[0];
@@ -94,13 +125,25 @@ export async function findSlugOwner(
  */
 export async function resolveSlug(
   entity: SlugEntity,
+  siteId: string,
   slug: string
 ): Promise<{ id: string; isCurrent: boolean } | null> {
   const sql = getSql();
 
+  /*
+   * Within one site, always.
+   *
+   * This used to accept null for "whichever site holds it", because phase 1 left
+   * the public URLs flat: `/deck/<slug>` genuinely did not say which sport to
+   * look in. Phase 3 put the sport in the path, so every caller has one — and
+   * a slug is only unique WITHIN a site (`ctr.slugs` is keyed on all three), so
+   * a cross-site lookup could return somebody else's record for an address that
+   * is legitimately theirs too.
+   */
   const rows = (await sql`
     SELECT entity_id, is_current FROM ctr.slugs
-     WHERE entity_type = ${entity} AND slug = ${slug}
+     WHERE site_id = ${siteId} AND entity_type = ${entity} AND slug = ${slug}
+     ORDER BY is_current DESC
      LIMIT 1
   `) as { entity_id: string; is_current: boolean }[];
 
@@ -145,6 +188,7 @@ export async function listSlugs(
  */
 export async function writeSlugs(
   entity: SlugEntity,
+  siteId: string,
   id: string,
   current: string,
   former: string[]
@@ -165,17 +209,17 @@ export async function writeSlugs(
     `,
     ...former.map(
       (slug) => sql`
-        INSERT INTO ctr.slugs (entity_type, slug, entity_id, is_current)
-        VALUES (${entity}, ${slug}, ${id}, false)
-        ON CONFLICT (entity_type, slug) DO UPDATE
+        INSERT INTO ctr.slugs (site_id, entity_type, slug, entity_id, is_current)
+        VALUES (${siteId}, ${entity}, ${slug}, ${id}, false)
+        ON CONFLICT (site_id, entity_type, slug) DO UPDATE
           SET entity_id = EXCLUDED.entity_id, is_current = false
         WHERE slugs.entity_id = EXCLUDED.entity_id
       `
     ),
     sql`
-      INSERT INTO ctr.slugs (entity_type, slug, entity_id, is_current)
-      VALUES (${entity}, ${current}, ${id}, true)
-      ON CONFLICT (entity_type, slug) DO UPDATE
+      INSERT INTO ctr.slugs (site_id, entity_type, slug, entity_id, is_current)
+      VALUES (${siteId}, ${entity}, ${current}, ${id}, true)
+      ON CONFLICT (site_id, entity_type, slug) DO UPDATE
         SET entity_id = EXCLUDED.entity_id, is_current = true
       WHERE slugs.entity_id = EXCLUDED.entity_id
     `,
@@ -191,6 +235,7 @@ export async function writeSlugs(
  */
 export async function releaseFormerSlug(
   entity: SlugEntity,
+  siteId: string,
   slug: string,
   fromId: string
 ): Promise<boolean> {
@@ -198,7 +243,7 @@ export async function releaseFormerSlug(
 
   const rows = (await sql`
     DELETE FROM ctr.slugs
-     WHERE entity_type = ${entity} AND slug = ${slug}
+     WHERE site_id = ${siteId} AND entity_type = ${entity} AND slug = ${slug}
        AND entity_id = ${fromId} AND NOT is_current
     RETURNING slug
   `) as { slug: string }[];

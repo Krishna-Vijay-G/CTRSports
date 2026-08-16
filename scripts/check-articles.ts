@@ -5,27 +5,27 @@
  *
  * Larger than the deck's checks, because an article carries something no other
  * record in this project does: a DOCUMENT that arrived as JSON from a browser.
- * `normaliseArticleBody` is the only thing standing between that and the public
+ * `normaliseRichText` is the only thing standing between that and the public
  * renderer, and unlike every other normaliser here its failure mode is not a
  * missing field — it is markup on a page.
  *
  * So most of what follows is adversarial. The rule being pinned down is that the
- * body is an ALLOWLIST: a node type not named in `ArticleNode` is dropped rather
+ * body is an ALLOWLIST: a node type not named in `RichNode` is dropped rather
  * than passed through, and the two attributes that are addresses go through the
  * same `image()` and `link()` every other URL in this project does.
  *
  * No database and no network. What this cannot check is the SQL or the screens.
  */
 
+import { normaliseArticleInput } from "@/lib/articles";
 import {
-  ARTICLE_BODY_MAX_NODES,
-  ARTICLE_MAX_IMAGES,
-  articleIsEmpty,
-  articleText,
-  normaliseArticleBody,
-  normaliseArticleInput,
-  type ArticleNode,
-} from "@/lib/articles";
+  RICH_MAX_NODES,
+  RICH_MAX_IMAGES,
+  richTextIsEmpty,
+  richTextWords,
+  normaliseRichText,
+  type RichNode,
+} from "@/lib/richtext";
 import { isUsableSlug } from "@/lib/slug";
 
 let failures = 0;
@@ -51,7 +51,7 @@ function linked(text: string, href: string): unknown {
 }
 
 /** Whether the run with this text came back still carrying a link. */
-function hasLink(nodes: ArticleNode[], text: string): boolean {
+function hasLink(nodes: RichNode[], text: string): boolean {
   const paragraph = nodes.find((node) => node.type === "paragraph");
   if (!paragraph || paragraph.type !== "paragraph") return false;
 
@@ -65,7 +65,7 @@ function hasLink(nodes: ArticleNode[], text: string): boolean {
 
 section("An image address is decided by image(), and only by it");
 {
-  const doc = normaliseArticleBody({
+  const doc = normaliseRichText({
     type: "doc",
     content: [
       { type: "image", attrs: { src: "javascript:alert(1)", alt: "" } },
@@ -78,7 +78,7 @@ section("An image address is decided by image(), and only by it");
   });
 
   const sources = doc.content
-    .filter((node): node is Extract<ArticleNode, { type: "image" }> => node.type === "image")
+    .filter((node): node is Extract<RichNode, { type: "image" }> => node.type === "image")
     .map((node) => node.attrs.src);
 
   check("only the two usable ones survive", sources, [
@@ -90,7 +90,7 @@ section("An image address is decided by image(), and only by it");
 
 section("A link address is decided by link(), and only by it");
 {
-  const doc = normaliseArticleBody({
+  const doc = normaliseRichText({
     type: "doc",
     content: [
       para([
@@ -125,7 +125,7 @@ section("A link address is decided by link(), and only by it");
 section("A node type not in the union is dropped, never passed through");
 {
   const notes: string[] = [];
-  const doc = normaliseArticleBody(
+  const doc = normaliseRichText(
     {
       type: "doc",
       content: [
@@ -144,12 +144,14 @@ section("A node type not in the union is dropped, never passed through");
   check("only the paragraph is left", doc.content.length, 1);
   check("and it is the right one", doc.content[0].type, "paragraph");
   check("five drops were reported", notes.length, 1);
-  check("the note says how many", notes[0], "5 things in the article could not be stored and were removed.");
+  // "text" rather than "article": the document model is shared with events now,
+  // and a note about somebody's race report should not call it an article.
+  check("the note says how many", notes[0], "5 things in the text could not be stored and were removed.");
 }
 
 section("A mark not in the union is dropped, and the run keeps the rest");
 {
-  const doc = normaliseArticleBody({
+  const doc = normaliseRichText({
     type: "doc",
     content: [
       para([
@@ -168,7 +170,7 @@ section("A mark not in the union is dropped, and the run keeps the rest");
 
 section("Headings are levels 2 and 3, because the page prints the title as H1");
 {
-  const doc = normaliseArticleBody({
+  const doc = normaliseRichText({
     type: "doc",
     content: [
       { type: "heading", attrs: { level: 1 }, content: [{ type: "text", text: "a" }] },
@@ -193,32 +195,32 @@ section("A body that arrived as JSON cannot exhaust the server");
   let deep: unknown = para([{ type: "text", text: "bottom" }]);
   for (let index = 0; index < 40; index += 1) deep = { type: "blockquote", content: [deep] };
 
-  const doc = normaliseArticleBody({ type: "doc", content: [deep] });
+  const doc = normaliseRichText({ type: "doc", content: [deep] });
   check("runaway nesting is truncated, not followed", JSON.stringify(doc).includes("bottom"), false);
 }
 
 {
-  const many = Array.from({ length: ARTICLE_MAX_IMAGES + 25 }, (_, index) => ({
+  const many = Array.from({ length: RICH_MAX_IMAGES + 25 }, (_, index) => ({
     type: "image",
     attrs: { src: `https://cdn.example.com/${index}.webp`, alt: "" },
   }));
 
-  const doc = normaliseArticleBody({ type: "doc", content: many });
+  const doc = normaliseRichText({ type: "doc", content: many });
   check(
-    `the image cap holds at ${ARTICLE_MAX_IMAGES}`,
+    `the image cap holds at ${RICH_MAX_IMAGES}`,
     doc.content.filter((node) => node.type === "image").length,
-    ARTICLE_MAX_IMAGES
+    RICH_MAX_IMAGES
   );
 }
 
 {
-  const many = Array.from({ length: ARTICLE_BODY_MAX_NODES + 500 }, () =>
+  const many = Array.from({ length: RICH_MAX_NODES + 500 }, () =>
     para([{ type: "text", text: "x" }])
   );
 
   const notes: string[] = [];
-  const doc = normaliseArticleBody({ type: "doc", content: many }, notes);
-  check("the node cap holds", doc.content.length <= ARTICLE_BODY_MAX_NODES, true);
+  const doc = normaliseRichText({ type: "doc", content: many }, notes);
+  check("the node cap holds", doc.content.length <= RICH_MAX_NODES, true);
   check(
     "and the cut-off is said out loud",
     notes.some((note) => note.includes("length limit")),
@@ -229,16 +231,16 @@ section("A body that arrived as JSON cannot exhaust the server");
 section("A document that is not one still reads as an empty document");
 {
   for (const bad of [null, undefined, 42, "a string", [], { type: "doc" }, { content: "nope" }]) {
-    const doc = normaliseArticleBody(bad);
+    const doc = normaliseRichText(bad);
     check(`${JSON.stringify(bad) ?? "undefined"} → an empty doc`, doc, { type: "doc", content: [] });
   }
 
-  check("and that reads as empty", articleIsEmpty(normaliseArticleBody(null)), true);
-  check("a paragraph of nothing is still empty", articleIsEmpty(normaliseArticleBody({
+  check("and that reads as empty", richTextIsEmpty(normaliseRichText(null)), true);
+  check("a paragraph of nothing is still empty", richTextIsEmpty(normaliseRichText({
     type: "doc",
     content: [para([]), para([{ type: "text", text: "   " }])],
   })), true);
-  check("one word is not", articleIsEmpty(normaliseArticleBody({
+  check("one word is not", richTextIsEmpty(normaliseRichText({
     type: "doc",
     content: [para([{ type: "text", text: "Rain." }])],
   })), false);
@@ -246,17 +248,16 @@ section("A document that is not one still reads as an empty document");
 
 /* ────────────────────────── Which page owns one ─────────────────────────── */
 
-section("An unrecognised page reads as null, which is the STRICT answer");
-{
-  // Null means "every page" and takes the owner. Reading an unknown value as
-  // null therefore makes it MORE restricted, never less — the same posture
-  // `normaliseRole` takes.
-  check("a missing page", normaliseArticleInput({}).page, null);
-  check("an unknown page", normaliseArticleInput({ page: "wat" }).page, null);
-  check("a non-string page", normaliseArticleInput({ page: 7 }).page, null);
-  check("'articles' is not a PageKey", normaliseArticleInput({ page: "articles" }).page, null);
-  check("a real one survives", normaliseArticleInput({ page: "incrc" }).page, "incrc");
-}
+/*
+ * The page-scope tests that stood here are gone with the field.
+ *
+ * They checked that an unrecognised `page` read as null — "every page", and
+ * therefore owner-only — which was the strict answer while an article could
+ * belong to no page. Migration 0014 gave every article a site, and a site is
+ * never read off the body: the route takes it from the query string and guards
+ * against it before the body is parsed. There is no untrusted value left to
+ * normalise, so there is nothing here to assert.
+ */
 
 /* ──────────────────────────────── The rest ──────────────────────────────── */
 
@@ -304,7 +305,7 @@ section("The fields around the words");
 
 section("The body read back as words, for a description");
 {
-  const doc = normaliseArticleBody({
+  const doc = normaliseRichText({
     type: "doc",
     content: [
       { type: "heading", attrs: { level: 2 }, content: [{ type: "text", text: "Wet race" }] },
@@ -313,9 +314,9 @@ section("The body read back as words, for a description");
     ],
   });
 
-  check("runs are joined and whitespace collapsed", articleText(doc), "Wet race It rained all weekend.");
-  check("alt text is not prose", articleText(doc).includes("not prose"), false);
-  check("it is capped", articleText(doc, 8).length <= 8, true);
+  check("runs are joined and whitespace collapsed", richTextWords(doc), "Wet race It rained all weekend.");
+  check("alt text is not prose", richTextWords(doc).includes("not prose"), false);
+  check("it is capped", richTextWords(doc, 8).length <= 8, true);
 }
 
 console.log(failures === 0 ? "\nAll checks passed." : `\n${failures} check(s) failed.`);

@@ -2,11 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { BLANK_FORM, STATUS_LABELS, type Form } from "@/lib/forms";
-import { PAGE_LABELS } from "@/lib/roles";
 import type { SlugHolder } from "@/lib/slug";
 import { cn } from "@/lib/utils";
 import { Button, ButtonLink } from "@/admin/ui/Button";
 import { ListIcon, PlusIcon, TicketIcon } from "@/admin/ui/icons";
+import { useSite, withSite } from "@/admin/components/SiteScope";
 import { AdminRailSlot } from "@/admin/components/AdminShell";
 import { EditorToolbar } from "@/admin/components/EditorToolbar";
 import { NewRecord } from "@/admin/components/NewRecord";
@@ -41,6 +41,9 @@ export function FormsEditor({
   /** False for a page editor: the screen is a reference, not an editor. */
   canManage: boolean;
 }) {
+  // The sport this screen belongs to. Every write below names it, so the
+  // server guards the right one — see SiteScope.
+  const site = useSite();
   const [forms, setForms] = useState<Form[]>(initialForms);
   const [saved, setSaved] = useState<Form[]>(initialForms);
 
@@ -162,7 +165,7 @@ export function FormsEditor({
     setError(null);
 
     try {
-      const response = await fetch("/api/admin/forms", {
+      const response = await fetch(withSite("/api/admin/forms", site), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids }),
@@ -221,7 +224,7 @@ export function FormsEditor({
     setError(null);
 
     try {
-      const response = await fetch(`/api/admin/forms/${active.id}`, {
+      const response = await fetch(withSite(`/api/admin/forms/${active.id}`, site), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(active),
@@ -260,7 +263,7 @@ export function FormsEditor({
     setError(null);
 
     try {
-      const response = await fetch("/api/admin/forms", {
+      const response = await fetch(withSite("/api/admin/forms", site), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -326,7 +329,7 @@ export function FormsEditor({
     setError(null);
 
     try {
-      const response = await fetch(`/api/admin/forms/${active.id}`, { method: "DELETE" });
+      const response = await fetch(withSite(`/api/admin/forms/${active.id}`, site), { method: "DELETE" });
 
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
@@ -361,7 +364,9 @@ export function FormsEditor({
     id: form.id,
     short: form.name || "Untitled form",
     title: form.name || "Untitled form",
-    hint: `${STATUS_LABELS[form.status]} · ${form.page_key ? PAGE_LABELS[form.page_key] : "no page"}`,
+    // No page name any more: every form on this screen belongs to the sport
+    // the screen is for, so printing it on each row says the same thing twice.
+    hint: STATUS_LABELS[form.status],
     // Present so the rail allows dragging. No `onToggleVisible` is passed, so
     // no eye: what takes a form off the site is its status, not a switch here.
     visible: true,

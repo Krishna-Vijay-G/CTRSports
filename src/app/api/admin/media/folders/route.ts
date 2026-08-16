@@ -6,7 +6,7 @@ import {
   parseFolder,
   segmentProblem,
 } from "@/lib/mediaPaths";
-import { guardAnyPage, guardFolder } from "@/lib/server/access";
+import { guardAnySite, guardFolder } from "@/lib/server/access";
 import { getSession } from "@/lib/server/auth";
 import { findUsage } from "@/lib/server/mediaUsage";
 import {
@@ -37,7 +37,7 @@ export const dynamic = "force-dynamic";
  * at a dialog until they give up.
  */
 export async function POST(request: Request) {
-  const denied = await guardAnyPage();
+  const denied = await guardAnySite();
   if (denied) return denied;
 
   if (!isS3Configured()) {
@@ -98,7 +98,7 @@ export async function POST(request: Request) {
  * the folder reappears empty.
  */
 export async function DELETE(request: Request) {
-  const denied = await guardAnyPage();
+  const denied = await guardAnySite();
   if (denied) return denied;
 
   if (!isS3Configured()) {

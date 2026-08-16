@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { isFormId } from "@/lib/forms";
-import { visibleFormPages } from "@/lib/roles";
-import { guardForms, guardFormsRead } from "@/lib/server/access";
+import { siteIdsFor } from "@/lib/roles";
+import { guardAnySite, guardRequestSite } from "@/lib/server/access";
 import { getSession } from "@/lib/server/auth";
 import { createForm, listForms, reorderForms } from "@/lib/server/formsRepo";
 import { revalidateFormPages } from "@/lib/server/revalidateForms";
@@ -15,31 +15,39 @@ const DUPLICATE = "23505";
 /**
  * The forms.
  *
- * GET is the wide one: a page editor can read the list, because pointing a
- * button at a form is the whole of what they do with one — and it comes back
- * narrowed to the pages they edit, so one page's picker never lists another
- * page's entry form. Everything that WRITES is registrations and owners only.
+ * GET is the wide one: anyone with any grant can read the list, because
+ * pointing a button at a form is the whole of what a page editor does with one
+ * — and it comes back narrowed to the sports they hold, so one sport's picker
+ * never lists another sport's entry form. Everything that WRITES needs the
+ * `forms` module on the sport it is writing to.
+ *
+ * The old `registrations` role — every form on every page, and nothing else —
+ * has no equivalent and needs none: the same reach is a `forms` grant on each
+ * site, which migration 0013 wrote for any account that had it.
  */
 
-export async function GET() {
-  const denied = await guardFormsRead();
+export async function GET(request: Request) {
+  const denied = await guardAnySite();
   if (denied) return denied;
 
   try {
     const session = await getSession();
 
-    // An owner or a registrations admin gets everything, including the forms on
-    // no page at all. Anyone else gets their own pages and nothing else — and
-    // the narrowing is a WHERE now rather than a filter on the way out, so a
-    // scoped account no longer pays for every form in the database and the rows
-    // it may not see never leave Postgres.
-    const everything = Boolean(
-      session && (session.role === "owner" || session.role === "registrations")
-    );
+    /*
+     * `siteIdsFor` returns null for an owner, meaning "every site", which is
+     * exactly what `listForms` wants for its no-filter case. The narrowing is a
+     * WHERE rather than a filter on the way out, so a scoped account never pays
+     * for rows it may not see and they never leave Postgres.
+     */
+    const wanted = new URL(request.url).searchParams.get("site")?.trim() ?? "";
 
-    const forms = everything ? await listForms() : await listForms(visibleFormPages(session));
+    if (wanted) {
+      const guard = await guardRequestSite(request, "forms");
+      if (guard.denied) return guard.denied;
+      return NextResponse.json({ forms: await listForms([guard.site.id]) });
+    }
 
-    return NextResponse.json({ forms });
+    return NextResponse.json({ forms: await listForms(siteIdsFor(session)) });
   } catch (error) {
     console.error("[admin/forms] GET", error);
     return NextResponse.json({ error: "Could not load the forms." }, { status: 500 });
@@ -48,8 +56,8 @@ export async function GET() {
 
 /** Adds one. A form with no name is not a form, so that is the only rule. */
 export async function POST(request: Request) {
-  const denied = await guardForms();
-  if (denied) return denied;
+  const guard = await guardRequestSite(request, "forms");
+  if (guard.denied) return guard.denied;
 
   let body: unknown;
   try {
@@ -69,9 +77,9 @@ export async function POST(request: Request) {
     // "Saved" badge — the admin's next clue was a question that had stopped
     // appearing on the live site.
     const notes: string[] = [];
-    const form = await createForm(body, notes);
+    const form = await createForm(guard.site.id, body, notes);
 
-    revalidateFormPages();
+    revalidateFormPages(guard.site);
     return NextResponse.json({ form, notes });
   } catch (error) {
     if ((error as { code?: string })?.code === DUPLICATE) {
@@ -91,8 +99,8 @@ export async function POST(request: Request) {
  * the match, so the path would land in the [id] handler.
  */
 export async function PATCH(request: Request) {
-  const denied = await guardForms();
-  if (denied) return denied;
+  const guard = await guardRequestSite(request, "forms");
+  if (guard.denied) return guard.denied;
 
   let ids: unknown;
   try {
@@ -111,7 +119,7 @@ export async function PATCH(request: Request) {
 
   try {
     await reorderForms(ids);
-    revalidateFormPages();
+    revalidateFormPages(guard.site);
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("[admin/forms] PATCH", error);

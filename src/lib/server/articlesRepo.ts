@@ -3,14 +3,13 @@ import "server-only";
 import { cache } from "react";
 import {
   ARTICLE_STATUSES,
-  articlePage,
-  normaliseArticleBody,
   normaliseArticleInput,
   type Article,
   type ArticleSummary,
 } from "@/lib/articles";
+import { normaliseRichText } from "@/lib/richtext";
 import { isoDate, oneOf } from "@/lib/normalise";
-import { type Scoped } from "@/lib/roles";
+import { siteIdsFor, type Scoped } from "@/lib/roles";
 import { type SlugHolder } from "@/lib/slug";
 import { getSql } from "@/lib/server/db";
 import {
@@ -41,7 +40,7 @@ const DUPLICATE = "23505";
 
 /** Every column of the article itself. The addresses are joined on. */
 const COLUMNS =
-  "a.id, a.page_key, a.title, a.subtext, a.cover_image, a.body, a.status, a.published_at, a.sort_order";
+  "a.id, a.site_id, a.title, a.subtext, a.cover_image, a.body, a.status, a.published_at, a.sort_order";
 
 const SLUG = `
   (SELECT s.slug FROM ctr.slugs s
@@ -54,7 +53,7 @@ const FORMER = `
 
 type ArticleRow = {
   id: string;
-  page_key: string | null;
+  site_id: string;
   title: string;
   subtext: string;
   cover_image: string;
@@ -100,7 +99,7 @@ function dateText(value: string | Date | null): string {
  * Read through the same rules as a write.
  *
  * The body especially: it is the one column holding a document a browser sent,
- * and `normaliseArticleBody` is the allowlist that decides what a body may
+ * and `normaliseRichText` is the allowlist that decides what a body may
  * contain. Running it here as well as on write is what means a row stored by an
  * older version — or by a version that allowed a node type since retired —
  * degrades one node at a time instead of reaching the renderer.
@@ -111,11 +110,11 @@ function hydrate(row: ArticleRow): Article {
     title: row.title,
     slug: row.slug ?? "",
     status: oneOf(row.status, ARTICLE_STATUSES, "draft"),
-    page: articlePage(row.page_key),
+    site_id: row.site_id,
     subtext: row.subtext,
     cover_image: row.cover_image,
     published_at: dateText(row.published_at),
-    body: normaliseArticleBody(row.body),
+    body: normaliseRichText(row.body),
     former_slugs: row.former_slugs ?? [],
     sort_order: row.sort_order,
   };
@@ -135,11 +134,22 @@ function hydrate(row: ArticleRow): Article {
  * kind of key that looks like it works and then quietly does not. The screen
  * calls it once.
  */
-export async function listArticles(session: Scoped): Promise<Article[]> {
+export async function listArticles(session: Scoped, siteId?: string): Promise<Article[]> {
   const sql = getSql();
 
+  /*
+   * `siteIdsFor` returns null for an owner, meaning "every site" — which is
+   * why this is a null check and not an empty-array one. An empty array is a
+   * member who holds no grant at all, and they correctly see nothing.
+   */
+  const allowed = siteIdsFor(session);
+  const scope = siteId ? [siteId] : allowed;
+
+  if (scope && scope.length === 0) return [];
+  if (siteId && allowed && !allowed.includes(siteId)) return [];
+
   const rows = (
-    session.role === "owner"
+    scope === null
       ? await sql.query(`
           SELECT ${COLUMNS}, ${SLUG}, ${FORMER}
             FROM ctr.articles a
@@ -148,9 +158,9 @@ export async function listArticles(session: Scoped): Promise<Article[]> {
       : await sql.query(
           `SELECT ${COLUMNS}, ${SLUG}, ${FORMER}
              FROM ctr.articles a
-            WHERE a.page_key = ANY($1::text[])
+            WHERE a.site_id = ANY($1::uuid[])
             ORDER BY a.sort_order ASC, a.title ASC`,
-          [session.pages]
+          [scope]
         )
   ) as ArticleRow[];
 
@@ -164,19 +174,20 @@ export async function listArticles(session: Scoped): Promise<Article[]> {
  * sending the bodies would put every paragraph of every article into the payload
  * of a page that shows none of them.
  */
-export const listPublishedArticles = cache(async (): Promise<ArticleSummary[]> => {
+export const listPublishedArticles = cache(
+  async (siteId: string): Promise<ArticleSummary[]> => {
   const sql = getSql();
 
   const rows = (await sql`
-    SELECT a.id, a.page_key, a.title, a.subtext, a.cover_image, a.published_at,
+    SELECT a.id, a.site_id, a.title, a.subtext, a.cover_image, a.published_at,
            (SELECT s.slug FROM ctr.slugs s
              WHERE s.entity_type = 'article' AND s.entity_id = a.id AND s.is_current) AS slug
       FROM ctr.articles a
-     WHERE a.status = 'published'
+     WHERE a.site_id = ${siteId} AND a.status = 'published'
      ORDER BY a.sort_order ASC, a.title ASC
   `) as {
     id: string;
-    page_key: string | null;
+    site_id: string;
     title: string;
     subtext: string;
     cover_image: string;
@@ -191,7 +202,7 @@ export const listPublishedArticles = cache(async (): Promise<ArticleSummary[]> =
     // The WHERE decided this. Spelled out rather than read back, the same way
     // `listDeckSummaries` does it.
     status: "published" as const,
-    page: articlePage(row.page_key),
+    site_id: row.site_id,
     subtext: row.subtext,
     cover_image: row.cover_image,
     published_at: dateText(row.published_at),
@@ -215,8 +226,11 @@ export async function getArticle(id: string): Promise<Article | null> {
  * into a permanent redirect, so an old printed link corrects itself in the address
  * bar — `hydrate` carries the current slug, which is what it redirects to.
  */
-export async function getArticleBySlug(slug: string): Promise<Article | null> {
-  const found = await resolveSlug("article", slug);
+export async function getArticleBySlug(
+  siteId: string,
+  slug: string
+): Promise<Article | null> {
+  const found = await resolveSlug("article", siteId, slug);
   return found ? getArticle(found.id) : null;
 }
 
@@ -237,13 +251,21 @@ function heldBy(slug: string, holder: SlugHolder): string {
 }
 
 /** Which article answers to this address. Kept exported: the slugs route calls it. */
-export async function findSlugOwner(slug: string, exceptId = ""): Promise<SlugHolder | null> {
-  return findOwner("article", slug, exceptId);
+export async function findSlugOwner(
+  siteId: string,
+  slug: string,
+  exceptId = ""
+): Promise<SlugHolder | null> {
+  return findOwner("article", siteId, slug, exceptId);
 }
 
 /** Drops one address out of an article's history, so another may take it. */
-export async function releaseFormerSlug(slug: string, fromId: string): Promise<boolean> {
-  return releaseFormer("article", slug, fromId);
+export async function releaseFormerSlug(
+  siteId: string,
+  slug: string,
+  fromId: string
+): Promise<boolean> {
+  return releaseFormer("article", siteId, slug, fromId);
 }
 
 /* ─────────────────────────────── Writes ─────────────────────────────── */
@@ -256,26 +278,30 @@ export async function releaseFormerSlug(slug: string, fromId: string): Promise<b
  * will not think to check. An address nobody typed still gets the suffix loop,
  * because something has to be invented.
  */
-export async function createArticle(input: unknown, notes?: string[]): Promise<Article> {
+export async function createArticle(
+  siteId: string,
+  input: unknown,
+  notes?: string[]
+): Promise<Article> {
   const first = normaliseArticleInput(input, notes);
   const asked =
     typeof (input as { slug?: unknown })?.slug === "string" &&
     (input as { slug: string }).slug.trim() !== "";
 
   if (asked) {
-    const holder = await findSlugOwner(first.slug);
+    const holder = await findSlugOwner(siteId, first.slug);
     if (holder) throw taken(heldBy(first.slug, holder));
 
-    return insertArticle(first);
+    return insertArticle(siteId, first);
   }
 
   for (let attempt = 1; attempt <= 20; attempt += 1) {
     const slug = attempt === 1 ? first.slug : `${first.slug}-${attempt}`;
 
-    if (await findSlugOwner(slug)) continue;
+    if (await findSlugOwner(siteId, slug)) continue;
 
     try {
-      const article = await insertArticle({ ...first, slug });
+      const article = await insertArticle(siteId, { ...first, slug });
       if (attempt > 1) {
         notes?.push(`The address “${first.slug}” was taken, so this one is “${slug}”.`);
       }
@@ -289,18 +315,21 @@ export async function createArticle(input: unknown, notes?: string[]): Promise<A
 }
 
 /** The row and its address, in that order — an article with no address is unreachable. */
-async function insertArticle(a: Omit<Article, "id">): Promise<Article> {
+async function insertArticle(
+  siteId: string,
+  a: Omit<Article, "id" | "site_id">
+): Promise<Article> {
   const sql = getSql();
 
   const rows = (await sql`
-    INSERT INTO ctr.articles (page_key, title, subtext, cover_image, body, status, published_at, sort_order)
-    VALUES (${a.page}, ${a.title}, ${a.subtext}, ${a.cover_image},
+    INSERT INTO ctr.articles (site_id, title, subtext, cover_image, body, status, published_at, sort_order)
+    VALUES (${siteId}, ${a.title}, ${a.subtext}, ${a.cover_image},
             ${JSON.stringify(a.body)}::jsonb, ${a.status}, ${a.published_at || null}, ${a.sort_order})
     RETURNING id
   `) as { id: string }[];
 
   const id = rows[0].id;
-  await writeSlugs("article", id, a.slug, []);
+  await writeSlugs("article", siteId, id, a.slug, []);
 
   const created = await getArticle(id);
   if (!created) throw new Error("The article was not written.");
@@ -370,8 +399,7 @@ export async function updateArticle(
 
   const rows = (await sql`
     UPDATE ctr.articles
-       SET page_key     = ${a.page},
-           title        = ${a.title},
+       SET title        = ${a.title},
            subtext      = ${a.subtext},
            cover_image  = ${a.cover_image},
            body         = ${JSON.stringify(a.body)}::jsonb,
@@ -384,7 +412,7 @@ export async function updateArticle(
 
   if (rows.length === 0) return null;
 
-  await writeSlugs("article", id, a.slug, formerSlugs);
+  await writeSlugs("article", existing.site_id, id, a.slug, formerSlugs);
 
   return getArticle(id);
 }

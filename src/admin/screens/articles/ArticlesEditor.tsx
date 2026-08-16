@@ -1,19 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import {
-  ARTICLE_STATUS_LABELS,
-  BLANK_ARTICLE,
-  articlePageLabel,
-  type Article,
-} from "@/lib/articles";
-import type { LandingContent } from "@/lib/landingContent";
-import { ARTICLES_UPLOAD_FOLDER, folderForArticle } from "@/lib/mediaPaths";
-import { PAGE_KEYS, canEditPage, type Scoped } from "@/lib/roles";
+import { ARTICLE_STATUS_LABELS, BLANK_ARTICLE, type Article } from "@/lib/articles";
+import type { Chrome } from "@/lib/chrome";
+import { folderForEntity, folderForModule } from "@/lib/mediaPaths";
 import type { SlugHolder } from "@/lib/slug";
 import { cn } from "@/lib/utils";
 import { Button } from "@/admin/ui/Button";
 import { NewsIcon, PlusIcon } from "@/admin/ui/icons";
+import { useSite, withSite } from "@/admin/components/SiteScope";
 import { AdminRailSlot } from "@/admin/components/AdminShell";
 import { EditorToolbar } from "@/admin/components/EditorToolbar";
 import { Note, Panel } from "@/admin/components/Fields";
@@ -48,16 +43,13 @@ const ORDER_SAVE_DELAY = 500;
 
 export function ArticlesEditor({
   initialArticles,
-  scope,
   chrome,
   siteUrl,
   year,
 }: {
   initialArticles: Article[];
-  /** The signed-in account. Decides what a new article may be scoped to. */
-  scope: Scoped;
   /** The landing document — the header and footer the preview draws. */
-  chrome: LandingContent;
+  chrome: Chrome;
   /**
    * Where the public site answers. The admin is on a different hostname, so a
    * relative link to an article from here would resolve against the admin host.
@@ -65,6 +57,9 @@ export function ArticlesEditor({
   siteUrl: string;
   year: number;
 }) {
+  // The sport this screen belongs to. Every write below names it, so the
+  // server guards the right one — see SiteScope.
+  const site = useSite();
   const [articles, setArticles] = useState<Article[]>(initialArticles);
   const [saved, setSaved] = useState<Article[]>(initialArticles);
 
@@ -126,7 +121,7 @@ export function ArticlesEditor({
       const ids = pendingOrder.current;
       if (!ids || ids.join(",") === savedOrder.current) return;
 
-      void fetch("/api/admin/articles", {
+      void fetch(withSite("/api/admin/articles", site), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids }),
@@ -142,7 +137,7 @@ export function ArticlesEditor({
     setError(null);
 
     try {
-      const response = await fetch("/api/admin/articles", {
+      const response = await fetch(withSite("/api/admin/articles", site), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids }),
@@ -200,7 +195,7 @@ export function ArticlesEditor({
     setNotes(null);
 
     try {
-      const response = await fetch(`/api/admin/articles/${active.id}`, {
+      const response = await fetch(withSite(`/api/admin/articles/${active.id}`, site), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(active),
@@ -244,18 +239,15 @@ export function ArticlesEditor({
     setError(null);
     setNotes(null);
 
-    const page =
-      scope.role === "owner" ? null : (PAGE_KEYS.find((key) => canEditPage(scope, key)) ?? null);
 
     try {
-      const response = await fetch("/api/admin/articles", {
+      const response = await fetch(withSite("/api/admin/articles", site), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...BLANK_ARTICLE,
           title,
           slug,
-          page,
           sort_order:
             articles.reduce((top, article) => Math.max(top, article.sort_order), 0) + 10,
         }),
@@ -305,7 +297,7 @@ export function ArticlesEditor({
     setError(null);
 
     try {
-      const response = await fetch(`/api/admin/articles/${active.id}`, { method: "DELETE" });
+      const response = await fetch(withSite(`/api/admin/articles/${active.id}`, site), { method: "DELETE" });
 
       // A 404 means it is already gone, which is what was being asked for.
       if (!response.ok && response.status !== 404) {
@@ -344,9 +336,9 @@ export function ArticlesEditor({
     id: article.id,
     short: article.title || "Untitled article",
     title: `${String(index + 1).padStart(2, "0")} · ${article.title || "Untitled article"}`,
-    // Which page owns it, because on this screen alone the rows can belong to
-    // different people. Then whether anybody outside the admin can read it.
-    hint: `${articlePageLabel(article.page)} · ${ARTICLE_STATUS_LABELS[article.status]}`,
+    // No owner to name any more: every row on this screen belongs to the sport
+    // the screen is for. Just whether anybody outside the admin can read it.
+    hint: ARTICLE_STATUS_LABELS[article.status],
     // Present so the rail lets them be dragged. No `onToggleVisible` is passed,
     // so no eye appears: an article is not switched off, it is set back to draft.
     visible: true,
@@ -356,17 +348,17 @@ export function ArticlesEditor({
   /*
    * Where this article's pictures go — from the SAVED record, never the draft.
    *
-   * Both halves of the folder are editable here: the address AND the page. Using
-   * the draft would upload into a folder named after a half-typed slug on a page
-   * the article has not been moved to yet, and abandoning the save would leave
-   * that file orphaned in a folder that never comes to exist. `activeSaved` is
+   * Only the address is editable here — the sport is fixed by the screen. Using
+   * the draft would upload into a folder named after a half-typed slug, and
+   * abandoning the save would leave that file orphaned in a folder that never
+   * comes to exist. `activeSaved` is
    * the last thing the server acknowledged, so it always names a folder that is
    * real. The rename carries the files across; see the PUT in
    * src/app/api/admin/articles/[id]/route.ts.
    */
   const uploadFolder = activeSaved
-    ? folderForArticle(activeSaved.page, activeSaved.slug, activeSaved.id)
-    : ARTICLES_UPLOAD_FOLDER;
+    ? folderForEntity(site.slug, "articles", activeSaved.slug, activeSaved.id)
+    : folderForModule(site.slug, "articles");
 
   return (
     <UploadFolder folder={uploadFolder}>
@@ -497,7 +489,6 @@ export function ArticlesEditor({
                 ) : (
                   <ArticleForm
                     article={active}
-                    scope={scope}
                     siteUrl={siteUrl}
                     onChange={update}
                     onDelete={() => setConfirmingDelete(true)}

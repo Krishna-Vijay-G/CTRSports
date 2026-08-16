@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Form } from "@/lib/forms";
 import { cn } from "@/lib/utils";
 import { PreviewMode } from "@/components/ui/PreviewMode";
-import { RegisterForm } from "@/app/(site)/register/_components/RegisterForm";
+import { RegisterForm } from "@/app/(site)/_shell/register/RegisterForm";
 
 /**
  * The form as the page will draw it, shrunk to fit beside the fields.

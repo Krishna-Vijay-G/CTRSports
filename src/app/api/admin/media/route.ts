@@ -6,7 +6,7 @@ import {
   folderOfKey,
   isMediaKey,
 } from "@/lib/mediaPaths";
-import { guardAnyPage } from "@/lib/server/access";
+import { guardAnySite } from "@/lib/server/access";
 import { getSession } from "@/lib/server/auth";
 import { findUsage } from "@/lib/server/mediaUsage";
 import { deleteObjects, isS3Configured, listMedia } from "@/lib/server/s3";
@@ -41,7 +41,7 @@ const MAX_KEYS = 200;
  * — a "Recent" view that goes mysteriously empty the busier another page gets.
  */
 export async function GET() {
-  const denied = await guardAnyPage();
+  const denied = await guardAnySite();
   if (denied) return denied;
 
   if (!isS3Configured()) {
@@ -79,7 +79,7 @@ export async function GET() {
  * 409 again with the fresh references is the correct handling of that race.
  */
 export async function DELETE(request: Request) {
-  const denied = await guardAnyPage();
+  const denied = await guardAnySite();
   if (denied) return denied;
 
   if (!isS3Configured()) {

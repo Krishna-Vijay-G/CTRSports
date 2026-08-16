@@ -52,8 +52,8 @@
 
 import { BODY_MAX, isRecord, isoDate, lines, oneOf, optionalText, text } from "@/lib/normalise";
 import { checkDialled } from "@/lib/dialling";
-import { FORM_PAGE_KEYS, type FormPageKey } from "@/lib/roles";
 import { fallbackSlug, isUsableSlug, slugify, usableSlug } from "@/lib/slug";
+import { sitePath, slugUnder, type SiteRef } from "@/lib/sites";
 
 /* ──────────────────────────────── Shape ──────────────────────────────── */
 
@@ -959,10 +959,21 @@ export type FormField = {
 
 export type Form = {
   id: string;
+  /**
+   * The sport this belongs to. Set from the site the request was guarded
+   * against, never from the body — a browser that could name its own site could
+   * move a form into a sport it does not administer.
+   *
+   * It replaces `page_key`, which was `'' | 'landing' | 'incrc'` behind a CHECK
+   * constraint naming those two pages — the single hardest blocker to a second
+   * sport in the old schema, because a new one could not own a form without a
+   * migration. The '' case, "belongs to no page, reachable only by its own
+   * address", has no equivalent and needs none: a form belongs to a sport, and
+   * whether it is LINKED from anywhere is the page's business, not the form's.
+   */
+  site_id: string;
   name: string;
   slug: string;
-  /** '' when the form belongs to no page — reachable only by its own address. */
-  page_key: FormPageKey | "";
   status: FormStatus;
   /** One line, printed on the card that links to it. */
   blurb: string;
@@ -1159,7 +1170,7 @@ export type FormSummary = Pick<
   | "id"
   | "name"
   | "slug"
-  | "page_key"
+  | "site_id"
   | "status"
   | "blurb"
   | "sort_order"
@@ -1381,10 +1392,9 @@ export function blankField(id: string): FormField {
   };
 }
 
-export const BLANK_FORM: Omit<Form, "id"> = {
+export const BLANK_FORM: Omit<Form, "id" | "site_id"> = {
   name: "",
   slug: "",
-  page_key: "",
   status: "draft",
   blurb: "",
   intro_title: "",
@@ -1426,14 +1436,14 @@ function formFallbackSlug(): string {
   return fallbackSlug("form");
 }
 
-export function formHref(form: Pick<Form, "slug">): string {
-  return `/register/${form.slug}`;
+/** Where a link to this form points — under the site that owns it. */
+export function formHref(site: SiteRef, form: Pick<Form, "slug">): string {
+  return sitePath(site, "register", form.slug);
 }
 
-/** The slug in a stored `/register/<slug>` link, or "" if it is not one. */
-export function slugFromHref(href: string): string {
-  const match = /^\/register\/([a-z0-9][a-z0-9-]*)$/.exec(href.trim());
-  return match ? match[1] : "";
+/** The slug in a stored form link of THIS site, or "" — see `slugUnder`. */
+export function slugFromHref(site: SiteRef, href: string): string {
+  return slugUnder(site, href, "register");
 }
 
 /* ───────────────────────────── Normalisation ─────────────────────────── */
@@ -1946,7 +1956,10 @@ function optionFilter(value: unknown, options: string[]): OptionFilter {
   return { key, groups, bands };
 }
 
-export function normaliseFormInput(input: unknown, notes?: string[]): Omit<Form, "id"> {
+export function normaliseFormInput(
+  input: unknown,
+  notes?: string[]
+): Omit<Form, "id" | "site_id"> {
   const record = isRecord(input) ? input : {};
   const d = BLANK_FORM;
 
@@ -1970,7 +1983,6 @@ export function normaliseFormInput(input: unknown, notes?: string[]): Omit<Form,
   return {
     name,
     slug,
-    page_key: oneOf(record.page_key, FORM_PAGE_KEYS, "" as FormPageKey | ""),
     status: oneOf(record.status, FORM_STATUSES, "draft"),
     blurb: optionalText(record.blurb, FORM_LIMITS.blurb),
     intro_title: optionalText(record.intro_title, FORM_LIMITS.intro_title),

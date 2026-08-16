@@ -1,29 +1,35 @@
 import "server-only";
 
 import { revalidatePath } from "next/cache";
+import { deckHref } from "@/lib/decks";
+import { siteHref, type SiteRef } from "@/lib/sites";
 
 /**
  * The pages that draw a deck, cleared after one changes.
  *
  * Two of them, and they are cleared for different reasons:
  *
- * `/deck/<slug>` is the deck itself, cached for a minute like the rest of the
- * public site. A deck is fifty images; making that page dynamic to catch an
- * edit nobody has made would be paying for it on every view. So it is cached
- * and cleared here instead — which needs the OLD address as well as the new
- * one, because after a rename the stale copy sits under the address that is now
- * a redirect.
+ * The deck's own address is cached for a minute like the rest of the public
+ * site. A deck is fifty images; making that page dynamic to catch an edit
+ * nobody has made would be paying for it on every view. So it is cached and
+ * cleared here instead — which needs the OLD address as well as the new one,
+ * because after a rename the stale copy sits under the address that is now a
+ * redirect.
  *
- * `/incrc` carries the cards. A deck renamed or unpublished has to stop being
- * offered there, and the card's title and cover come from the deck's own row.
+ * The site's home page carries the cards. A deck renamed or unpublished has to
+ * stop being offered there, and a card's title and cover come from the deck's
+ * own row.
  *
- * The same shape `revalidateFormPages` uses, and for the same reason: one list,
- * so a route that changes a deck cannot forget one of the pages that shows it.
+ * ── Why every path takes a site ───────────────────────────────────────────
+ *
+ * Because they are the site's paths. `/deck/<slug>` used to be the address;
+ * `/incrc/deck/<slug>` is, and clearing the flat one would clear nothing at all
+ * — silently, which is the worst way for a cache to be wrong.
  */
-export function revalidateDeckPages(slugs: readonly string[] = []): void {
-  revalidatePath("/incrc");
+export function revalidateDeckPages(site: SiteRef, slugs: readonly string[] = []): void {
+  revalidatePath(siteHref(site) || "/");
 
   for (const slug of new Set(slugs)) {
-    if (slug) revalidatePath(`/deck/${slug}`);
+    if (slug) revalidatePath(deckHref(site, { slug }));
   }
 }

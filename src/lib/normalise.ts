@@ -158,6 +158,22 @@ export function list<T>(
   return value.filter(isRecord).slice(0, max).map(map);
 }
 
+/**
+ * Gives every entry of a list an id, keeping the ones it already has.
+ *
+ * Ids only have to be unique inside one list; duplicates would break React keys
+ * and make a repeater's rows swap places as you type. Here rather than in each
+ * section that repeats, because three of them do.
+ */
+export function withIds<T extends { id: string }>(items: T[], prefix: string): T[] {
+  const seen = new Set<string>();
+  return items.map((item, index) => {
+    const id = item.id && !seen.has(item.id) ? item.id : `${prefix}-${index + 1}-${seen.size}`;
+    seen.add(id);
+    return { ...item, id };
+  });
+}
+
 /** A list of plain strings — marquee items, and nothing else so far. */
 export function lines(value: unknown, max: number, fallback: string[]): string[] {
   if (!Array.isArray(value)) return [...fallback];

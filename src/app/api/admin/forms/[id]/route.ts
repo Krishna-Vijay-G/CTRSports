@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { isFormId } from "@/lib/forms";
-import { guardForms } from "@/lib/server/access";
+import { guardFormById } from "@/lib/server/access";
 import { deleteForm, updateForm } from "@/lib/server/formsRepo";
 import { revalidateFormPages } from "@/lib/server/revalidateForms";
 
@@ -13,10 +13,10 @@ type Params = { params: Promise<{ id: string }> };
 const DUPLICATE = "23505";
 
 export async function PUT(request: Request, { params }: Params) {
-  const denied = await guardForms();
-  if (denied) return denied;
-
   const { id } = await params;
+
+  const guard = await guardFormById(id);
+  if (guard.denied) return guard.denied;
   // Reject a non-uuid here rather than let Postgres reject it as a type error,
   // which would surface as a 500.
   if (!isFormId(id)) {
@@ -46,7 +46,7 @@ export async function PUT(request: Request, { params }: Params) {
       return NextResponse.json({ error: "No such form." }, { status: 404 });
     }
 
-    revalidateFormPages();
+    revalidateFormPages(guard.site);
     return NextResponse.json({ form, notes });
   } catch (error) {
     if ((error as { code?: string })?.code === DUPLICATE) {
@@ -63,10 +63,10 @@ export async function PUT(request: Request, { params }: Params) {
  * CASCADE. The screen counts the entries into its confirmation for that reason.
  */
 export async function DELETE(_request: Request, { params }: Params) {
-  const denied = await guardForms();
-  if (denied) return denied;
-
   const { id } = await params;
+
+  const guard = await guardFormById(id);
+  if (guard.denied) return guard.denied;
   if (!isFormId(id)) {
     return NextResponse.json({ error: "No such form." }, { status: 404 });
   }
@@ -77,7 +77,7 @@ export async function DELETE(_request: Request, { params }: Params) {
       return NextResponse.json({ error: "No such form." }, { status: 404 });
     }
 
-    revalidateFormPages();
+    revalidateFormPages(guard.site);
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("[admin/forms] DELETE", error);

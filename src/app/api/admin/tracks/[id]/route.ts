@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { folderForEntity } from "@/lib/mediaPaths";
-import { guardPage } from "@/lib/server/access";
+import { guardRequestSite } from "@/lib/server/access";
 import { deleteEntityFolder } from "@/lib/server/entityMedia";
 import { revalidateTrackPages } from "@/lib/server/revalidateTracks";
 import { deleteTrack, getTrack, updateTrack } from "@/lib/server/tracksRepo";
@@ -27,8 +27,8 @@ export const dynamic = "force-dynamic";
 type Params = { params: Promise<{ id: string }> };
 
 export async function PUT(request: Request, { params }: Params) {
-  const denied = await guardPage("circuits");
-  if (denied) return denied;
+  const guard = await guardRequestSite(request, "circuits");
+  if (guard.denied) return guard.denied;
 
   const { id } = await params;
   if (!isTrackId(id)) {
@@ -53,7 +53,7 @@ export async function PUT(request: Request, { params }: Params) {
       return NextResponse.json({ error: "No such circuit." }, { status: 404 });
     }
 
-    revalidateTrackPages();
+    revalidateTrackPages(guard.site);
     return NextResponse.json({ track });
   } catch (error) {
     console.error("[admin/tracks] PUT", error);
@@ -61,9 +61,9 @@ export async function PUT(request: Request, { params }: Params) {
   }
 }
 
-export async function DELETE(_request: Request, { params }: Params) {
-  const denied = await guardPage("circuits");
-  if (denied) return denied;
+export async function DELETE(request: Request, { params }: Params) {
+  const guard = await guardRequestSite(request, "circuits");
+  if (guard.denied) return guard.denied;
 
   const { id } = await params;
   if (!isTrackId(id)) {
@@ -93,7 +93,7 @@ export async function DELETE(_request: Request, { params }: Params) {
         // returns wherever there is one, and it is the accessor the rest of the
         // project addresses a circuit through. `Track` does not declare `slug`.
         const { deleted, rescued } = await deleteEntityFolder(
-          folderForEntity("circuits", trackSlug(before), id)
+          folderForEntity(guard.site.slug, "circuits", trackSlug(before), id)
         );
 
         if (rescued > 0) {
@@ -109,7 +109,7 @@ export async function DELETE(_request: Request, { params }: Params) {
       }
     }
 
-    revalidateTrackPages();
+    revalidateTrackPages(guard.site);
     return NextResponse.json({ ok: true, notes });
   } catch (error) {
     console.error("[admin/tracks] DELETE", error);

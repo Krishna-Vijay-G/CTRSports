@@ -15,7 +15,8 @@ import {
 } from "@/admin/ui/icons";
 import { ErrorNote, Hint } from "@/admin/components/Fields";
 import { ImageField } from "@/admin/components/ImageField";
-import { SPORTS_UPLOAD_FOLDER } from "@/lib/mediaPaths";
+import { folderForSports } from "@/lib/mediaPaths";
+import { useSite } from "@/admin/components/SiteScope";
 import { UploadFolder } from "@/admin/components/UploadFolder";
 
 /**
@@ -62,6 +63,16 @@ export function SportRow({
   onDragEnter: () => void;
   onDragEnd: () => void;
 }) {
+  /*
+   * Whose folder a card's pictures go into.
+   *
+   * The sports cards are edited on the root site's page screen, so the site is
+   * the one wrapping that screen rather than anything about the card. It used
+   * to be the literal `landing/sports`; reading it from the scope is the same
+   * answer with nothing hardcoded.
+   */
+  const site = useSite();
+
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [justSaved, setJustSaved] = useState(false);
@@ -268,7 +279,7 @@ export function SportRow({
             The provider nests inside the landing editor's, so nothing between
             here and there has to know about it.
           */}
-          <UploadFolder folder={SPORTS_UPLOAD_FOLDER}>
+          <UploadFolder folder={folderForSports(site.slug)}>
             <ImageField
               label="Crest"
               value={sport.logo_url}

@@ -13,6 +13,8 @@
  * import `server-only`.
  */
 
+import { sitePath, type SiteRef } from "@/lib/sites";
+
 /** One entry in a circuit's related links. Order is the order on the page. */
 export type TrackLink = {
   /** What the link says. Falls back to the bare host when left blank. */
@@ -22,6 +24,12 @@ export type TrackLink = {
 
 export type Track = {
   id: string;
+  /**
+   * The sport this belongs to. Set from the site the request was guarded
+   * against, never from the body — a browser that could name its own site could
+   * move a record into a sport it does not administer.
+   */
+  site_id: string;
   /** "Kari Motor Speedway". */
   name: string;
   /** Where it is, as one line — "Coimbatore, Tamil Nadu". */
@@ -120,7 +128,7 @@ export const TRACK_MAX_LINKS = 6;
 export const DEFAULT_VIEW_BOX = "0 0 400 260";
 
 /** What a new circuit starts from. */
-export const BLANK_TRACK: Omit<Track, "id"> = {
+export const BLANK_TRACK: Omit<Track, "id" | "site_id"> = {
   name: "",
   location: "",
   photo_url: "",
@@ -154,7 +162,7 @@ export function isTrackId(value: unknown): value is string {
 }
 
 /** Clamps whatever came off the wire into a storable circuit. */
-export function normaliseTrackInput(input: unknown): Omit<Track, "id"> {
+export function normaliseTrackInput(input: unknown): Omit<Track, "id" | "site_id"> {
   const record = (typeof input === "object" && input !== null ? input : {}) as Record<
     string,
     unknown
@@ -349,9 +357,17 @@ export function trackSlug(track: Pick<Track, "id" | "name"> & { slug?: string })
   return slug || track.id;
 }
 
-/** Where a link to this circuit points. */
-export function trackHref(track: Pick<Track, "id" | "name"> & { slug?: string }): string {
-  return `/circuits/${trackSlug(track)}`;
+/** Where a link to this circuit points — under the sport that runs it. */
+export function trackHref(
+  site: SiteRef,
+  track: Pick<Track, "id" | "name"> & { slug?: string }
+): string {
+  return sitePath(site, "circuits", trackSlug(track));
+}
+
+/** The index of this sport's circuits. */
+export function circuitsHref(site: SiteRef): string {
+  return sitePath(site, "circuits");
 }
 
 /** Slug first, then id — see `trackSlug` for why both are accepted. */

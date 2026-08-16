@@ -324,6 +324,18 @@ export const PanelIcon = (p: IconProps) => (
   </Icon>
 );
 
+/**
+ * A page with a bar across the top and another across the foot: the chrome
+ * around the content rather than the content. Deliberately not `MonitorIcon`,
+ * which stands for the splash screen in the same sidebar.
+ */
+export const ChromeIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="2.5" y="3.5" width="15" height="13" rx="2" />
+    <path d="M2.5 7.4h15M2.5 12.9h15" />
+  </Icon>
+);
+
 /** Opens a row's fields in a dialog. */
 export const PencilIcon = (p: IconProps) => (
   <Icon {...p}>

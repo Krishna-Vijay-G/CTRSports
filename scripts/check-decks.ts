@@ -23,7 +23,7 @@ import {
   summariseDeck,
   type Deck,
 } from "@/lib/decks";
-import { normaliseIncrcContent } from "@/lib/incrcContent";
+import { decks as decksModule, type Decks } from "@/lib/sections/decks/model";
 import { isUsableSlug, slugify } from "@/lib/slug";
 
 let failures = 0;
@@ -83,10 +83,20 @@ section("A deck always gets a usable address");
 
 section("Addresses read back the way they were written");
 {
-  check("href", deckHref({ slug: "entry-pack" }), "/deck/entry-pack");
-  check("and back again", slugFromDeckHref("/deck/entry-pack"), "entry-pack");
-  check("a form's address is not a deck's", slugFromDeckHref("/register/entry-pack"), "");
-  check("nor is a path with more on it", slugFromDeckHref("/deck/entry-pack/2"), "");
+  // A deck's address is under the sport that owns it, so both directions take
+  // one. The root site's prefix is empty, which is the case worth pinning:
+  // `sitePath` is the only thing that knows it, and every builder composes onto
+  // it rather than checking `kind` for itself.
+  const incrc = { slug: "incrc", kind: "sport" } as const;
+  const root = { slug: "landing", kind: "root" } as const;
+
+  check("href", deckHref(incrc, { slug: "entry-pack" }), "/incrc/deck/entry-pack");
+  check("the root site has no prefix", deckHref(root, { slug: "entry-pack" }), "/deck/entry-pack");
+  check("and back again", slugFromDeckHref(incrc, "/incrc/deck/entry-pack"), "entry-pack");
+  check("another sport's deck is not this one's", slugFromDeckHref(incrc, "/pickle/deck/entry-pack"), "");
+  check("nor is the flat address it used to have", slugFromDeckHref(incrc, "/deck/entry-pack"), "");
+  check("a form's address is not a deck's", slugFromDeckHref(incrc, "/incrc/register/entry-pack"), "");
+  check("nor is a path with more on it", slugFromDeckHref(incrc, "/incrc/deck/entry-pack/2"), "");
   check("a malformed id never reaches Postgres", isDeckId("../../etc"), false);
 }
 
@@ -141,6 +151,7 @@ section("A summary carries what a card needs and no more");
 {
   const deck: Deck = {
     id: "1",
+    site_id: "00000000-0000-0000-0000-000000000001",
     name: "Entry pack",
     slug: "entry-pack",
     status: "published",
@@ -160,36 +171,29 @@ section("A summary carries what a card needs and no more");
 
 section("A card names a deck by an address, or names nothing");
 {
-  const content = normaliseIncrcContent({
-    decks: {
-      items: [
-        { slug: "entry-pack", title: "", blurb: "" },
-        { slug: "Entry Pack!", title: "Nonsense", blurb: "" },
-        { slug: 42, title: "Not a string", blurb: "" },
-        { slug: "REGS-2026", title: "", blurb: "" },
-      ],
-    },
-  });
+  const value = decksModule.normalise({
+    items: [
+      { slug: "entry-pack", title: "", blurb: "" },
+      { slug: "Entry Pack!", title: "Nonsense", blurb: "" },
+      { slug: 42, title: "Not a string", blurb: "" },
+      { slug: "REGS-2026", title: "", blurb: "" },
+    ],
+  }) as Decks;
 
   check(
     "usable ones are kept, lower-cased; the rest hold no address",
-    content.decks.items.map((card) => card.slug),
+    value.items.map((card) => card.slug),
     ["entry-pack", "", "", "regs-2026"]
   );
 }
 
 {
-  // Appending the id to INCRC_SECTION_IDS switches the section ON for every
-  // stored document, so an empty card list has to render nothing rather than a
+  // A section placed but never written has to render nothing rather than a
   // heading over a blank strip. The renderer does that; this pins the shape it
-  // relies on.
-  const content = normaliseIncrcContent({});
-  check("a document that has never heard of decks gets an empty list", content.decks.items, []);
-  check(
-    "and the section is in the running order",
-    content.sections.some((entry) => entry.id === "decks"),
-    true
-  );
+  // relies on — and that `blank()` and `normalise(undefined)` agree, which is
+  // what makes a newly added section and a never-saved one the same thing.
+  check("a section nobody has written has no cards", (decksModule.normalise({}) as Decks).items, []);
+  check("and its blank agrees", (decksModule.blank() as Decks).items, []);
 }
 
 /* ─────────────────────────────────────────────────────────────────────── */

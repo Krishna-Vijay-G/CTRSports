@@ -6,7 +6,7 @@ import {
   parseFolder,
   slugifyFileName,
 } from "@/lib/mediaPaths";
-import { guardAnyPage, guardFolder } from "@/lib/server/access";
+import { guardAnySite, guardFolder } from "@/lib/server/access";
 import { isS3Configured, uploadObject } from "@/lib/server/s3";
 
 export const runtime = "nodejs";
@@ -39,7 +39,7 @@ const EXTENSIONS: Record<string, string> = {
 };
 
 export async function POST(request: Request) {
-  const denied = await guardAnyPage();
+  const denied = await guardAnySite();
   if (denied) return denied;
 
   if (!isS3Configured()) {

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { isDeckId } from "@/lib/decks";
-import { guardPage } from "@/lib/server/access";
+import { guardRequestSite } from "@/lib/server/access";
 import { createDeck, listDecks, reorderDecks } from "@/lib/server/decksRepo";
 import { revalidateDeckPages } from "@/lib/server/revalidateDecks";
 
@@ -11,12 +11,12 @@ export const dynamic = "force-dynamic";
 const DUPLICATE = "23505";
 
 /** The whole list. */
-export async function GET() {
-  const denied = await guardPage("decks");
-  if (denied) return denied;
+export async function GET(request: Request) {
+  const guard = await guardRequestSite(request, "decks");
+  if (guard.denied) return guard.denied;
 
   try {
-    return NextResponse.json({ decks: await listDecks() });
+    return NextResponse.json({ decks: await listDecks(guard.site.id) });
   } catch (error) {
     console.error("[admin/decks] GET", error);
     return NextResponse.json({ error: "Could not load the decks." }, { status: 500 });
@@ -25,8 +25,8 @@ export async function GET() {
 
 /** Adds one. A deck with no name is not a deck, so that is the only rule. */
 export async function POST(request: Request) {
-  const denied = await guardPage("decks");
-  if (denied) return denied;
+  const guard = await guardRequestSite(request, "decks");
+  if (guard.denied) return guard.denied;
 
   let body: unknown;
   try {
@@ -45,9 +45,9 @@ export async function POST(request: Request) {
     // the forms route does it: an address rewritten behind a "Saved" badge is
     // how a printed link stops working without anybody noticing.
     const notes: string[] = [];
-    const deck = await createDeck(body, notes);
+    const deck = await createDeck(guard.site.id, body, notes);
 
-    revalidateDeckPages([deck.slug]);
+    revalidateDeckPages(guard.site, [deck.slug]);
     return NextResponse.json({ deck, notes });
   } catch (error) {
     if ((error as { code?: string })?.code === DUPLICATE) {
@@ -67,8 +67,8 @@ export async function POST(request: Request) {
  * the match, so the path would land in the [id] handler.
  */
 export async function PATCH(request: Request) {
-  const denied = await guardPage("decks");
-  if (denied) return denied;
+  const guard = await guardRequestSite(request, "decks");
+  if (guard.denied) return guard.denied;
 
   let ids: unknown;
   try {
@@ -87,7 +87,7 @@ export async function PATCH(request: Request) {
 
   try {
     await reorderDecks(ids);
-    revalidateDeckPages();
+    revalidateDeckPages(guard.site);
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("[admin/decks] PATCH", error);

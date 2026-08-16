@@ -37,12 +37,19 @@ import { useFolder } from "@/admin/components/media/useFolder";
  * authorisation question, it only draws the answer. Every route re-checks
  * regardless, because a UI that hides a button is not protection.
  *
- * ── Why the legacy files are still reachable ──────────────────────────────
+ * ── Why the loose files at the root are still reachable ───────────────────
  *
  * The media root holds every upload made before folders existed, and that is
- * currently most of the pictures on the site. They are not being moved — a URL
- * is the reference, so re-keying one breaks a live page — so the root of this
- * tree is where they live, and they are as browsable as anything else.
+ * currently most of the pictures on the site. They are not being moved: they are
+ * named by a bare uuid, so there is no record to attribute one to and no site to
+ * file it under — the decision is recorded in
+ * docs/uploads by folder structure.md. The root of this tree is where they live
+ * and they are as browsable as anything else.
+ *
+ * Everything ELSE is now under a site. `decks/`, `circuits/` and `articles/`
+ * were top-level folders named after a module until phase 6 moved them, and the
+ * rail no longer has a shape for a folder that belongs to no site but is not
+ * shared.
  */
 export function MediaLibrary({
   initialFolder = "",

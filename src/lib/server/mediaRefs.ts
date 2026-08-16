@@ -75,6 +75,8 @@ const TARGETS: Target[] = [
    * and every picture in it would be broken.
    */
   { table: "articles", columns: [{ name: "cover_image" }, { name: "body", json: true }] },
+  /* An event is the same two shapes as an article, and for the same reason. */
+  { table: "events", columns: [{ name: "cover_image" }, { name: "body", json: true }] },
 ];
 
 /** `strpos`, not LIKE: the needle is a literal and `%` and `_` are not wildcards in it. */

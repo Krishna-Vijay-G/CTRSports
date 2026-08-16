@@ -16,11 +16,11 @@
  */
 
 import {
-  PAGE_LABELS,
-  normalisePageKeys,
+  GRANT_LABELS,
+  normaliseGrants,
   normaliseRole,
   type AdminRole,
-  type PageKey,
+  type Grant,
 } from "@/lib/roles";
 import { optionalText } from "@/lib/normalise";
 
@@ -28,7 +28,14 @@ export type AdminAccount = {
   id: string;
   username: string;
   role: AdminRole;
-  pages: PageKey[];
+  /**
+   * Every (site, module) pair the account holds.
+   *
+   * This was `pages: PageKey[]` — a list of screens, which was the whole scope
+   * while there was one sport to own them. A grant names the sport as well, so
+   * "may edit decks" cannot quietly mean everybody's decks.
+   */
+  grants: Grant[];
   created_at: string;
 };
 
@@ -50,8 +57,8 @@ export const MIN_PASSWORD = 10;
 /** What a new account starts from. */
 export const BLANK_ADMIN: Omit<AdminAccount, "id" | "created_at"> = {
   username: "",
-  role: "pages",
-  pages: [],
+  role: "member",
+  grants: [],
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -75,10 +82,10 @@ export function normaliseUsername(value: unknown): string {
 /**
  * Whatever came off the wire, as a storable account.
  *
- * `pages` is kept whatever the role is, rather than emptied for an owner. It
- * costs nothing, and it means moving an account from `pages` to `owner` and
- * back does not lose which pages it had — the predicates in roles.ts ignore the
- * list for the other two roles, so nothing reads it wrongly in the meantime.
+ * The grants are kept whatever the role is, rather than emptied for an owner.
+ * It costs nothing, and it means promoting an account to owner and back does
+ * not lose what it was scoped to — the predicates in roles.ts short-circuit on
+ * the role, so nothing reads the list wrongly in the meantime.
  */
 export function normaliseAdminInput(input: unknown): Omit<AdminAccount, "id" | "created_at"> {
   const record = (typeof input === "object" && input !== null ? input : {}) as Record<
@@ -89,15 +96,36 @@ export function normaliseAdminInput(input: unknown): Omit<AdminAccount, "id" | "
   return {
     username: normaliseUsername(record.username),
     role: normaliseRole(record.role),
-    pages: normalisePageKeys(record.pages),
+    grants: normaliseGrants(record.grants),
   };
 }
 
-/** What the screen says an account can reach, in one line. */
-export function describeAccess(account: Pick<AdminAccount, "role" | "pages">): string {
-  if (account.role === "owner") return "Every screen, and the accounts";
-  if (account.role === "registrations") return "Registration forms and entries";
-  return account.pages.length > 0
-    ? account.pages.map((page) => PAGE_LABELS[page]).join(", ")
-    : "No pages yet";
+/**
+ * What the screen says an account can reach, in one line.
+ *
+ * Grouped by site rather than listed flat, because "INCRC: everything" and
+ * "INCRC: articles, Pickle: articles" are the two shapes worth telling apart at
+ * a glance, and a flat list of nine module names tells nobody which sport.
+ */
+export function describeAccess(
+  account: Pick<AdminAccount, "role" | "grants">,
+  siteNames: Record<string, string> = {}
+): string {
+  if (account.role === "owner") return "Every sport, and the accounts";
+  if (account.grants.length === 0) return "Nothing yet";
+
+  const bySite = new Map<string, string[]>();
+  for (const grant of account.grants) {
+    const name = siteNames[grant.siteId] ?? grant.siteSlug;
+    if (!bySite.has(name)) bySite.set(name, []);
+    bySite.get(name)!.push(grant.module);
+  }
+
+  return [...bySite]
+    .map(([name, modules]) =>
+      modules.includes("*")
+        ? `${name}: everything`
+        : `${name}: ${modules.map((m) => GRANT_LABELS[m as keyof typeof GRANT_LABELS] ?? m).join(", ")}`
+    )
+    .join(" · ");
 }

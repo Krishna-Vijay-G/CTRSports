@@ -2,12 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Deck } from "@/lib/decks";
-import type { LandingContent } from "@/lib/landingContent";
+import type { Chrome } from "@/lib/chrome";
 import { cn } from "@/lib/utils";
 import { PreviewMode } from "@/components/ui/PreviewMode";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SiteHeader } from "@/components/layout/SiteHeader";
-import { DeckPages } from "@/app/(site)/deck/_components/DeckPages";
+import { DeckPages } from "@/app/(site)/_shell/deck/DeckPages";
 
 /**
  * The real deck page, rendered from the editor's draft, shrunk to fit beside
@@ -33,7 +33,7 @@ export function DeckPreview({
 }: {
   /** The draft being edited, or null when no deck is open. */
   deck: Deck | null;
-  chrome: LandingContent;
+  chrome: Chrome;
   year: number;
   className?: string;
 }) {

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { fileOf, isFormId } from "@/lib/forms";
-import { guardForms } from "@/lib/server/access";
+import { guardFormById } from "@/lib/server/access";
 import { getEntry } from "@/lib/server/entriesRepo";
 import { ENTRY_PREFIX, getObject } from "@/lib/server/s3";
 
@@ -24,10 +24,10 @@ type Params = { params: Promise<{ id: string; entryId: string; fieldId: string }
  * string would be a way to read any object in the bucket.
  */
 export async function GET(_request: Request, { params }: Params) {
-  const denied = await guardForms();
-  if (denied) return denied;
-
   const { id, entryId, fieldId } = await params;
+
+  const guard = await guardFormById(id);
+  if (guard.denied) return guard.denied;
   if (!isFormId(id) || !isFormId(entryId)) {
     return NextResponse.json({ error: "No such file." }, { status: 404 });
   }

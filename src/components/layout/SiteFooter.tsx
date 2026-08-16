@@ -1,6 +1,7 @@
 "use client";
 
-import { mailHref, telHref, type LandingContent } from "@/lib/landingContent";
+import type { Chrome } from "@/lib/chrome";
+import { mailHref, telHref } from "@/lib/sections/contact/model";
 import { cn } from "@/lib/utils";
 import { FooterEnquiry } from "@/components/layout/FooterEnquiry";
 import { SocialIcon } from "@/components/ui/SocialIcon";
@@ -39,7 +40,7 @@ import { SocialIcon } from "@/components/ui/SocialIcon";
  * as a label with nothing after it, and a whole column with nothing in it is
  * not drawn at all.
  */
-export function SiteFooter({ content, year }: { content: LandingContent; year: number }) {
+export function SiteFooter({ content, year }: { content: Chrome; year: number }) {
   const { brand, nav, socials, contact, footer } = content;
 
   const tel = telHref(contact.phone);
@@ -212,7 +213,7 @@ export function SiteFooter({ content, year }: { content: LandingContent; year: n
  * `group-focus-visible` as well as hover, because a keyboard tabbing through
  * these deserves the same label a pointer gets.
  */
-function SocialPill({ social }: { social: LandingContent["socials"][number] }) {
+function SocialPill({ social }: { social: Chrome["socials"][number] }) {
   return (
     <a
       href={social.href}

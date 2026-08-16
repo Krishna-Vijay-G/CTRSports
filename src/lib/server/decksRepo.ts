@@ -43,7 +43,7 @@ import {
 const DUPLICATE = "23505";
 
 /** Every column of the deck itself. The pages and the addresses are joined on. */
-const COLUMNS = "id, name, status, blurb, show_heading, sort_order";
+const COLUMNS = "d.id, d.site_id, d.name, d.status, d.blurb, d.show_heading, d.sort_order";
 
 type DeckRow = {
   id: string;
@@ -52,6 +52,7 @@ type DeckRow = {
   blurb: string;
   show_heading: boolean;
   sort_order: number;
+  site_id: string;
   slug: string | null;
   former_slugs: string[] | null;
   pages: { url: string; alt: string }[] | null;
@@ -73,6 +74,7 @@ type DeckRow = {
 function hydrate(row: DeckRow): Deck {
   return {
     id: row.id,
+    site_id: row.site_id,
     name: row.name,
     slug: row.slug ?? "",
     status: oneOf(row.status, DECK_STATUSES, "draft"),
@@ -106,13 +108,14 @@ const FORMER = `
      FROM ctr.slugs s
     WHERE s.entity_type = 'deck' AND s.entity_id = d.id AND NOT s.is_current) AS former_slugs`;
 
-export const listDecks = cache(async (): Promise<Deck[]> => {
+export const listDecks = cache(async (siteId: string): Promise<Deck[]> => {
   const sql = getSql();
   const rows = (await sql.query(`
     SELECT ${COLUMNS}, ${SLUG}, ${FORMER}, ${PAGES}
       FROM ctr.decks d
+     WHERE d.site_id = $1
      ORDER BY d.sort_order ASC, d.name ASC
-  `)) as DeckRow[];
+  `, [siteId])) as DeckRow[];
 
   return rows.map(hydrate);
 });
@@ -126,7 +129,7 @@ export const listDecks = cache(async (): Promise<Deck[]> => {
  * page one and the count is `count(*)`, which is two things the database can say
  * without sending the pages at all.
  */
-export const listDeckSummaries = cache(async (): Promise<DeckSummary[]> => {
+export const listDeckSummaries = cache(async (siteId: string): Promise<DeckSummary[]> => {
   const sql = getSql();
 
   const rows = (await sql`
@@ -137,7 +140,7 @@ export const listDeckSummaries = cache(async (): Promise<DeckSummary[]> => {
              WHERE p.deck_id = d.id ORDER BY p.position LIMIT 1) AS cover,
            (SELECT count(*)::int FROM ctr.deck_pages p WHERE p.deck_id = d.id) AS pages
       FROM ctr.decks d
-     WHERE d.status = 'published'
+     WHERE d.site_id = ${siteId} AND d.status = 'published'
      ORDER BY d.sort_order ASC, d.name ASC
   `) as { id: string; name: string; blurb: string; slug: string | null; cover: string | null; pages: number }[];
 
@@ -173,8 +176,11 @@ export async function getDeck(id: string): Promise<Deck | null> {
  * corrects itself in the address bar — `hydrate` carries the current slug, which
  * is what it redirects to.
  */
-export async function getDeckBySlug(slug: string): Promise<Deck | null> {
-  const found = await resolveSlug("deck", slug);
+export async function getDeckBySlug(
+  siteId: string,
+  slug: string
+): Promise<Deck | null> {
+  const found = await resolveSlug("deck", siteId, slug);
   return found ? getDeck(found.id) : null;
 }
 
@@ -194,13 +200,21 @@ function heldBy(slug: string, holder: SlugHolder): string {
 }
 
 /** Which deck answers to this address. Kept exported: the slugs route calls it. */
-export async function findSlugOwner(slug: string, exceptId = ""): Promise<SlugHolder | null> {
-  return findOwner("deck", slug, exceptId);
+export async function findSlugOwner(
+  siteId: string,
+  slug: string,
+  exceptId = ""
+): Promise<SlugHolder | null> {
+  return findOwner("deck", siteId, slug, exceptId);
 }
 
 /** Drops one address out of a deck's history, so another deck may take it. */
-export async function releaseFormerSlug(slug: string, fromId: string): Promise<boolean> {
-  return releaseFormer("deck", slug, fromId);
+export async function releaseFormerSlug(
+  siteId: string,
+  slug: string,
+  fromId: string
+): Promise<boolean> {
+  return releaseFormer("deck", siteId, slug, fromId);
 }
 
 /**
@@ -212,17 +226,21 @@ export async function releaseFormerSlug(slug: string, fromId: string): Promise<b
  * address nobody typed still gets the suffix loop, because something has to be
  * invented.
  */
-export async function createDeck(input: unknown, notes?: string[]): Promise<Deck> {
+export async function createDeck(
+  siteId: string,
+  input: unknown,
+  notes?: string[]
+): Promise<Deck> {
   const first = normaliseDeckInput(input, notes);
   const asked =
     typeof (input as { slug?: unknown })?.slug === "string" &&
     (input as { slug: string }).slug.trim() !== "";
 
   if (asked) {
-    const holder = await findSlugOwner(first.slug);
+    const holder = await findSlugOwner(siteId, first.slug);
     if (holder) throw taken(heldBy(first.slug, holder));
 
-    return insertDeck(first);
+    return insertDeck(siteId, first);
   }
 
   for (let attempt = 1; attempt <= 20; attempt += 1) {
@@ -232,10 +250,10 @@ export async function createDeck(input: unknown, notes?: string[]): Promise<Deck
     // current one now, and the insert would refuse it either way — this keeps
     // the loop reading as "find a free one" rather than "try until it stops
     // throwing".
-    if (await findSlugOwner(slug)) continue;
+    if (await findSlugOwner(siteId, slug)) continue;
 
     try {
-      const deck = await insertDeck({ ...first, slug });
+      const deck = await insertDeck(siteId, { ...first, slug });
       if (attempt > 1) {
         notes?.push(`The address “${first.slug}” was taken, so this one is “${slug}”.`);
       }
@@ -254,18 +272,21 @@ export async function createDeck(input: unknown, notes?: string[]): Promise<Deck
  * All three or none: a deck with no address is unreachable and a deck with an
  * address and no pages is a blank page at a printed link.
  */
-async function insertDeck(d: Omit<Deck, "id">): Promise<Deck> {
+async function insertDeck(
+  siteId: string,
+  d: Omit<Deck, "id" | "site_id">
+): Promise<Deck> {
   const sql = getSql();
 
   const rows = (await sql`
-    INSERT INTO ctr.decks (name, status, blurb, show_heading, sort_order)
-    VALUES (${d.name}, ${d.status}, ${d.blurb}, ${d.show_heading}, ${d.sort_order})
+    INSERT INTO ctr.decks (site_id, name, status, blurb, show_heading, sort_order)
+    VALUES (${siteId}, ${d.name}, ${d.status}, ${d.blurb}, ${d.show_heading}, ${d.sort_order})
     RETURNING id
   `) as { id: string }[];
 
   const id = rows[0].id;
 
-  await writeSlugs("deck", id, d.slug, []);
+  await writeSlugs("deck", siteId, id, d.slug, []);
   await writePages(id, d.pages);
 
   const created = await getDeck(id);
@@ -322,7 +343,7 @@ export async function updateDeck(
   if (!existing) return null;
 
   if (d.slug !== existing.slug) {
-    const holder = await findSlugOwner(d.slug, id);
+    const holder = await findSlugOwner(existing.site_id, d.slug, id);
     if (holder) throw taken(heldBy(d.slug, holder));
   }
 
@@ -368,7 +389,7 @@ export async function updateDeck(
 
   if (rows.length === 0) return null;
 
-  await writeSlugs("deck", id, d.slug, formerSlugs);
+  await writeSlugs("deck", existing.site_id, id, d.slug, formerSlugs);
   await writePages(id, d.pages);
 
   return getDeck(id);

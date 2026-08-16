@@ -1,10 +1,12 @@
 "use client";
 
 import type { SlugKind } from "@/lib/slug";
+import { siteHref } from "@/lib/sites";
 import { Button } from "@/admin/ui/Button";
 import { Label } from "@/admin/ui/Input";
 import { XIcon } from "@/admin/ui/icons";
 import { Hint } from "@/admin/components/Fields";
+import { useSite } from "@/admin/components/SiteScope";
 
 /**
  * The addresses this thing used to live at, and a way to retire one.
@@ -22,10 +24,16 @@ import { Hint } from "@/admin/components/Fields";
  * on `updateForm`.
  */
 
-const PREFIX: Record<SlugKind, string> = {
-  form: "/register/",
-  deck: "/deck/",
-  article: "/articles/",
+/**
+ * The route each kind publishes under. The SPORT in front of it comes from the
+ * surrounding scope — an address is `/incrc/deck/<slug>`, and this component is
+ * used on every sport's screens.
+ */
+const ROUTE: Record<SlugKind, string> = {
+  form: "register",
+  deck: "deck",
+  article: "articles",
+  event: "calendar",
 };
 
 export function FormerSlugs({
@@ -39,6 +47,10 @@ export function FormerSlugs({
   onChange: (slugs: string[]) => void;
   disabled?: boolean;
 }) {
+  /* The sport this screen belongs to — see the note on ROUTE above. */
+  const site = useSite();
+  const prefix = `${siteHref(site)}/${ROUTE[kind]}/`;
+
   if (slugs.length === 0) return null;
 
   return (
@@ -52,7 +64,7 @@ export function FormerSlugs({
             className="flex items-center gap-2 rounded-md border border-border bg-background/60 py-1 ps-2.5 pe-1"
           >
             <span className="min-w-0 flex-1 truncate text-[13px] text-foreground">
-              {PREFIX[kind]}
+              {prefix}
               {slug}
             </span>
             <Button
@@ -60,8 +72,8 @@ export function FormerSlugs({
               size="icon-xs"
               onClick={() => onChange(slugs.filter((entry) => entry !== slug))}
               disabled={disabled}
-              title={`Stop answering to ${PREFIX[kind]}${slug}`}
-              aria-label={`Stop answering to ${PREFIX[kind]}${slug}`}
+              title={`Stop answering to ${prefix}${slug}`}
+              aria-label={`Stop answering to ${prefix}${slug}`}
             >
               <XIcon />
             </Button>

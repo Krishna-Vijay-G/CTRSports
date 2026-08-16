@@ -36,6 +36,7 @@
 
 import { URL_MAX, image, isRecord, lines, oneOf, optionalText } from "@/lib/normalise";
 import { SLUG_MAX, fallbackSlug, isUsableSlug, slugify, usableSlug } from "@/lib/slug";
+import { sitePath, slugUnder, type SiteRef } from "@/lib/sites";
 
 /* ─────────────────────────────── Shape ──────────────────────────────── */
 
@@ -84,6 +85,12 @@ export type DeckPage = {
 
 export type Deck = {
   id: string;
+  /**
+   * The sport this belongs to. Set from the site the request was guarded
+   * against, never from the body — a browser that could name its own site could
+   * move a record into a sport it does not administer.
+   */
+  site_id: string;
   name: string;
   /** The address. `/deck/<slug>`. */
   slug: string;
@@ -105,7 +112,7 @@ export type Deck = {
 };
 
 /** What a deck is when it is made. The editor fills it in from there. */
-export const BLANK_DECK: Omit<Deck, "id"> = {
+export const BLANK_DECK: Omit<Deck, "id" | "site_id"> = {
   name: "",
   slug: "",
   status: "draft",
@@ -161,14 +168,20 @@ export function isDeckId(value: unknown): value is string {
   return typeof value === "string" && UUID.test(value);
 }
 
-export function deckHref(deck: Pick<Deck, "slug">): string {
-  return `/deck/${deck.slug}`;
+/**
+ * Where a link to this deck points — under the sport that owns it.
+ *
+ * The site is a parameter rather than baked in because a deck's address is
+ * `/incrc/deck/<slug>` now, and the same builder serves every sport there will
+ * ever be. `sitePath` is what knows that the root site's prefix is empty.
+ */
+export function deckHref(site: SiteRef, deck: Pick<Deck, "slug">): string {
+  return sitePath(site, "deck", deck.slug);
 }
 
-/** The slug in a stored `/deck/<slug>` link, or "" if it is not one. */
-export function slugFromDeckHref(href: string): string {
-  const match = /^\/deck\/([a-z0-9][a-z0-9-]*)$/.exec(href.trim());
-  return match ? match[1] : "";
+/** The slug in a stored deck link of THIS site, or "" — see `slugUnder`. */
+export function slugFromDeckHref(site: SiteRef, href: string): string {
+  return slugUnder(site, href, "deck");
 }
 
 /* ──────────────────────────── Normalisation ─────────────────────────── */
@@ -222,7 +235,10 @@ export function pageAlt(deck: Pick<Deck, "name">, page: DeckPage, index: number)
  * An address quietly rewritten behind a "Saved" badge is how somebody's printed
  * link stops working without anybody noticing.
  */
-export function normaliseDeckInput(input: unknown, notes?: string[]): Omit<Deck, "id"> {
+export function normaliseDeckInput(
+  input: unknown,
+  notes?: string[]
+): Omit<Deck, "id" | "site_id"> {
   const record = isRecord(input) ? input : {};
 
   const name = optionalText(record.name, DECK_LIMITS.name);

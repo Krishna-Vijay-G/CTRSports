@@ -4,28 +4,34 @@ import { notFound } from "next/navigation";
 import { NextResponse } from "next/server";
 import { canBrowseFolder, canWriteFolder } from "@/lib/mediaPaths";
 import {
-  canEditAnyPage,
-  canEditPage,
+  canEdit,
   canManageAdmins,
-  canManageForms,
-  canSeeForms,
-  type PageKey,
+  canManageSites,
+  canManageTeam,
+  canSeeAnySite,
+  canSeeSite,
+  isSiteModule,
+  type GrantModule,
+  type Scoped,
 } from "@/lib/roles";
 import { getSession, type AdminSession } from "@/lib/server/auth";
+import { getFormSiteId } from "@/lib/server/formsRepo";
+import { getRootSite, getSiteById, getSiteBySlug } from "@/lib/server/sitesRepo";
+import { hasModule, type Site } from "@/lib/sites";
 
 /**
  * The question every admin route asks before it does anything.
  *
  * Each of these used to be two lines of "is anyone signed in", copied into
  * thirteen handlers. Now that being signed in is not the whole question, adding
- * the second half by hand thirteen times is how one route ends up asking
- * something subtly different from its neighbour — and a route that asks the
- * wrong question is a hole, not a bug.
+ * the rest by hand thirteen times is how one route ends up asking something
+ * subtly different from its neighbour — and a route that asks the wrong
+ * question is a hole, not a bug.
  *
  * So they are here, one per kind of thing this admin owns, and a handler spends
  * two lines on the answer:
  *
- *     const denied = await guardPage("incrc");
+ *     const denied = await guardSite(siteId, "articles");
  *     if (denied) return denied;
  *
  * `null` means allowed. A response means stop, and it is already the right one:
@@ -33,49 +39,145 @@ import { getSession, type AdminSession } from "@/lib/server/auth";
  * be sent to sign in again — and 403 when someone is, because that is not a
  * login problem and telling them to sign in again would be a lie.
  *
+ * ── What changed when sports became rows ──────────────────────────────────
+ *
+ * A guard takes a SITE as well as a module. `guardPage("incrc")` could be
+ * written with the sport baked in because there was one; `guardSite(id,
+ * "page")` cannot, and that is the point — a handler now has to say whose
+ * decks it is about, and the compiler makes it.
+ *
  * The bodies match the shape every other route in this project returns for a
  * failure: `{ error: string }`, in plain English.
  */
 
 const NOT_SIGNED_IN = { error: "Not signed in." };
 const NOT_ALLOWED = { error: "Your account cannot edit that." };
+const NO_SUCH_SITE = { error: "No such sport." };
+const NOT_ENABLED = { error: "That is switched off for this sport." };
 
-async function guard(allowed: (session: Awaited<ReturnType<typeof getSession>>) => boolean) {
+async function guard(allowed: (session: AdminSession) => boolean) {
   const session = await getSession();
   if (!session) return NextResponse.json(NOT_SIGNED_IN, { status: 401 });
   return allowed(session) ? null : NextResponse.json(NOT_ALLOWED, { status: 403 });
 }
 
-/** One page editor's content. The landing document, the incrc document, the circuits. */
-export function guardPage(page: PageKey): Promise<NextResponse | null> {
-  return guard((session) => canEditPage(session, page));
-}
-
 /**
- * Any page editor at all. The door to the media library.
+ * One module of one site. The guard nearly every route wants.
  *
- * This used to be the WHOLE of the media library's protection, on the argument
- * that a picture is not owned by one page and that asking which page an upload
- * was "for" would mean threading a page key through a file input for no gain.
- * That was true while the library was a read-only list of every object in the
- * bucket. It stopped being true twice over: uploads now go into a folder named
- * after the page that owns them, and the library can delete.
- *
- * So this is now the outer door and `guardFolder` is the inner one — a
- * registrations admin still has no picture to place and never gets through
- * either, and a page editor gets through this one and then only into their own
- * folders.
+ * Two separate refusals, deliberately kept apart: an account that may not touch
+ * this gets 403, and a module the SITE does not have gets 404-shaped 400 — the
+ * second is not a permission problem, and reporting it as one would send an
+ * owner hunting for a grant that would not have helped.
  */
-export function guardAnyPage(): Promise<NextResponse | null> {
-  return guard(canEditAnyPage);
+export async function guardSite(
+  siteId: string,
+  module: GrantModule
+): Promise<NextResponse | null> {
+  return guard((session) => canEdit(session, siteId, module));
 }
 
 /**
- * One folder. The check every media route makes after `guardAnyPage`.
+ * The same, resolving the sport from its slug — what a `/api/admin/[sport]/…`
+ * handler has in its params.
+ *
+ * Returns the site too, so the caller does not look it up a second time. A
+ * missing sport is refused before the permission question is asked: "no such
+ * sport" and "not yours" are different answers and an account that may see
+ * neither should not be able to tell them apart from the outside — which is
+ * why both return before anything reads the database further.
+ */
+export async function guardSiteSlug(
+  slug: string,
+  module: GrantModule
+): Promise<{ denied: NextResponse } | { denied: null; site: Site }> {
+  const session = await getSession();
+  if (!session) return { denied: NextResponse.json(NOT_SIGNED_IN, { status: 401 }) };
+
+  const site = await getSiteBySlug(slug);
+  if (!site) return { denied: NextResponse.json(NO_SUCH_SITE, { status: 404 }) };
+
+  if (!canEdit(session, site.id, module)) {
+    return { denied: NextResponse.json(NOT_ALLOWED, { status: 403 }) };
+  }
+
+  // A grant to edit a module the site has switched off is not an error in the
+  // grant — modules come and go — but it is not a door either.
+  if (isSiteModule(module) && !hasModule(site, module)) {
+    return { denied: NextResponse.json(NOT_ENABLED, { status: 400 }) };
+  }
+
+  return { denied: null, site };
+}
+
+/**
+ * The sport a REQUEST names, and whether this account may act on it.
+ *
+ * The slug travels in the query string — `?site=incrc` — on every method,
+ * including the ones with a body. A body field would work for POST and PATCH
+ * and not for GET or DELETE, and one place to look beats two: a route that
+ * reads the site from somewhere different from its neighbour is how one of them
+ * ends up guarding a different sport from the one it writes to.
+ *
+ * It is also why this takes the whole `Request` rather than a slug — the
+ * handler cannot forget to pass it, because there is nothing to pass.
+ */
+export async function guardRequestSite(
+  request: Request,
+  module: GrantModule
+): Promise<{ denied: NextResponse } | { denied: null; site: Site }> {
+  const slug = new URL(request.url).searchParams.get("site")?.trim() ?? "";
+
+  if (!slug) {
+    return {
+      denied: NextResponse.json(
+        { error: "No sport was named for this request." },
+        { status: 400 }
+      ),
+    };
+  }
+
+  return guardSiteSlug(slug, module);
+}
+
+/**
+ * The ROOT site, guarded. What the landing page's own screens ask.
+ *
+ * Spelled out rather than expressed as `guardRequestSite` with `site=landing`,
+ * because the landing page is not a sport somebody picks from a switcher — it
+ * is the one site that always exists, and its screens have nothing to name.
+ */
+export async function guardRootSite(
+  module: GrantModule
+): Promise<{ denied: NextResponse } | { denied: null; site: Site }> {
+  const session = await getSession();
+  if (!session) return { denied: NextResponse.json(NOT_SIGNED_IN, { status: 401 }) };
+
+  const site = await getRootSite();
+  if (!canEdit(session, site.id, module)) {
+    return { denied: NextResponse.json(NOT_ALLOWED, { status: 403 }) };
+  }
+
+  return { denied: null, site };
+}
+
+/**
+ * Any reach at all, into anything. The outer door to the media library.
+ *
+ * This used to be `guardAnyPage`, and the argument for it is unchanged: the
+ * library is cross-cutting, so the outer door is "do they administer anything?"
+ * and `guardFolder` is the inner one that decides which shelves. What changed
+ * is only what "anything" counts — a grant on a site rather than a page key.
+ */
+export function guardAnySite(): Promise<NextResponse | null> {
+  return guard(canSeeAnySite);
+}
+
+/**
+ * One folder. The check every media route makes after `guardAnySite`.
  *
  * `browse` is listing, `write` is uploading into, creating and deleting. They
- * differ in exactly one place — the legacy root, which anybody may read and only
- * an owner may change — and the reasoning for that is on `canWriteFolder`.
+ * differ in exactly one place — the legacy root, which anybody may read and
+ * only an owner may change — and the reasoning for that is on `canWriteFolder`.
  *
  * A folder that does not parse is refused here rather than passed on as `""`,
  * which would silently widen the request to the whole library.
@@ -89,46 +191,53 @@ export async function guardFolder(
   );
 }
 
-/** Building forms and reading entries. Owners and the registrations admin. */
-export function guardForms(): Promise<NextResponse | null> {
-  return guard(canManageForms);
+/**
+ * One form, guarded by the sport that owns it.
+ *
+ * The `/api/admin/forms/[id]/…` routes cannot name their sport in the query
+ * string the way the collection does — the id in the path already decides it,
+ * and letting the caller also assert a site would be two answers to one
+ * question, with the interesting case being when they disagree.
+ *
+ * A form that does not exist and a form that is not yours both get 404. From
+ * outside they must not be distinguishable, or the id space is enumerable by
+ * anyone with a grant on any sport.
+ */
+export async function guardFormById(
+  formId: string
+): Promise<{ denied: NextResponse } | { denied: null; site: Site }> {
+  const session = await getSession();
+  if (!session) return { denied: NextResponse.json(NOT_SIGNED_IN, { status: 401 }) };
+
+  const missing = { denied: NextResponse.json({ error: "No such form." }, { status: 404 }) };
+
+  const siteId = await getFormSiteId(formId);
+  if (!siteId) return missing;
+  if (!canEdit(session, siteId, "forms")) return missing;
+
+  /*
+   * The site comes back as well as the verdict, for the same reason every other
+   * guard hands one over: the handler has to clear that site's cached pages
+   * afterwards, and looking it up a second time from the form is a second
+   * chance to look up a different one.
+   */
+  const site = await getSiteById(siteId);
+  return site ? { denied: null, site } : missing;
 }
 
-/**
- * Reading the LIST of forms.
- *
- * Wider than `guardForms` by exactly one role: a page admin has to be able to
- * see the forms for their pages, because pointing a button at one is the whole
- * of what they do with them. The route itself narrows the rows to
- * `visibleFormPages(session)` — this only decides who gets through the door.
- */
-export function guardFormsRead(): Promise<NextResponse | null> {
-  return guard(canSeeForms);
+/** The co-admins of one sport. A `*` holder on that site, or the owner. */
+export function guardTeam(siteId: string): Promise<NextResponse | null> {
+  return guard((session) => canManageTeam(session, siteId));
+}
+
+/** Creating, renaming and deleting sports. */
+export function guardSites(): Promise<NextResponse | null> {
+  return guard(canManageSites);
 }
 
 /** The accounts themselves. */
 export function guardOwner(): Promise<NextResponse | null> {
   return guard(canManageAdmins);
-}
-
-/**
- * One article, which is guarded by the page it belongs to.
- *
- * An article belonging to NO page belongs to every page, so it takes the owner.
- * That is the same strict reading of null that `canOverrideUsage` applies to a
- * media reference, and for the same reason: a thing that is not one page's
- * business can only be judged by the account that can see every page it affects.
- *
- * ── The half that is easy to miss ─────────────────────────────────────────
- *
- * A save has TWO pages to ask about — the one the article is on now and the one
- * the request wants it on — and both have to pass. Guarding only the requested
- * page lets a circuits editor take over an INCRC article by claiming it as their
- * own; guarding only the stored page lets them push their own article onto a page
- * they do not administer. The routes call this twice, on purpose.
- */
-export function guardArticle(page: PageKey | null): Promise<NextResponse | null> {
-  return page === null ? guardOwner() : guardPage(page);
 }
 
 /* ─────────────────────────── Screens ──────────────────────────── */
@@ -147,31 +256,58 @@ export function guardArticle(page: PageKey | null): Promise<NextResponse | null>
  * written to refuse it anyway, because a guard that trusts its caller is not a
  * guard.
  */
-export async function requirePage(page: PageKey): Promise<AdminSession> {
+export async function requireSite(
+  slug: string,
+  module: GrantModule
+): Promise<{ session: AdminSession; site: Site }> {
   const session = await getSession();
-  if (!session || !canEditPage(session, page)) notFound();
-  return session;
+  if (!session) notFound();
+
+  const site = await getSiteBySlug(slug);
+  if (!site) notFound();
+  if (!canEdit(session, site.id, module)) notFound();
+  if (isSiteModule(module) && !hasModule(site, module)) notFound();
+
+  return { session, site };
+}
+
+/** A sport's own console, whatever screen of it. Used by the sport's layout. */
+export async function requireSiteAccess(
+  slug: string
+): Promise<{ session: AdminSession; site: Site }> {
+  const session = await getSession();
+  if (!session) notFound();
+
+  const site = await getSiteBySlug(slug);
+  if (!site) notFound();
+  if (!canSeeSite(session, site.id)) notFound();
+
+  return { session, site };
 }
 
 /**
- * The media library's screen. Any page editor at all, like the routes it calls.
+ * The media library's screen. Any grant at all, like the routes it calls.
  *
- * Not a `PAGE_KEYS` entry of its own, deliberately: media is cross-cutting, and
- * a new key would silently lock every existing scoped account out of the library
- * until an owner went and re-ticked a box for each of them. What narrows the
- * screen is the folder map, which is a better answer than a key would have been
+ * Not a module of its own, deliberately: media is cross-cutting, and a module
+ * would silently lock every existing scoped account out of the library until
+ * somebody went and re-ticked a box for each of them. What narrows the screen
+ * is the folder map, which is a better answer than a module would have been
  * because it also narrows what is inside.
  */
-export async function requireAnyPage(): Promise<AdminSession> {
+export async function requireAnySite(): Promise<AdminSession> {
   const session = await getSession();
-  if (!session || !canEditAnyPage(session)) notFound();
+  if (!session || !canSeeAnySite(session)) notFound();
   return session;
 }
 
-export async function requireForms(): Promise<AdminSession> {
+export async function requireTeam(slug: string): Promise<{ session: AdminSession; site: Site }> {
   const session = await getSession();
-  if (!session || !canSeeForms(session)) notFound();
-  return session;
+  if (!session) notFound();
+
+  const site = await getSiteBySlug(slug);
+  if (!site || !canManageTeam(session, site.id)) notFound();
+
+  return { session, site };
 }
 
 export async function requireOwner(): Promise<AdminSession> {
@@ -179,3 +315,6 @@ export async function requireOwner(): Promise<AdminSession> {
   if (!session || !canManageAdmins(session)) notFound();
   return session;
 }
+
+/** Kept as a named export so nothing has to import `Scoped` from two places. */
+export type { Scoped };
