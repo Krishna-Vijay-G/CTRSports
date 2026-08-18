@@ -11,7 +11,8 @@ import {
   normaliseRichText,
   type RichDoc,
 } from "@/lib/richtext";
-import { DOCUMENT_EDGE, toWebp } from "@/lib/client/toWebp";
+import { DOCUMENT_EDGE } from "@/lib/client/toWebp";
+import { uploadMedia } from "@/lib/client/upload";
 import { link as safeLink } from "@/lib/normalise";
 import { cn } from "@/lib/utils";
 import { Button } from "@/admin/ui/Button";
@@ -255,25 +256,14 @@ export function RichText({
         setProgress({ done: index, total: taking.length });
 
         try {
-          const webp = await toWebp(file, DOCUMENT_EDGE);
-          const form = new FormData();
-          form.append("file", webp);
-          // The article's own folder, so its pictures move with it when the
-          // address or the page changes.
-          form.append("folder", folder);
-
-          const response = await fetch("/api/admin/upload", { method: "POST", body: form });
-          const data = await response.json().catch(() => ({}));
-
-          if (!response.ok || typeof data.url !== "string") {
-            failed += 1;
-            if (!reason && typeof data.error === "string") reason = data.error;
-            continue;
-          }
-
-          insert(data.url as string);
-        } catch {
+          // Straight to S3, like every other uploader in the admin: a scan of a
+          // page is exactly the kind of file the old four-megabyte ceiling used
+          // to refuse. The article's own folder, so its pictures move with it
+          // when the address or the page changes.
+          insert(await uploadMedia(file, { folder, maxEdge: DOCUMENT_EDGE }));
+        } catch (problem) {
           failed += 1;
+          if (!reason && problem instanceof Error && problem.message) reason = problem.message;
         }
       }
 

@@ -6,7 +6,13 @@ import {
   parseFolder,
   slugifyFileName,
 } from "@/lib/mediaPaths";
-import { UNSUPPORTED_TYPE, UPLOAD_TYPES, maxBytesFor, megabytes } from "@/lib/media";
+import {
+  MAX_SERVER_UPLOAD_BYTES,
+  UNSUPPORTED_TYPE,
+  UPLOAD_TYPES,
+  maxBytesFor,
+  megabytes,
+} from "@/lib/media";
 import { guardAnySite, guardFolder } from "@/lib/server/access";
 import { isS3Configured, uploadObject } from "@/lib/server/s3";
 
@@ -16,21 +22,25 @@ export const dynamic = "force-dynamic";
 /**
  * Takes one picture and puts it in the bucket, in the folder the screen asked for.
  *
- * The browser has already converted it to WebP and capped its longest edge
- * (see src/lib/client/toWebp.ts), so anything arriving here is small. The size
- * ceiling below is a backstop against a caller that skipped that step, not the
- * expected path.
+ * ── Nothing in the admin calls this any more ──────────────────────────────
  *
- * ── Pictures only, in practice ────────────────────────────────────────────
+ * It used to be the path every picture took: converted to WebP in the browser
+ * (see src/lib/client/toWebp.ts), then POSTed here as form data. The trouble was
+ * never the conversion, it was where the check sat — this route reads the whole
+ * body into a serverless function, the platform refuses one over about four and
+ * a half megabytes, and the ceiling written to match it was tested against the
+ * file BEFORE conversion. So the thing that would have made a twelve-megabyte
+ * photograph small never ran, and the upload was refused for a size it was
+ * about to stop being.
  *
- * The type table is shared with `/api/admin/upload/sign` and admits video, but
- * nothing sends one here: this route reads the whole file into a serverless
- * function as form data, and the platform refuses a request body over about
- * four and a half megabytes. A video goes straight to S3 by a signed PUT
- * instead. The table is shared rather than split so the two routes cannot
- * quietly come to admit different things — and a small video posted here still
- * works, which is the honest behaviour for a limit that is about transport
- * rather than about what a file is.
+ * The admin signs a PUT and goes straight to S3 now, for pictures as well as
+ * video — see src/lib/client/upload.ts — which removes the ceiling instead of
+ * arguing with it. This route is kept because it is a working, authenticated,
+ * folder-guarded upload endpoint and something outside the admin may be using
+ * it; what it enforces is a transport limit and says so.
+ *
+ * The type table is shared with `/api/admin/upload/sign` rather than split, so
+ * the two routes cannot quietly come to admit different things.
  *
  * ── The folder ────────────────────────────────────────────────────────────
  *
@@ -83,10 +93,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: UNSUPPORTED_TYPE }, { status: 415 });
   }
 
-  const cap = maxBytesFor(file.type);
+  /*
+   * This route's ceiling, and it is about transport rather than about what a
+   * file is. The bytes arrive as a request body through a serverless function,
+   * and the platform refuses one over about four and a half megabytes before
+   * this code runs at all, so pretending the type's own ceiling applies here
+   * would mean promising something the function never gets to keep.
+   *
+   * Nothing in the admin posts here any more — every uploader signs a PUT and
+   * sends the bytes straight to S3, which is what lifted the ceiling on
+   * pictures. This is for callers outside it, and it exists so that one gets a
+   * sentence instead of the platform's own HTML error page.
+   */
+  const cap = Math.min(maxBytesFor(file.type), MAX_SERVER_UPLOAD_BYTES);
   if (file.size > cap) {
     return NextResponse.json(
-      { error: `That file is larger than ${megabytes(cap)}.` },
+      {
+        error: `That file is larger than ${megabytes(
+          cap
+        )}, which is all this route can carry. Upload it straight to storage instead.`,
+      },
       { status: 413 }
     );
   }

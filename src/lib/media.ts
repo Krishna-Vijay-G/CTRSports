@@ -75,16 +75,43 @@ export const UPLOAD_TYPES: Record<string, string> = {
 /**
  * How big each kind may be.
  *
- * An image arrives already converted to WebP and capped by the browser, so four
- * megabytes is a backstop against a caller that skipped that step rather than a
- * real ceiling. A video is not converted by anything — there is no ffmpeg in a
- * serverless bundle and no transcoding pipeline here — so what is uploaded is
- * what every visitor downloads, and the number is a bandwidth decision as much
- * as a storage one. 200 MB is roughly three minutes of good 1080p; a banner
- * loop that size would be a mistake, and the field says so.
+ * ── Pictures: no ceiling ──────────────────────────────────────────────────
+ *
+ * There used to be one, at four megabytes, described as a backstop against a
+ * caller that skipped the browser-side WebP conversion. What it actually did
+ * was refuse the commonest thing anybody has — a photograph straight off a
+ * phone, which is six or twelve megabytes BEFORE conversion and a few hundred
+ * kilobytes after it. The check ran on the file as picked, so the conversion
+ * that would have made the number irrelevant never got to happen.
+ *
+ * So there is no ceiling now. It is affordable because no picture passes
+ * through a server any more: every uploader in the admin signs a PUT and sends
+ * the bytes straight to S3, which is what stopped the platform's own
+ * four-and-a-half megabyte body limit from being the real ceiling standing
+ * behind this one. See src/lib/client/upload.ts.
+ *
+ * ── Video: still 200 MB ───────────────────────────────────────────────────
+ *
+ * A video is not converted by anything — there is no ffmpeg in a serverless
+ * bundle and no transcoding pipeline here — so what is uploaded is what every
+ * visitor downloads, and the number is a bandwidth decision as much as a
+ * storage one. 200 MB is roughly three minutes of good 1080p; a banner loop
+ * that size would be a mistake, and the field says so.
  */
-export const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
+export const MAX_IMAGE_BYTES = Number.POSITIVE_INFINITY;
 export const MAX_VIDEO_BYTES = 200 * 1024 * 1024;
+
+/**
+ * What a body may hold when it goes THROUGH a server instead of to S3.
+ *
+ * Not a policy of this project's: the platform it deploys to refuses a
+ * serverless request body over about four and a half megabytes, in front of the
+ * function, where no constant here can reach it. `/api/admin/upload` checks
+ * against this so a file too big for that path is refused with a sentence
+ * rather than with the platform's own HTML error page. Nothing in the admin
+ * posts there now — it is kept for callers outside it.
+ */
+export const MAX_SERVER_UPLOAD_BYTES = 4 * 1024 * 1024;
 
 /** Whether a MIME type is one this project stores as a video. */
 export function isVideoType(type: string): boolean {
@@ -103,6 +130,7 @@ export const UNSUPPORTED_TYPE =
 
 /** `4 MB`, `200 MB` — for a message, not for arithmetic. */
 export function megabytes(bytes: number): string {
+  if (!Number.isFinite(bytes)) return "unlimited";
   return `${Math.round(bytes / 1024 / 1024)} MB`;
 }
 

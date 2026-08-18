@@ -19,20 +19,23 @@ export const dynamic = "force-dynamic";
 /**
  * Signs a PUT so the browser can send a file straight to S3.
  *
- * ── Why videos cannot use the ordinary upload route ───────────────────────
+ * ── Why nothing uses the ordinary upload route ────────────────────────────
  *
  * That route reads the whole file into a serverless function's memory as form
- * data. It is the right shape for a logo — the browser has already converted it
- * to WebP and capped it, so a few hundred kilobytes arrive — and it is not a
- * shape a video fits: the platform this deploys to refuses a request body over
- * about four and a half megabytes, which is smaller than any video worth
- * putting on a page. No amount of raising `MAX_BYTES` changes that, because the
- * limit is in front of the function.
+ * data, and the platform this deploys to refuses a request body over about four
+ * and a half megabytes. No amount of raising a constant changes that, because
+ * the limit is in front of the function.
+ *
+ * It was a video that could not fit first, and for a while pictures went the
+ * other way on the argument that they arrive converted and small. They do — but
+ * the check that enforced it ran on the file BEFORE conversion, so a twelve-
+ * megabyte phone photograph was refused for being too big to send, having never
+ * been made small. Both kinds come here now, and the ceiling on a picture is
+ * gone rather than raised.
  *
  * So the bytes never touch a server. This route decides WHERE the file may go
  * and WHAT it may be, and hands back a signature that is good for one key, one
- * content type and sixty seconds. `presignUpload` has been written and unused
- * since the media library was built; this is its first caller.
+ * content type and sixty seconds.
  *
  * ── What is still enforced, and what is not ───────────────────────────────
  *
@@ -42,9 +45,11 @@ export const dynamic = "force-dynamic";
  *   the type       the signature pins the content type, so the PUT that follows
  *                  cannot upload something else under a name this route chose.
  *   the extension  from the MIME type, never from the file's name.
- *   the size       DECLARED by the caller and checked here, and a presigned PUT
- *                  does not enforce it. An authenticated admin could send more
- *                  than they said. That is accepted — the caller is a trusted
+ *   the size       nothing at all, for a picture — there is no ceiling on one
+ *                  any more; see src/lib/media.ts. A video is still held to
+ *                  200 MB, from the size the caller DECLARES, and a presigned
+ *                  PUT does not enforce that, so an authenticated admin could
+ *                  send more than they said. Accepted — the caller is a trusted
  *                  admin, not the public — and `@aws-sdk/s3-presigned-post` has
  *                  a `content-length-range` condition if it ever stops being.
  *

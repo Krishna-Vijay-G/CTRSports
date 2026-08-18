@@ -1,9 +1,10 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { toWebp } from "@/lib/client/toWebp";
+import { uploadMedia } from "@/lib/client/upload";
 import { cn } from "@/lib/utils";
 import { Button } from "@/admin/ui/Button";
+import { ProgressRing } from "@/admin/ui/Progress";
 import { UploadIcon } from "@/admin/ui/icons";
 import { ErrorNote } from "@/admin/components/Fields";
 
@@ -11,14 +12,22 @@ import { ErrorNote } from "@/admin/components/Fields";
  * Files into the folder currently open, by drop or by button.
  *
  * Modelled on `AddPages` in DeckForm — sequential rather than parallel, with
- * `{done,total}` progress, per-file failure counting, and the FIRST server
- * sentence kept, because "3 files failed: Image is larger than 4 MB" is useful
- * and "3 files failed" is not.
+ * `{done,total}` progress, per-file failure counting, and the FIRST failure's
+ * sentence kept, because "3 files failed: that is not a folder" is useful and
+ * "3 files failed" is not.
  *
  * The destination is named on the button (`Upload to decks/world-of-ctr`)
  * rather than offered as a separate control. Browsing to a folder IS the folder
  * chooser; a dropdown beside a breadcrumb pointing somewhere else would be two
  * answers to one question.
+ *
+ * ── Two numbers, because there are two ────────────────────────────────────
+ *
+ * `done/total` is which file, and `percent` is how far through that one. They
+ * used to be one, and a single fifty-megabyte file made the difference obvious:
+ * "Uploading 1 of 1…" is the same sentence at the start and forty seconds in.
+ * The percentage comes from the transfer itself, and is null while the file is
+ * being converted — see src/lib/client/upload.ts.
  */
 export function UploadZone({
   folder,
@@ -30,7 +39,11 @@ export function UploadZone({
   disabled?: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [progress, setProgress] = useState<{
+    done: number;
+    total: number;
+    percent: number | null;
+  } | null>(null);
   const [dropping, setDropping] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,25 +57,20 @@ export function UploadZone({
     let reason = "";
 
     for (const [index, file] of files.entries()) {
-      setProgress({ done: index, total: files.length });
+      setProgress({ done: index, total: files.length, percent: null });
 
       try {
-        // Same conversion every other uploader in this admin does, so what is
-        // stored is already what the page serves. Anything that is not an image
-        // is sent untouched — there is no `toWebp` for a PDF.
-        const body = new FormData();
-        body.append("file", file.type.startsWith("image/") ? await toWebp(file) : file);
-        body.append("folder", folder);
-
-        const response = await fetch("/api/admin/upload", { method: "POST", body });
-        const data = await response.json().catch(() => ({}));
-
-        if (!response.ok) {
-          failed += 1;
-          if (!reason && typeof data.error === "string") reason = data.error;
-        }
-      } catch {
+        // Converted, signed and PUT straight to the bucket by the one uploader
+        // the whole admin shares — which is what makes this zone's ceiling the
+        // same as every other one's, namely none.
+        await uploadMedia(file, {
+          folder,
+          onProgress: (percent) =>
+            setProgress({ done: index, total: files.length, percent }),
+        });
+      } catch (problem) {
         failed += 1;
+        if (!reason && problem instanceof Error && problem.message) reason = problem.message;
       }
     }
 
@@ -97,14 +105,25 @@ export function UploadZone({
         className={cn(
           "flex items-center justify-between gap-3 rounded-md border border-dashed px-3 py-2.5 transition",
           dropping ? "border-primary bg-primary/10" : "border-input",
-          busy && "opacity-60"
+          Boolean(disabled) && "opacity-60"
         )}
       >
-        <p className="min-w-0 truncate text-xs text-muted-fg">
-          {progress
-            ? `Uploading ${progress.done + 1} of ${progress.total}…`
-            : `Drop files here to add them to ${folder || "the media root"}`}
-        </p>
+        {progress ? (
+          <div className="flex min-w-0 items-center gap-2.5">
+            {/* Small and unlabelled: the percentage is already in the sentence
+                beside it, and a number inside a twenty-pixel ring is unreadable. */}
+            <ProgressRing value={progress.percent} size={20} stroke={2.5} label={false} />
+
+            <p className="min-w-0 truncate text-xs text-muted-fg">
+              Uploading {progress.done + 1} of {progress.total}
+              {progress.percent === null ? "…" : ` — ${progress.percent}%`}
+            </p>
+          </div>
+        ) : (
+          <p className="min-w-0 truncate text-xs text-muted-fg">
+            Drop files here to add them to {folder || "the media root"}
+          </p>
+        )}
 
         <Button
           variant="outline"

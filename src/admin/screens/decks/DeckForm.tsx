@@ -10,7 +10,8 @@ import {
   type Deck,
   type DeckPage,
 } from "@/lib/decks";
-import { DOCUMENT_EDGE, toWebp } from "@/lib/client/toWebp";
+import { DOCUMENT_EDGE } from "@/lib/client/toWebp";
+import { uploadMedia } from "@/lib/client/upload";
 import { slugify, type SlugHolder } from "@/lib/slug";
 import { Button } from "@/admin/ui/Button";
 import { Label, Select } from "@/admin/ui/Input";
@@ -267,25 +268,15 @@ function AddPages({
       setProgress({ done: index, total: taking.length });
 
       try {
-        const webp = await toWebp(file, DOCUMENT_EDGE);
-        const form = new FormData();
-        form.append("file", webp);
         // Fifty scanned pages arriving in the root is the exact mess the folders
-        // exist to prevent, so this uploader names its destination too.
-        form.append("folder", folder);
-
-        const response = await fetch("/api/admin/upload", { method: "POST", body: form });
-        const data = await response.json().catch(() => ({}));
-
-        if (!response.ok || typeof data.url !== "string") {
-          failed += 1;
-          if (!reason && typeof data.error === "string") reason = data.error;
-          continue;
-        }
-
-        added.push({ url: data.url, alt: "" });
-      } catch {
+        // exist to prevent, so this uploader names its destination too. Straight
+        // to S3 like every other uploader here, so a full-resolution scan is no
+        // longer a file that is too big to send.
+        const url = await uploadMedia(file, { folder, maxEdge: DOCUMENT_EDGE });
+        added.push({ url, alt: "" });
+      } catch (problem) {
         failed += 1;
+        if (!reason && problem instanceof Error && problem.message) reason = problem.message;
       }
     }
 

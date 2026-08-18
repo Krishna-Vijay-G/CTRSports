@@ -1,19 +1,12 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { toWebp } from "@/lib/client/toWebp";
-import { capturePoster } from "@/lib/client/videoPoster";
-import {
-  UNSUPPORTED_TYPE,
-  UPLOAD_TYPES,
-  isVideoUrl,
-  maxBytesFor,
-  megabytes,
-  posterFor,
-} from "@/lib/media";
+import { uploadMedia } from "@/lib/client/upload";
+import { UPLOAD_TYPES, isVideoUrl, posterFor } from "@/lib/media";
 import { cn } from "@/lib/utils";
 import { Button } from "@/admin/ui/Button";
 import { Input, Label } from "@/admin/ui/Input";
+import { ProgressRing } from "@/admin/ui/Progress";
 import { FolderIcon, TrashIcon, UploadIcon } from "@/admin/ui/icons";
 import { Hint } from "@/admin/components/Fields";
 import { MediaPicker } from "@/admin/components/MediaPicker";
@@ -31,13 +24,13 @@ import { useUploadFolder } from "@/admin/components/UploadFolder";
  * the extension — see src/lib/media.ts for why that is a fact about the address
  * rather than a second field.
  *
- * ── The two upload paths ──────────────────────────────────────────
+ * ── How it uploads ────────────────────────────────────────────────
  *
- *   a picture   converted to WebP here, then POSTed to /api/admin/upload. A few
- *               hundred kilobytes, and the server sees the bytes.
- *   a video     a signed PUT straight to S3. Nothing is converted — there is no
- *               transcoder here — and nothing passes through a serverless
- *               function, which could not hold it anyway.
+ * A signed PUT straight to S3, for a picture exactly as for a video, so neither
+ * has a size ceiling — see src/lib/client/upload.ts for why the old four-
+ * megabyte one on pictures was refusing files it was about to make small. A
+ * picture is still converted to WebP first: that is what keeps the page fast,
+ * and it is no longer what keeps the upload under a limit.
  *
  * A video also has a frame captured from it and uploaded beside it, so the slot
  * shows a still rather than a black rectangle while it loads. The capture is
@@ -83,7 +76,7 @@ export function ImageField({
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
-  /** Only for a video, where a long upload with no sign of progress reads as a hang. */
+  /** null while the file is being prepared; 0–100 once the bytes are moving. */
   const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [browsing, setBrowsing] = useState(false);
@@ -94,82 +87,30 @@ export function ImageField({
 
   const isVideo = isVideoUrl(value);
 
-  /** A picture: converted here, then through the server. */
-  async function uploadImage(file: File) {
-    const webp = await toWebp(file, maxEdge);
-
-    const form = new FormData();
-    form.append("file", webp);
-    form.append("folder", destination);
-
-    const response = await fetch("/api/admin/upload", { method: "POST", body: form });
-    const data = await response.json().catch(() => ({}));
-
-    if (!response.ok) throw new Error(data.error ?? "Upload failed.");
-    return data.url as string;
-  }
-
   /**
-   * A video: a signed PUT straight to S3, with a frame captured beside it.
+   * One file into the bucket, and its URL into the field.
    *
-   * The capture runs FIRST, while nothing is uploading, because it needs the
-   * file decoded and doing that during the transfer competes for the same
-   * decoder. It is allowed to return null.
+   * Everything that used to be here — the WebP conversion, the poster capture,
+   * the signing, the PUT — lives in `uploadMedia` now, shared with the media
+   * library, the deck uploader and the rich-text editor, so no two of them can
+   * drift into having different ceilings again. What is left is this field's
+   * own part: what the tile shows while it happens.
+   *
+   * No size check. The one that was here ran on the file as picked, before the
+   * conversion that would have made its size irrelevant, which is how a phone
+   * photograph got refused for being too big to send.
    */
-  async function uploadVideo(file: File) {
-    const poster = await capturePoster(file);
-
-    const signed = await fetch("/api/admin/upload/sign", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        folder: destination,
-        name: file.name,
-        type: file.type,
-        size: file.size,
-      }),
-    });
-
-    const plan = await signed.json().catch(() => ({}));
-    if (!signed.ok) throw new Error(plan.error ?? "Upload failed.");
-
-    await put(plan.uploadUrl as string, plan.headers as Record<string, string>, file, setProgress);
-
-    /*
-     * The poster is best-effort and deliberately outside the failure path: the
-     * video is already in the bucket, and refusing the whole upload because a
-     * placeholder did not stick would be the wrong trade.
-     */
-    if (poster && plan.poster) {
-      try {
-        await put(plan.poster.uploadUrl, plan.poster.headers, poster, null);
-      } catch {
-        // Nothing to say. The video falls back to its own first frame.
-      }
-    }
-
-    return plan.url as string;
-  }
-
   async function upload(file: File) {
-    const cap = maxBytesFor(file.type);
-    if (!cap) {
-      setError(UNSUPPORTED_TYPE);
-      return;
-    }
-    if (file.size > cap) {
-      setError(`That file is larger than ${megabytes(cap)}.`);
-      return;
-    }
-
     setUploading(true);
     setProgress(null);
     setError(null);
 
     try {
-      const url = file.type.startsWith("video/")
-        ? await uploadVideo(file)
-        : await uploadImage(file);
+      const url = await uploadMedia(file, {
+        folder: destination,
+        maxEdge,
+        onProgress: setProgress,
+      });
 
       onChange(url);
     } catch (problem) {
@@ -230,7 +171,9 @@ export function ImageField({
             value ? "border-border" : "border-dashed border-input",
             variant === "logo" && value ? "bg-white" : "bg-background",
             dropping && "border-primary bg-primary/10",
-            busy && "opacity-60"
+            // Only the disabled prop dims the tile. While uploading, the scrim and
+            // the ring already say so, and dimming under them just greys the ring.
+            disabled && "opacity-60"
           )}
         >
           {value ? (
@@ -267,9 +210,12 @@ export function ImageField({
             </span>
           )}
 
+          {/* Over the picture rather than instead of it: on a re-upload the
+              slot keeps showing what is currently in it, dimmed, so the ring
+              reads as "replacing this" rather than "the field is empty now". */}
           {uploading ? (
-            <span className="absolute inset-0 flex items-center justify-center bg-black/70 text-[10px] font-medium text-primary">
-              {progress === null ? "Uploading…" : `${progress}%`}
+            <span className="absolute inset-0 flex items-center justify-center bg-black/65 text-white backdrop-blur-[1px]">
+              <ProgressRing value={progress} size={variant === "logo" ? 40 : 44} />
             </span>
           ) : null}
         </button>
@@ -347,48 +293,4 @@ export function ImageField({
       ) : null}
     </div>
   );
-}
-
-/**
- * A PUT with a progress callback.
- *
- * `fetch` cannot report upload progress — there is no way to observe a request
- * body going out, and the streaming-request API that would allow it is not in
- * Safari. `XMLHttpRequest` can, and a two-hundred-megabyte upload with no sign
- * of movement reads as a hang, so this one place keeps the older API.
- *
- * The signed headers are echoed back EXACTLY as the route sent them. S3 signs
- * `Content-Type` and `Cache-Control` into the signature, so changing or dropping
- * one is a 403 — that is not a quirk to work around, it is the signature doing
- * its job.
- */
-function put(
-  url: string,
-  headers: Record<string, string>,
-  body: Blob,
-  onProgress: ((percent: number) => void) | null
-): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const request = new XMLHttpRequest();
-    request.open("PUT", url, true);
-
-    for (const [name, value] of Object.entries(headers)) request.setRequestHeader(name, value);
-
-    if (onProgress) {
-      request.upload.onprogress = (event) => {
-        if (event.lengthComputable) onProgress(Math.round((event.loaded / event.total) * 100));
-      };
-    }
-
-    request.onload = () =>
-      request.status >= 200 && request.status < 300
-        ? resolve()
-        : reject(new Error(`The storage service refused the upload (${request.status}).`));
-
-    request.onerror = () =>
-      reject(new Error("Upload failed. Check your connection and try again."));
-    request.ontimeout = () => reject(new Error("The upload timed out."));
-
-    request.send(body);
-  });
 }
