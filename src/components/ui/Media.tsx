@@ -47,6 +47,10 @@ export function Media({
   alt = "",
   className,
   sound = false,
+  once = false,
+  onPlayedThrough,
+  onUnplayable,
+  onDuration,
   loading,
   fetchPriority,
   decoding,
@@ -63,6 +67,28 @@ export function Media({
    * a forty-pixel thumbnail is clutter, not a feature.
    */
   sound?: boolean;
+  /**
+   * Play through once and stop on the last frame, instead of looping.
+   *
+   * For the banner carousel, which holds its slide until the clip is over: a
+   * looping video never fires `ended`, so there would be nothing to wait for.
+   * Off everywhere else, because a video that is not being waited on should
+   * behave like the moving photograph it is meant to be.
+   *
+   */
+  once?: boolean;
+  /**
+   * The three things a caller waiting on a video needs, named for what they
+   * mean rather than for the DOM events behind them.
+   *
+   * They are declared here rather than passed through `...rest` so the caller
+   * never has to reach into an event typed against `HTMLImageElement` to find a
+   * `duration` that only a `<video>` has — and so none of them is attached to
+   * the `<img>` in the picture branch, where they could not fire anyway.
+   */
+  onPlayedThrough?: () => void;
+  onUnplayable?: () => void;
+  onDuration?: (seconds: number) => void;
   loading?: "eager" | "lazy";
   fetchPriority?: "high" | "low" | "auto";
   decoding?: "sync" | "async" | "auto";
@@ -91,7 +117,7 @@ export function Media({
         className={className}
         autoPlay
         muted
-        loop
+        loop={!once}
         playsInline
         // `metadata` for a slot the caller marked lazy: a page of eight cards
         // should not pull eight videos before anybody scrolls to them. Autoplay
@@ -100,6 +126,10 @@ export function Media({
         aria-label={alt || undefined}
         aria-hidden={alt ? undefined : true}
         {...(rest as React.VideoHTMLAttributes<HTMLVideoElement>)}
+        // After the spread, so these are the ones that answer.
+        onEnded={onPlayedThrough}
+        onError={onUnplayable}
+        onLoadedMetadata={(event) => onDuration?.(event.currentTarget.duration)}
       />
 
       {sound ? <SoundToggle /> : null}

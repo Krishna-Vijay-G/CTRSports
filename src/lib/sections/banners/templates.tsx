@@ -2,7 +2,6 @@
 
 import { motion } from "framer-motion";
 import {
-  BANNER_INTERVAL,
   fitCrops,
   type Banner,
   type BannerFit,
@@ -11,6 +10,7 @@ import {
 } from "@/lib/banners";
 import { cn } from "@/lib/utils";
 import { ActionButton } from "@/components/ui/ActionButton";
+import { useBannerPlayback } from "./BannerPlayback";
 import { useBannerViewer } from "./BannerViewer";
 import { Media } from "@/components/ui/Media";
 
@@ -115,6 +115,7 @@ function Photo({ banner, className }: { banner: Banner; className?: string }) {
   const box = cn("absolute inset-0 h-full w-full", className);
   const crops = fitCrops(banner.fit);
   const open = useBannerViewer();
+  const playback = useBannerPlayback();
 
   return (
     <>
@@ -124,6 +125,11 @@ function Photo({ banner, className }: { banner: Banner; className?: string }) {
           alt=""
           aria-hidden
           decoding="async"
+          // Same terms as the real one, or the two copies of one file would fall
+          // out of step the moment the front one stopped and this one looped.
+          // It reports nothing: one video answers for the banner, and it is the
+          // one below that anybody can actually see.
+          once={playback.once}
           className={cn(box, "hidden scale-110 object-cover blur-2xl md:block")}
         />
       ) : null}
@@ -139,13 +145,27 @@ function Photo({ banner, className }: { banner: Banner; className?: string }) {
         // The page's LCP element — fetched at high priority, never lazily.
         fetchPriority="high"
         decoding="async"
+        /*
+         * The video and the carousel, kept in step. `once` stops it looping so
+         * that it can end at all, and the three callbacks are how the slide
+         * above learns it is over — or that it never started. See
+         * BannerPlayback.tsx for why this goes through a context.
+         */
+        once={playback.once}
+        onPlayedThrough={() => playback.onEnded(banner.id)}
+        onUnplayable={() => playback.onFailed(banner.id)}
+        onDuration={(seconds) => playback.onDuration(banner.id, seconds)}
         // The pan reads both of these; on a wide screen it is not running and
         // they do nothing. The sweep takes exactly as long as the banner is
         // held, so it arrives at the far edge as the next one takes over.
         style={
           {
             "--banner-pan-y": PAN_Y[banner.focus],
-            "--banner-pan-duration": `${BANNER_INTERVAL}ms`,
+            // The banner's own length, not the fixed one: a slide holding a
+            // thirty-second clip would otherwise finish its sweep in six and sit
+            // still for the rest, and the pan is supposed to arrive at the far
+            // edge exactly as the next banner takes over.
+            "--banner-pan-duration": `${playback.pan}ms`,
           } as React.CSSProperties
         }
         className={cn(

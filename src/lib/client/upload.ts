@@ -40,7 +40,13 @@
 
 import { capturePoster } from "@/lib/client/videoPoster";
 import { toWebp } from "@/lib/client/toWebp";
-import { UNSUPPORTED_TYPE, maxBytesFor, megabytes } from "@/lib/media";
+import {
+  extensionFor,
+  isVideoExtension,
+  maxBytesForExtension,
+  megabytes,
+  unsupportedType,
+} from "@/lib/media";
 
 /** null while preparing; 0–100 once bytes are moving. */
 export type UploadProgress = (percent: number | null) => void;
@@ -63,15 +69,24 @@ export type UploadOptions = {
 export async function uploadMedia(file: File, options: UploadOptions): Promise<string> {
   const { folder, maxEdge, onProgress } = options;
 
-  // The one thing still worth refusing before any work: a type no route will
-  // ever accept. Size is not checked here, and that is the change.
-  const cap = maxBytesFor(file.type);
-  if (!cap) throw new Error(UNSUPPORTED_TYPE);
+  /*
+   * The one thing still worth refusing before any work is done: a file no route
+   * would accept. Resolved to an EXTENSION rather than checked as a MIME type,
+   * because the browser frequently has no MIME type to offer — Windows reports
+   * nothing at all for a `.mkv` — and the routes resolve it exactly the same
+   * way, so what is refused here is what would have been refused there.
+   *
+   * Size is not checked against a picture at all; see src/lib/media.ts.
+   */
+  const extension = extensionFor(file.type, file.name);
+  if (!extension) throw new Error(unsupportedType(file.type, file.name));
+
+  const cap = maxBytesForExtension(extension);
   if (file.size > cap) throw new Error(`That file is larger than ${megabytes(cap)}.`);
 
   onProgress?.(null);
 
-  const video = file.type.startsWith("video/");
+  const video = isVideoExtension(extension);
 
   /*
    * The poster is captured FIRST, while nothing is uploading: it needs the file
@@ -80,9 +95,11 @@ export async function uploadMedia(file: File, options: UploadOptions): Promise<s
    */
   const poster = video ? await capturePoster(file) : null;
 
-  // Video is sent as it is. A picture is converted, and `toWebp` returns the
-  // original untouched for an SVG or for anything that failed to decode.
-  const body = video || !file.type.startsWith("image/") ? file : await toWebp(file, maxEdge);
+  // Video is sent as it is — there is no transcoder here. Everything else goes
+  // through `toWebp`, which hands back the original untouched for an SVG or for
+  // anything it could not decode, so it is safe to give it a file whose type the
+  // browser never managed to name.
+  const body = video ? file : await toWebp(file, maxEdge);
 
   const signed = await fetch("/api/admin/upload/sign", {
     method: "POST",

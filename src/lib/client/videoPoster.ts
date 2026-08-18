@@ -37,7 +37,14 @@ const QUALITY = 0.72;
 const TIMEOUT_MS = 12_000;
 
 export async function capturePoster(file: File): Promise<Blob | null> {
-  if (!file.type.startsWith("video/")) return null;
+  /*
+   * No check that this is in fact a video: the caller decides, and there is
+   * only one caller. Testing `file.type` here would skip every file whose type
+   * the browser could not name, which on Windows is most of the containers now
+   * accepted — and those are the ones a poster helps most, being also the ones
+   * least likely to play. `withTimeout` below is what keeps a misuse from
+   * costing anything worse than twelve seconds.
+   */
 
   const url = URL.createObjectURL(file);
   const video = document.createElement("video");

@@ -8,10 +8,11 @@ import {
 } from "@/lib/mediaPaths";
 import {
   MAX_SERVER_UPLOAD_BYTES,
-  UNSUPPORTED_TYPE,
-  UPLOAD_TYPES,
-  maxBytesFor,
+  contentTypeFor,
+  extensionFor,
+  maxBytesForExtension,
   megabytes,
+  unsupportedType,
 } from "@/lib/media";
 import { guardAnySite, guardFolder } from "@/lib/server/access";
 import { isS3Configured, uploadObject } from "@/lib/server/s3";
@@ -88,9 +89,14 @@ export async function POST(request: Request) {
   const refused = await guardFolder(folder, "write");
   if (refused) return refused;
 
-  const extension = UPLOAD_TYPES[file.type];
+  // The name is a fallback for a browser that could not name the type, never
+  // an override of one it could. See `extensionFor`.
+  const extension = extensionFor(file.type, file.name);
   if (!extension) {
-    return NextResponse.json({ error: UNSUPPORTED_TYPE }, { status: 415 });
+    return NextResponse.json(
+      { error: unsupportedType(file.type, file.name) },
+      { status: 415 }
+    );
   }
 
   /*
@@ -105,7 +111,7 @@ export async function POST(request: Request) {
    * pictures. This is for callers outside it, and it exists so that one gets a
    * sentence instead of the platform's own HTML error page.
    */
-  const cap = Math.min(maxBytesFor(file.type), MAX_SERVER_UPLOAD_BYTES);
+  const cap = Math.min(maxBytesForExtension(extension), MAX_SERVER_UPLOAD_BYTES);
   if (file.size > cap) {
     return NextResponse.json(
       {
@@ -133,7 +139,9 @@ export async function POST(request: Request) {
      */
     const key = `${MEDIA_PREFIX}${folder}/${slugifyFileName(file.name)}-${randomUUID()}.${extension}`;
     const buffer = Buffer.from(await file.arrayBuffer());
-    const url = await uploadObject(key, buffer, file.type);
+    // The canonical type for the extension, not whatever the browser called
+    // it: an object stored with an empty or generic type plays nowhere.
+    const url = await uploadObject(key, buffer, contentTypeFor(extension));
 
     // Additive. Every existing caller reads `url` and is unaffected.
     return NextResponse.json({ url, key, folder });

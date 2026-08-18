@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { uploadMedia } from "@/lib/client/upload";
+import { UPLOAD_ACCEPT } from "@/lib/media";
 import { cn } from "@/lib/utils";
 import { Button } from "@/admin/ui/Button";
 import { ProgressRing } from "@/admin/ui/Progress";
@@ -140,7 +141,10 @@ export function UploadZone({
         ref={inputRef}
         type="file"
         multiple
-        accept="image/png,image/jpeg,image/webp,image/svg+xml"
+        // Video too. It was pictures only back when this posted through a
+        // serverless function that could not hold a video; it signs a PUT like
+        // every other uploader now, so the restriction had outlived its reason.
+        accept={UPLOAD_ACCEPT}
         onChange={(event) => {
           const picked = Array.from(event.target.files ?? []);
           // Cleared at once, so choosing the same files again fires this again.

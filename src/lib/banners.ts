@@ -157,6 +157,26 @@ export const MAX_BANNERS = 6;
 /** How long each banner holds before the next one, in milliseconds. */
 export const BANNER_INTERVAL = 6500;
 
+/**
+ * A banner holding a video runs for as long as the video does, not for
+ * `BANNER_INTERVAL` — a clip cut off two seconds before its end is worse than
+ * no clip. These two numbers are what keep that from becoming a carousel that
+ * never moves again.
+ *
+ * A video reports its own length, and the slide is held for that plus SLACK —
+ * enough to cover the gap between the last frame and the `ended` event, and to
+ * absorb a short stall, without leaving a frozen frame on screen for long. The
+ * event still advances the slide the moment it arrives; this is only the
+ * backstop for when it does not.
+ *
+ * GRACE is the other end: a video that has not even reported its length is one
+ * that may never load at all — a codec the browser will not decode, a file that
+ * 404s, a connection that died mid-fetch. After it, the slide rotates on the
+ * ordinary clock rather than waiting for something that is not coming.
+ */
+export const BANNER_VIDEO_SLACK = 2500;
+export const BANNER_VIDEO_GRACE = 15000;
+
 export function isBannerTemplate(value: unknown): value is BannerTemplate {
   return (BANNER_TEMPLATES as readonly string[]).includes(value as string);
 }

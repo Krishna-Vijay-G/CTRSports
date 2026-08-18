@@ -3,12 +3,13 @@ import { NextResponse } from "next/server";
 import { DEFAULT_UPLOAD_FOLDER, MEDIA_PREFIX, parseFolder, slugifyFileName } from "@/lib/mediaPaths";
 import {
   POSTER_EXTENSION,
-  UNSUPPORTED_TYPE,
-  UPLOAD_TYPES,
-  isVideoType,
-  maxBytesFor,
+  contentTypeFor,
+  extensionFor,
+  isVideoExtension,
+  maxBytesForExtension,
   megabytes,
   posterKeyFor,
+  unsupportedType,
 } from "@/lib/media";
 import { guardAnySite, guardFolder } from "@/lib/server/access";
 import { isS3Configured, presignUpload, publicUrl } from "@/lib/server/s3";
@@ -81,13 +82,25 @@ export async function POST(request: Request) {
   }
 
   const type = typeof body.type === "string" ? body.type : "";
-  const extension = UPLOAD_TYPES[type];
+  const filename = typeof body.name === "string" ? body.name : "";
+
+  // The name is a fallback for a browser that could not name the type, never an
+  // override of one it could. See `extensionFor`.
+  const extension = extensionFor(type, filename);
   if (!extension) {
-    return NextResponse.json({ error: UNSUPPORTED_TYPE }, { status: 415 });
+    return NextResponse.json({ error: unsupportedType(type, filename) }, { status: 415 });
   }
 
+  /*
+   * What the object is stored and served as, which is not necessarily what the
+   * caller said it was. The signature pins it, so the browser has to echo it
+   * back exactly — and a `<video>` reads it to decide what it is holding, so it
+   * cannot be left empty for a file the browser could not name.
+   */
+  const contentType = contentTypeFor(extension);
+
   const size = typeof body.size === "number" && Number.isFinite(body.size) ? body.size : 0;
-  const cap = maxBytesFor(type);
+  const cap = maxBytesForExtension(extension);
   if (size > cap) {
     return NextResponse.json(
       { error: `That file is larger than ${megabytes(cap)}.` },
@@ -107,11 +120,11 @@ export async function POST(request: Request) {
   if (refused) return refused;
 
   try {
-    const name = slugifyFileName(typeof body.name === "string" ? body.name : "");
+    const name = slugifyFileName(filename);
     const key = `${MEDIA_PREFIX}${folder}/${name}-${randomUUID()}.${extension}`;
-    const signed = await presignUpload(key, type);
+    const signed = await presignUpload(key, contentType);
 
-    const poster = isVideoType(type)
+    const poster = isVideoExtension(extension)
       ? await (async () => {
           const posterKey = posterKeyFor(key);
           const signedPoster = await presignUpload(posterKey, "image/jpeg");

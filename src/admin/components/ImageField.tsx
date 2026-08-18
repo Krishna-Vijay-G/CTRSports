@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { LOGO_EDGE, PHOTO_EDGE } from "@/lib/client/toWebp";
 import { uploadMedia } from "@/lib/client/upload";
-import { UPLOAD_TYPES, isVideoUrl, posterFor } from "@/lib/media";
+import { UPLOAD_ACCEPT, isVideoUrl, posterFor } from "@/lib/media";
 import { cn } from "@/lib/utils";
 import { Button } from "@/admin/ui/Button";
 import { Input, Label } from "@/admin/ui/Input";
@@ -274,9 +274,9 @@ export function ImageField({
       <input
         ref={inputRef}
         type="file"
-        // Built from the one table both upload routes read, so the picker
-        // cannot offer something the server will refuse.
-        accept={Object.keys(UPLOAD_TYPES).join(",")}
+        // Built from the one table both upload routes read, so the picker and
+        // the routes cannot come to disagree about what is allowed.
+        accept={UPLOAD_ACCEPT}
         onChange={handleFile}
         className="hidden"
       />
