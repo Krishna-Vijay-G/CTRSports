@@ -7,8 +7,21 @@ import { Media } from "@/components/ui/Media";
 
 /**
  * The nav bar. It is laid over the banners rather than pinned to the
- * viewport, so it is transparent and its type is white — there is always a dark
- * photo behind it.
+ * viewport, so it is transparent and its type is white.
+ *
+ * ── "There is always a dark photo behind it" ──────────────────────────────
+ *
+ * That is what this comment used to say, and it stopped being true. A banner
+ * carries its own wash — `Scrim` in the banner templates — and that wash can
+ * be set to `light` or to `none`; a banner can also be a poster, a fixture
+ * list or an invitation on a pale background, which is exactly what gets
+ * uploaded in practice. White type at 75% over one of those is not low
+ * contrast, it is invisible.
+ *
+ * So the bar now brings its own contrast rather than borrowing it from
+ * whatever happens to be underneath: a wash of its own, and a shadow under the
+ * type for the busy middle ground where a wash alone is not enough. Both are
+ * confined to the overlaid case — see `overlaid` below.
  *
  * Not sticky, by design: the page lives inside a rounded, clipped card, and a
  * sticky child cannot escape that clipping. The reference design does the same.
@@ -65,9 +78,52 @@ export function SiteHeader({
 
   const cta = home && nav.cta.label ? nav.cta : null;
 
+  /*
+   * Whether this bar is floating over a picture or standing on a background of
+   * its own.
+   *
+   * Read off `className`, which is not a coincidence: that prop exists for
+   * exactly one purpose, stated at the top of this file — it replaces the
+   * positioning for the case with no banner underneath, and every caller that
+   * passes it passes the same `relative … bg-surface`. So its presence already
+   * means "this bar has its own background", and a second prop saying the same
+   * thing would be a second thing to keep in step.
+   *
+   * The wash and the text shadow would both be wasted there anyway: `bg-surface`
+   * is near-black, white type on it is already at full contrast, and a gradient
+   * over it would read as a smudge along the top of a solid bar.
+   */
+  const overlaid = !className;
+
+  /*
+   * The shadow under the type.
+   *
+   * A wash gets white type off a mid-tone photograph. What it cannot do is
+   * rescue it from a pale one — a wash strong enough for that would black out
+   * the picture it is there to sit on. A shadow costs nothing, darkens only the
+   * few pixels around each letter, and is what holds an edge against a bright
+   * or a busy background.
+   */
+  const legible = overlaid && "[text-shadow:0_1px_3px_rgb(0_0_0/0.55)]";
+
   return (
     <header className={cn("absolute inset-x-0 top-0 z-20", className)}>
-      <div className="mx-auto flex max-w-[1560px] items-center justify-between gap-3 px-5 py-5 sm:gap-4 sm:px-8">
+      {/*
+        The bar's own wash: dark at the top where the type is, gone by the
+        bottom so it reads as the edge of the picture rather than as a band
+        across it. `inset-0` covers the phone's second row of links too.
+
+        Absolutely positioned, so everything after it needs `relative` to stay
+        above it — an absolute sibling paints over static ones.
+      */}
+      {overlaid ? (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/70 via-black/35 to-transparent"
+        />
+      ) : null}
+
+      <div className="relative mx-auto flex max-w-[1560px] items-center justify-between gap-3 px-5 py-5 sm:gap-4 sm:px-8">
         <div className="flex min-w-0 items-center gap-3">
           {home ? null : <BackButton />}
 
@@ -100,7 +156,12 @@ export function SiteHeader({
                 />
               ) : null}
               {brand.name ? (
-                <span className="truncate font-display text-base font-extrabold tracking-tight text-white sm:text-lg">
+                <span
+                  className={cn(
+                    "truncate font-display text-base font-extrabold tracking-tight text-white sm:text-lg",
+                    legible
+                  )}
+                >
                   {brand.name}
                 </span>
               ) : null}
@@ -115,7 +176,12 @@ export function SiteHeader({
               <a
                 key={`${link.label}-${link.href}`}
                 href={link.href}
-                className="text-sm font-medium text-white/75 transition hover:text-white"
+                className={cn(
+                  // Was `text-white/75`. A quarter of the contrast given away
+                  // for a hover state that has the wash to work against now.
+                  "text-sm font-medium text-white/90 transition hover:text-white",
+                  legible
+                )}
               >
                 {link.label}
               </a>
@@ -159,13 +225,16 @@ export function SiteHeader({
       {nav.links.length > 0 ? (
         <nav
           aria-label="Site"
-          className="rail-scroll mx-auto -mt-1 flex max-w-[1560px] items-center gap-6 overflow-x-auto px-5 pb-4 sm:px-8 md:hidden"
+          className="rail-scroll relative mx-auto -mt-1 flex max-w-[1560px] items-center gap-6 overflow-x-auto px-5 pb-4 sm:px-8 md:hidden"
         >
           {nav.links.map((link) => (
             <a
               key={`${link.label}-${link.href}`}
               href={link.href}
-              className="shrink-0 whitespace-nowrap text-sm font-medium text-white/75 transition hover:text-white"
+              className={cn(
+                "shrink-0 whitespace-nowrap text-sm font-medium text-white/90 transition hover:text-white",
+                legible
+              )}
             >
               {link.label}
             </a>
