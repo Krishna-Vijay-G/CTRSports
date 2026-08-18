@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/server/auth";
 import { listSites } from "@/lib/server/sitesRepo";
 import { AdminShell } from "@/admin/components/AdminShell";
+import { MediaSync } from "@/admin/components/media/MediaSync";
 
 export const metadata: Metadata = {
   title: "CTR Admin",
@@ -19,6 +20,11 @@ export const metadata: Metadata = {
  * The sites are read here rather than in every screen because `listSites` is
  * wrapped in React `cache()`, so the layout and the page below it share one
  * query — and the navigation needs all of them regardless of which one is open.
+ *
+ * `MediaSync` hangs off here for the same reason and draws nothing: it is the
+ * one place mounted for every admin screen and unmounted only on sign out,
+ * which is exactly the lifetime a background sync wants. Below the auth check,
+ * so it never polls on behalf of somebody who is not signed in.
  */
 export default async function ProtectedAdminLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession();
@@ -38,6 +44,7 @@ export default async function ProtectedAdminLayout({ children }: { children: Rea
       capabilities={session.capabilities}
       sites={sites}
     >
+      <MediaSync />
       {children}
     </AdminShell>
   );

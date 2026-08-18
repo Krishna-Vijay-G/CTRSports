@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { LOGO_EDGE, PHOTO_EDGE } from "@/lib/client/toWebp";
 import { uploadMedia } from "@/lib/client/upload";
+import { refresh as warmFolder, touch as markFolder } from "@/admin/components/media/mediaCache";
 import { UPLOAD_ACCEPT, isVideoUrl, posterFor } from "@/lib/media";
 import { cn } from "@/lib/utils";
 import { Button } from "@/admin/ui/Button";
@@ -88,6 +89,24 @@ export function ImageField({
 
   const screenFolder = useUploadFolder();
   const destination = folder ?? screenFolder;
+
+  /*
+   * Where this field's Library button will open, fetched before it is pressed.
+   *
+   * The hook that draws the picker still refuses to fetch until the dialog is
+   * open — a screen should not make requests as a side effect of rendering.
+   * This is the deliberate exception, made here rather than there because it
+   * is a decision about ONE folder: the one this field is about to need.
+   *
+   * A screen with twenty image fields does not make twenty requests. They
+   * nearly all share a destination, and `refresh` hands every caller the same
+   * in-flight promise, so the whole screen collapses to one — and the folder
+   * stays warm afterwards because `MediaSync` polls what has been touched.
+   */
+  useEffect(() => {
+    markFolder(destination);
+    void warmFolder(destination);
+  }, [destination]);
 
   const isVideo = isVideoUrl(value);
 
