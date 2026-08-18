@@ -32,17 +32,21 @@ export function DeckPages({ deck, className }: { deck: Deck; className?: string 
   return (
     <div className={cn("mx-auto flex w-full max-w-4xl flex-col gap-2 sm:gap-3", className)}>
       {deck.pages.map((page, index) => (
-        <Media
-          // Position IS a page's identity here — nothing stores a page number —
-          // so the URL and the index together are the only stable key, and the
-          // index alone is the honest one.
-          key={`${index}-${page.url}`}
-          src={page.url}
-          alt={pageAlt(deck, page, index)}
-          loading={index < 2 ? "eager" : "lazy"}
-          decoding="async"
-          className="block h-auto w-full rounded-[6px] bg-panel"
-        />
+        // A wrapper purely to be `relative`, so the sound button has something
+        // to sit in when a page turns out to be a video. The key comes out here
+        // with it: position IS a page's identity — nothing stores a page number
+        // — so the URL and the index together are the only stable key, and the
+        // index alone is the honest one.
+        <div key={`${index}-${page.url}`} className="relative">
+          <Media
+            src={page.url}
+            alt={pageAlt(deck, page, index)}
+            loading={index < 2 ? "eager" : "lazy"}
+            decoding="async"
+            sound
+            className="block h-auto w-full rounded-[6px] bg-panel"
+          />
+        </div>
       ))}
     </div>
   );

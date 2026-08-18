@@ -154,13 +154,19 @@ function Blocks({ nodes }: { nodes: RichNode[] }) {
                   definition — the cover is the one above it and the page draws
                   that itself.
                 */}
-                <Media
-                  src={node.attrs.src}
-                  alt={node.attrs.alt}
-                  loading="lazy"
-                  decoding="async"
-                  className="block h-auto w-full rounded-[6px] bg-panel"
-                />
+                {/* `relative` on a wrapper rather than on the <figure>: the
+                    caption is inside the figure too, and the sound button
+                    would sit over the words instead of over the picture. */}
+                <div className="relative">
+                  <Media
+                    src={node.attrs.src}
+                    alt={node.attrs.alt}
+                    loading="lazy"
+                    decoding="async"
+                    sound
+                    className="block h-auto w-full rounded-[6px] bg-panel"
+                  />
+                </div>
                 {node.attrs.alt ? (
                   <figcaption className="mt-2 text-center text-[13px] text-fg-muted">
                     {node.attrs.alt}

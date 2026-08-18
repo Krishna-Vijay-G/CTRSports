@@ -88,8 +88,24 @@ function canvasToBlob(canvas: HTMLCanvasElement, quality: number): Promise<Blob 
   return new Promise((resolve) => canvas.toBlob(resolve, "image/webp", quality));
 }
 
+/**
+ * Formats that leave this function exactly as they arrived.
+ *
+ * SVG because it is a vector: it is already tiny and rasterising it would be a
+ * downgrade, not a saving.
+ *
+ * GIF and APNG because they MOVE. A canvas holds one frame, so converting an
+ * animated GIF does not compress it — it destroys it, and hands back the first
+ * frame as a still with no error anywhere to say so. Both are drawn by every
+ * browser as they are, so there is nothing to gain and an animation to lose.
+ *
+ * The cost is that neither is resized, so a large GIF is stored large. That is
+ * the honest trade against silently flattening one.
+ */
+const PASS_THROUGH = new Set(["image/svg+xml", "image/gif", "image/apng"]);
+
 export async function toWebp(file: File, maxEdge: number = PHOTO_EDGE): Promise<File> {
-  if (file.type === "image/svg+xml") return file;
+  if (PASS_THROUGH.has(file.type)) return file;
 
   try {
     const bitmap = await createImageBitmap(file);

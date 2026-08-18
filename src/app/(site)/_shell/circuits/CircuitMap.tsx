@@ -82,11 +82,15 @@ export function CircuitMap({
 
   if (track.map_url) {
     return (
-      <span className={cn("flex items-center justify-center bg-white p-3", className)}>
+      // `relative` so the sound button has something to sit in, for the rare
+      // circuit whose layout is uploaded as a moving flythrough rather than a
+      // still plan.
+      <span className={cn("relative flex items-center justify-center bg-white p-3", className)}>
         <Media
           src={track.map_url}
           alt={`Circuit layout — ${track.name}`}
           loading="lazy"
+          sound
           className="h-full w-full object-contain"
         />
       </span>

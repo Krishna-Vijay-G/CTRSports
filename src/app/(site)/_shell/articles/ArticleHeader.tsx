@@ -28,15 +28,22 @@ export function ArticleHeader({
   return (
     <header className={cn("mx-auto w-full max-w-3xl", className)}>
       {article.cover_image ? (
-        <Media
-          src={article.cover_image}
-          alt=""
-          // The one picture on the page that is above the fold, so it is the one
-          // that is not lazy. Everything inside the body is.
-          loading="eager"
-          decoding="async"
-          className="mb-8 block aspect-[16/9] w-full rounded-[6px] bg-panel object-cover"
-        />
+        // A wrapper purely to be `relative`, so the sound button has something
+        // to sit in when the cover turns out to be a video. The margin comes out
+        // here with it — left on the picture it would be inside the box the
+        // button is positioned against, and the button would hang below it.
+        <div className="relative mb-8">
+          <Media
+            src={article.cover_image}
+            alt=""
+            // The one picture on the page that is above the fold, so it is the
+            // one that is not lazy. Everything inside the body is.
+            loading="eager"
+            decoding="async"
+            sound
+            className="block aspect-[16/9] w-full rounded-[6px] bg-panel object-cover"
+          />
+        </div>
       ) : null}
 
       {date ? (

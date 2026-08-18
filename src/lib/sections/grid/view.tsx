@@ -71,13 +71,19 @@ export function GridView({ value: grid }: SectionViewProps<Grid>) {
 
           {grid.inset ? (
             <figure className="panel-card mt-8 p-5">
-              <Media
-                src={grid.inset}
-                alt={grid.insetAlt}
-                loading="lazy"
-                decoding="async"
-                className="h-auto w-full"
-              />
+              {/* `relative` on a wrapper rather than on the figure: the caption
+                  below is inside it too, and the sound button would sit over
+                  the words instead of over the picture. */}
+              <div className="relative">
+                <Media
+                  src={grid.inset}
+                  alt={grid.insetAlt}
+                  loading="lazy"
+                  decoding="async"
+                  sound
+                  className="h-auto w-full"
+                />
+              </div>
               {grid.caption ? (
                 <figcaption className="mt-3 text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">
                   {grid.caption}

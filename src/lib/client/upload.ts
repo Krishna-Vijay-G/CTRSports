@@ -43,8 +43,10 @@ import { toWebp } from "@/lib/client/toWebp";
 import {
   extensionFor,
   isVideoExtension,
+  isWebImageExtension,
   maxBytesForExtension,
   megabytes,
+  undecodableImage,
   unsupportedType,
 } from "@/lib/media";
 
@@ -100,6 +102,20 @@ export async function uploadMedia(file: File, options: UploadOptions): Promise<s
   // anything it could not decode, so it is safe to give it a file whose type the
   // browser never managed to name.
   const body = video ? file : await toWebp(file, maxEdge);
+
+  /*
+   * A picture that came back untouched, in a format a page cannot draw.
+   *
+   * `toWebp` returns the original both when it deliberately passes one through
+   * — an SVG, a GIF — and when it simply could not decode it. Those two look
+   * identical from here and differ entirely in consequence: the first is fine,
+   * and the second, for a HEIC off an iPhone opened in Chrome, would put an
+   * object in the bucket that shows as a broken picture on every screen except
+   * a Mac. Refusing it now costs one upload; storing it costs finding out later.
+   */
+  if (!video && body === file && !isWebImageExtension(extension)) {
+    throw new Error(undecodableImage(extension));
+  }
 
   const signed = await fetch("/api/admin/upload/sign", {
     method: "POST",

@@ -39,13 +39,75 @@
 /** The still captured from a video at upload time. One format, so it is derivable. */
 export const POSTER_EXTENSION = "jpg";
 
-/** Pictures, and the extension each is stored as. */
+/**
+ * Pictures, and the extension each is stored as.
+ *
+ * ── Accepting is not the same as displaying, and here it usually is ───────
+ *
+ * Unlike video, a picture normally gets CONVERTED on the way in: whatever
+ * arrives is decoded in the browser and re-encoded as WebP, so what lands in
+ * the bucket is a format every browser draws, whatever it started as. That is
+ * what makes a wide list safe here in a way it is not for video.
+ *
+ * The exception is a format the browser cannot decode, which comes back out of
+ * `toWebp` untouched. HEIC is the one that matters: it is what an iPhone
+ * produces by default, Safari reads it and Chrome and Firefox do not. So it is
+ * listed — an upload from a Mac or an iPad converts it perfectly — and the
+ * uploader refuses it with an actionable sentence when the browser at hand
+ * cannot. See `isWebImageExtension` below and src/lib/client/upload.ts.
+ */
 export const IMAGE_TYPES: Record<string, string> = {
+  // The web-native four.
   "image/webp": "webp",
   "image/png": "png",
   "image/jpeg": "jpg",
   "image/svg+xml": "svg",
+
+  // Also drawn by every browser as they are.
+  "image/gif": "gif",
+  "image/apng": "apng",
+  "image/avif": "avif",
+  "image/bmp": "bmp",
+  "image/x-ms-bmp": "bmp",
+  "image/x-icon": "ico",
+  "image/vnd.microsoft.icon": "ico",
+
+  // Camera and scanner formats. Converted where the browser can read them,
+  // refused with an explanation where it cannot — never silently stored as
+  // something a page would show as a broken picture.
+  "image/heic": "heic",
+  "image/heif": "heif",
+  "image/heic-sequence": "heic",
+  "image/heif-sequence": "heif",
+  "image/tiff": "tiff",
+  "image/x-tiff": "tiff",
 };
+
+/**
+ * Of those, the ones a browser will draw with no help.
+ *
+ * This is the list that decides whether a picture the browser could NOT
+ * convert may still be stored. A PNG that failed to decode is fine — the bytes
+ * are already something a page can show. A HEIC that failed to decode is not,
+ * and storing it would produce a banner that is blank everywhere except
+ * Safari, discovered weeks later.
+ */
+export const WEB_IMAGE_EXTENSIONS: readonly string[] = [
+  "webp",
+  "png",
+  "apng",
+  "jpg",
+  "gif",
+  "svg",
+  "avif",
+  "bmp",
+  "ico",
+];
+
+/** Whether a stored picture needs no conversion to be shown on a page. */
+export function isWebImageExtension(extension: string): boolean {
+  return WEB_IMAGE_EXTENSIONS.includes(extension);
+}
 
 /**
  * Video containers, and the extension each is stored as.
@@ -240,6 +302,23 @@ export function unsupportedType(type: string, name = ""): string {
 
 /** The standing version, for a caller with no particular file to talk about. */
 export const UNSUPPORTED_TYPE = unsupportedType("");
+
+/**
+ * What to say about a picture this browser could not read.
+ *
+ * A different failure from an unsupported type, and it deserves a different
+ * sentence: the format IS accepted, this particular browser just has no
+ * decoder for it. Telling somebody their HEIC is unsupported would send them
+ * looking for a setting; telling them Chrome cannot read one tells them what
+ * to actually do.
+ */
+export function undecodableImage(extension: string): string {
+  const heic = extension === "heic" || extension === "heif";
+
+  return heic
+    ? `This browser cannot read a .${extension}. Chrome and Firefox have no decoder for it — open the admin in Safari, which does, or export the picture as JPEG first.`
+    : `This browser cannot read a .${extension}, and it is not a format a web page can show as it is. Convert it to JPEG, PNG or WebP first.`;
+}
 /**
  * The MIME type an object is STORED and SERVED as — the tables, reversed.
  *
@@ -267,8 +346,8 @@ export function contentTypeFor(extension: string): string {
  * What a file picker offers.
  *
  * Three kinds of entry, because no one of them is enough. The MIME types cover
- * the ordinary case; `video/*` catches containers this does not list, so
- * somebody with an unusual file can at least SELECT it and get a sentence
+ * the ordinary case; `image/*` and `video/*` catch the formats this does not
+ * list, so somebody with an unusual file can at least SELECT it and get a sentence
  * explaining the refusal instead of a picker that greys it out for reasons it
  * cannot state; and the bare extensions catch the files the operating system
  * has no MIME association for at all, which on Windows includes `.mkv` and
@@ -276,6 +355,7 @@ export function contentTypeFor(extension: string): string {
  */
 export const UPLOAD_ACCEPT = [
   ...Object.keys(UPLOAD_TYPES),
+  "image/*",
   "video/*",
   ...new Set(Object.values(UPLOAD_TYPES).map((extension) => `.${extension}`)),
 ].join(",");
