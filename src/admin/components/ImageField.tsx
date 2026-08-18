@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { LOGO_EDGE, PHOTO_EDGE } from "@/lib/client/toWebp";
 import { uploadMedia } from "@/lib/client/upload";
 import { UPLOAD_TYPES, isVideoUrl, posterFor } from "@/lib/media";
 import { cn } from "@/lib/utils";
@@ -59,9 +60,12 @@ export function ImageField({
   hint?: string;
   variant?: "photo" | "logo";
   /**
-   * The longest edge an upload is resized to, when the default is wrong for
-   * what this picture is. A deck page passes `DOCUMENT_EDGE`: it is read at
-   * nearly full page width, where the default 768 arrives visibly soft.
+   * The longest edge an upload is resized to, when neither default fits.
+   *
+   * Rarely needed, because `variant` already answers it — a logo is capped at
+   * `LOGO_EDGE` and a photograph at `PHOTO_EDGE`, which is the setting that
+   * decides whether a banner looks sharp. A deck page passes `DOCUMENT_EDGE`,
+   * which is neither of those.
    */
   maxEdge?: number;
   className?: string;
@@ -108,7 +112,9 @@ export function ImageField({
     try {
       const url = await uploadMedia(file, {
         folder: destination,
-        maxEdge,
+        // `variant` is already the answer to "what is this picture for", so it
+        // decides the ceiling too rather than every call site being asked twice.
+        maxEdge: maxEdge ?? (variant === "logo" ? LOGO_EDGE : PHOTO_EDGE),
         onProgress: setProgress,
       });
 
