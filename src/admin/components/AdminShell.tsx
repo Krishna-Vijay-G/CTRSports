@@ -68,6 +68,20 @@ const PAGES_OPEN_KEY = "ctr-admin-pages-open";
 /** So the header button can point `aria-controls` at what it opens. */
 const PAGES_DRAWER_ID = "admin-pages-drawer";
 
+/**
+ * The drawer AND its handle, so a press can be told from a press elsewhere.
+ *
+ * It was the whole sidebar, on the reasoning that the sidebar is one piece of
+ * furniture. That was too generous by exactly one thing: the section list sits
+ * in the same column, and clicking a section is the clearest possible statement
+ * that you have finished choosing a screen and started working in one.
+ *
+ * So the exemption is this block and nothing else. The handle has to be inside
+ * it or closing by the handle would break — `pointerdown` would shut the drawer,
+ * and the `click` that follows would find it already shut and reopen it.
+ */
+const PAGES_ID = "admin-pages";
+
 const CollapsedContext = createContext(false);
 
 /** True while the sidebar is a rail. Read by whatever is portalled into it. */
@@ -321,12 +335,49 @@ function PagesDrawer({
     setOpen(window.localStorage.getItem(PAGES_OPEN_KEY) === "1");
   }, []);
 
-  function toggle() {
-    setOpen((current) => {
-      window.localStorage.setItem(PAGES_OPEN_KEY, current ? "0" : "1");
-      return !current;
-    });
+  function remember(next: boolean) {
+    window.localStorage.setItem(PAGES_OPEN_KEY, next ? "1" : "0");
+    setOpen(next);
   }
+
+  function toggle() {
+    remember(!open);
+  }
+
+  /*
+   * A press anywhere but on the drawer itself shuts it.
+   *
+   * The drawer overlays nothing — it takes its height from the section rail
+   * above it — so leaving it open is not free, and reaching back down to the
+   * handle to close something you have visibly finished with is a step nobody
+   * should have to take. Anything you press that is not a page IS the signal
+   * that you are done choosing one: the editor, the toolbar, and the section
+   * list in this same column.
+   *
+   * Choosing a page does NOT close it, and the asymmetry is deliberate. The
+   * drawer stays open while you are still picking — showing where you have
+   * landed — and gets out of the way the moment you commit to working, which
+   * is what clicking a section means.
+   *
+   * `pointerdown` rather than `click`, so it closes as the press lands rather
+   * than waiting out a drag.
+   *
+   * The close is remembered, like the toggle. It is the same act by a different
+   * route, and a preference that only records one of the two ways of shutting
+   * it would reopen on the next load having been deliberately closed.
+   */
+  useEffect(() => {
+    if (!open) return;
+
+    const onDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Element && target.closest(`#${PAGES_ID}`)) return;
+      remember(false);
+    };
+
+    document.addEventListener("pointerdown", onDown);
+    return () => document.removeEventListener("pointerdown", onDown);
+  }, [open]);
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
   const current = nav.find((item) => isActive(item.href));
@@ -344,26 +395,34 @@ function PagesDrawer({
   const nested = groups.length > 1;
 
   /*
-   * Which sports are open. The one being edited always starts open; after that
-   * it is whatever was clicked.
+   * WHICH sport is open — one of them, or none.
+   *
+   * An accordion rather than a set of independent panes. With two sports and
+   * eight screens each, letting both stand open makes a list long enough to
+   * push the drawer past the section rail above it, and the second sport is
+   * scenery while you work in the first. Opening one now shuts the other,
+   * which is also the whole of "clicking into INCRC closes Landing page":
+   * you cannot reach a row inside a group without opening the group.
    *
    * Not remembered across visits, unlike the drawer above it. What somebody
    * wants open is almost always "the sport I am in", and that is derivable —
    * remembering would mostly re-derive the same answer, and would sometimes
    * open on a page whose own group had been left shut.
    */
-  const [openSites, setOpenSites] = useState<string[]>([]);
+  const [openSite, setOpenSite] = useState<string | null>(null);
   const activeSite = current?.siteId;
 
+  /*
+   * Keyed on the sport being edited, not on every navigation. Clicking from
+   * one INCRC screen to another leaves this alone, so a group somebody shut by
+   * hand stays shut; arriving in a different sport opens that one instead.
+   */
   useEffect(() => {
-    if (!activeSite) return;
-    setOpenSites((sites) => (sites.includes(activeSite) ? sites : [...sites, activeSite]));
+    if (activeSite) setOpenSite(activeSite);
   }, [activeSite]);
 
   function toggleSite(id: string) {
-    setOpenSites((sites) =>
-      sites.includes(id) ? sites.filter((entry) => entry !== id) : [...sites, id]
-    );
+    setOpenSite((current) => (current === id ? null : id));
   }
 
   /**
@@ -422,7 +481,7 @@ function PagesDrawer({
         {flat}
       </nav>
 
-      <div className="hidden md:block">
+      <div id={PAGES_ID} className="hidden md:block">
         <div
           id={PAGES_DRAWER_ID}
           className={cn(
@@ -433,7 +492,17 @@ function PagesDrawer({
           {/* The row collapses to nothing, so its content must be clipped —
               without this the links stay visible at zero height. */}
           <div className="overflow-hidden">
-            <nav aria-label="Pages" className="flex flex-col gap-1 pb-1">
+            {/*
+              Three quarters of the viewport, and then it scrolls.
+
+              The drawer is in the flow rather than over it, so every row it adds
+              is a row taken off the section rail above — and with two sports open
+              it grew tall enough to leave the sections it was meant to sit under
+              with no room at all. The cap is on the list rather than on the grid
+              row so the 0fr → 1fr animation still measures real content and opens
+              to exactly the height it needs, up to this.
+            */}
+            <nav aria-label="Pages" className="flex max-h-[75vh] flex-col gap-1 overflow-y-auto pb-1">
               {/*
                 Collapsed to a 52px rail there is nowhere to put a heading, and
                 a group whose contents are icons and whose title is invisible is
@@ -445,7 +514,7 @@ function PagesDrawer({
                 : (
                   <>
                     {groups.map((group) => {
-                      const openHere = openSites.includes(group.id);
+                      const openHere = openSite === group.id;
                       const here = group.items.find((item) => isActive(item.href));
 
                       return (
