@@ -150,8 +150,27 @@ export function put(
         ? resolve()
         : reject(new Error(`The storage service refused the upload (${request.status}).`));
 
+    /*
+     * An `onerror` here is rarely what it says on the tin.
+     *
+     * A cross-origin PUT the bucket's CORS rule does not permit is refused by
+     * the BROWSER, before anything goes on the wire, and it reports nothing at
+     * all: same event, same zero status, same silence as a genuinely dropped
+     * connection. There is no way to tell them apart from in here — the failed
+     * preflight is not readable from script, by design.
+     *
+     * So the sentence names the likelier of the two first. "Check your
+     * connection" sent somebody to look at their wifi for an hour while the
+     * bucket was listing a hostname from a previous deployment.
+     *
+     * See docs/video.md, "The bucket must allow a cross-origin PUT".
+     */
     request.onerror = () =>
-      reject(new Error("Upload failed. Check your connection and try again."));
+      reject(
+        new Error(
+          "The browser could not reach storage. That is usually the bucket refusing this address rather than the network — its CORS rule has to list the admin's own hostname. See docs/video.md."
+        )
+      );
     request.ontimeout = () => reject(new Error("The upload timed out."));
 
     request.send(body);
