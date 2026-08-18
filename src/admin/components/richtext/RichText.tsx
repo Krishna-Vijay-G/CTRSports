@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { mergeAttributes } from "@tiptap/core";
 import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
 import Underline from "@tiptap/extension-underline";
@@ -13,6 +14,7 @@ import {
 } from "@/lib/richtext";
 import { DOCUMENT_EDGE } from "@/lib/client/toWebp";
 import { uploadMedia } from "@/lib/client/upload";
+import { UPLOAD_ACCEPT, extensionFor, isVideoUrl, posterFor } from "@/lib/media";
 import { link as safeLink } from "@/lib/normalise";
 import { cn } from "@/lib/utils";
 import { Button } from "@/admin/ui/Button";
@@ -78,6 +80,68 @@ function imageCount(editor: Editor): number {
   });
   return count;
 }
+
+/**
+ * Whether a dropped or pasted file is one the uploader would take.
+ *
+ * `extensionFor` rather than a `type.startsWith` pair, because the browser
+ * frequently has no MIME type to offer — Windows reports nothing at all for a
+ * `.mkv` — and the two tests would then disagree about the same file: the
+ * picker's `accept` would show it, the drop would silently ignore it. One
+ * answer, used by the routes as well. See src/lib/media.ts.
+ */
+const usable = (files: File[]) => files.filter((file) => extensionFor(file.type, file.name));
+
+/**
+ * The `image` node, which is now a media node in all but name.
+ *
+ * An article body stores one shape for a picture — `{ type: "image", attrs }`
+ * — and the public renderer has drawn whichever of the two it turns out to be
+ * since videos existed: `ArticleBody` hands the src to `<Media>`, which reads
+ * the extension and returns an `<img>` or a `<video>`. Nothing about the
+ * document had to change to allow a video in the middle of an article.
+ *
+ * What HAD to change is the editor, which was still serialising every node to
+ * `<img>` — so an uploaded clip saved correctly, published correctly, and
+ * showed a broken-image icon to the person who had just put it there.
+ *
+ * ── Why a still and not a moving preview ──────────────────────────────────
+ *
+ * `controls` and `preload="metadata"`, deliberately, where the page itself
+ * autoplays muted. Eight clips playing at once behind somebody trying to write
+ * is a worse editor, and ProseMirror builds its DOM with `setAttribute`, where
+ * a `muted` ATTRIBUTE does not reliably set the muted PROPERTY that autoplay
+ * policies actually test — so an autoplaying preview would have been a coin
+ * flip between motion and a frozen first frame anyway.
+ *
+ * The poster is the still captured at upload time, found by swapping the
+ * extension. It costs one derived string and is the difference between a black
+ * rectangle and a recognisable frame.
+ */
+const Media = Image.extend({
+  renderHTML({ HTMLAttributes }) {
+    const { src, alt, ...rest } = HTMLAttributes as Record<string, unknown>;
+    const address = typeof src === "string" ? src : "";
+
+    if (!isVideoUrl(address)) return ["img", mergeAttributes(HTMLAttributes)];
+
+    const poster = posterFor(address);
+
+    return [
+      "video",
+      mergeAttributes(rest, {
+        src: address,
+        ...(poster ? { poster } : {}),
+        controls: "true",
+        muted: "true",
+        playsinline: "true",
+        preload: "metadata",
+        // `alt` means nothing on a <video>; the text it carries still should.
+        ...(typeof alt === "string" && alt ? { "aria-label": alt } : {}),
+      }),
+    ];
+  },
+});
 
 export function RichText({
   value,
@@ -148,7 +212,7 @@ export function RichText({
         autolink: true,
         linkOnPaste: true,
       }),
-      Image.configure({ inline: false, allowBase64: false }),
+      Media.configure({ inline: false, allowBase64: false }),
     ],
     content: initial.current,
     editorProps: {
@@ -165,16 +229,18 @@ export function RichText({
           "[&_a]:underline [&_a]:underline-offset-2",
           "[&_hr]:my-5 [&_hr]:border-border",
           "[&_img]:my-3 [&_img]:max-w-full [&_img]:rounded-md [&_img]:border [&_img]:border-border",
-          "[&_img.ProseMirror-selectednode]:outline [&_img.ProseMirror-selectednode]:outline-2 [&_img.ProseMirror-selectednode]:outline-ring"
+          "[&_img.ProseMirror-selectednode]:outline [&_img.ProseMirror-selectednode]:outline-2 [&_img.ProseMirror-selectednode]:outline-ring",
+          // The same block in the same frame, whichever it turned out to be.
+          "[&_video]:my-3 [&_video]:max-w-full [&_video]:rounded-md [&_video]:border [&_video]:border-border",
+          "[&_video.ProseMirror-selectednode]:outline [&_video.ProseMirror-selectednode]:outline-2 [&_video.ProseMirror-selectednode]:outline-ring"
         ),
       },
       handlePaste: (_view, event) => {
-        const files = Array.from(event.clipboardData?.files ?? []);
-        const images = files.filter((file) => file.type.startsWith("image/"));
-        if (images.length === 0) return false;
+        const files = usable(Array.from(event.clipboardData?.files ?? []));
+        if (files.length === 0) return false;
 
         event.preventDefault();
-        addFilesRef.current(images);
+        addFilesRef.current(files);
         return true;
       },
       handleDrop: (_view, event, _slice, moved) => {
@@ -182,12 +248,11 @@ export function RichText({
         // ProseMirror's job, not ours.
         if (moved) return false;
 
-        const files = Array.from((event as DragEvent).dataTransfer?.files ?? []);
-        const images = files.filter((file) => file.type.startsWith("image/"));
-        if (images.length === 0) return false;
+        const files = usable(Array.from((event as DragEvent).dataTransfer?.files ?? []));
+        if (files.length === 0) return false;
 
         event.preventDefault();
-        addFilesRef.current(images);
+        addFilesRef.current(files);
         return true;
       },
     },
@@ -318,13 +383,34 @@ export function RichText({
           onLink={() => setLinking(true)}
         />
 
-        <EditorContent editor={editor} />
+        {/*
+          The text scrolls; the toolbar does not.
+
+          The box used to grow with the article, so a long one pushed the
+          toolbar off the top of the pane exactly when the formatting buttons
+          were wanted, and left the save controls somewhere below the fold. A
+          cap and a scroller keep the whole editor a fixed, predictable object
+          on the screen.
+
+          The toolbar needs no `sticky` for this: it is a SIBLING above the
+          scroller rather than a child of it, so there is nothing for it to
+          scroll away with.
+
+          Viewport-relative rather than a rem height, because the pane this sits
+          in is itself sized to the window — a fixed 30rem is most of a laptop
+          screen and a third of a desktop one.
+        */}
+        <div className="max-h-[55vh] overflow-y-auto">
+          <EditorContent editor={editor} />
+        </div>
       </div>
 
       <input
         ref={fileRef}
         type="file"
-        accept="image/*"
+        // The one list the whole admin shares, so this cannot come to offer
+        // something the upload route would refuse.
+        accept={UPLOAD_ACCEPT}
         multiple
         onChange={handleFiles}
         className="hidden"
@@ -333,7 +419,7 @@ export function RichText({
       <Hint className="mt-1">
         {working
           ? `Uploading ${progress.done + 1} of ${progress.total}…`
-          : "Pictures can also be dropped or pasted straight into the text where you want them. They are resized before they leave this machine."}
+          : "Pictures and videos can also be dropped or pasted straight into the text where you want them. Pictures are resized before they leave this machine; videos are sent as they are, so keep them short."}
       </Hint>
 
       {error ? (
