@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import {
   SEGMENT_MESSAGES,
@@ -8,6 +9,8 @@ import {
 } from "@/lib/mediaPaths";
 import { guardAnySite, guardFolder } from "@/lib/server/access";
 import { getSession } from "@/lib/server/auth";
+import { MEDIA_REMOVED_URL } from "@/lib/media";
+import { replaceRefs } from "@/lib/server/mediaRefs";
 import { findUsage } from "@/lib/server/mediaUsage";
 import {
   createFolder,
@@ -178,9 +181,16 @@ export async function DELETE(request: Request) {
       }
     }
 
+    // Repointed before anything is removed, for the reason in the file route:
+    // a failure here must leave orphans in the bucket, never a live page
+    // pointing at a file that is gone.
+    const repointed = await replaceRefs(keys, MEDIA_REMOVED_URL);
+
     // Markers included: without them the folder comes back, empty, and looks
     // like the delete silently failed.
     await deleteObjects([...keys, ...markers]);
+
+    if (repointed > 0) revalidatePath("/", "layout");
 
     // Files only. That is what the user was told they were deleting; a marker is
     // plumbing they never saw.

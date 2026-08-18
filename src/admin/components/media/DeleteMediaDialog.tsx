@@ -13,13 +13,18 @@ import type { KeyUsage } from "./types";
  *
  * ── Why a scan happens before the button is even offered ──────────────────
  *
- * Deleting an object does not un-break a page. Every upload carries
- * `max-age=31536000, immutable`, so a browser or a CDN may go on serving a
- * deleted file for up to a year: the delete has no visible effect at all, and
- * then, months later, a picture vanishes from a page nobody was editing. There
- * is no undo and no obvious cause. That gap between the action and the
- * consequence is why the scan is mandatory rather than advisory, and why the
- * sentence below is in words rather than a warning triangle.
+ * Deleting used to be a delayed-action fault. The object went and the address
+ * stayed, and because every upload carries `max-age=31536000, immutable`, a
+ * browser that had already seen the picture went on showing it for up to a
+ * year — so the delete appeared to do nothing, and then months later a picture
+ * vanished off a page nobody had touched, with no undo and no obvious cause.
+ *
+ * The delete now repoints every reference at a "media removed" placeholder
+ * before it removes anything, so the consequence lands at the moment of the
+ * act instead of arriving unannounced later. That does not make the scan
+ * optional: the pages still CHANGE, and the person pressing the button is the
+ * only one who can say whether that is wanted. What it changes is the sentence
+ * below, which used to have to warn about a fault that had not happened yet.
  *
  * ── The three states ──────────────────────────────────────────────────────
  *
@@ -184,11 +189,27 @@ export function DeleteMediaDialog({
             ))}
           </ul>
 
-          <p className="rounded-md border border-destructive/40 bg-destructive/10 p-2.5 text-xs leading-relaxed text-foreground">
-            Deleting these will leave a broken picture wherever they are used. Browsers and caches
-            may go on showing them for up to a year, so this will not fix a page — it only breaks it
-            later.
-          </p>
+          <div className="space-y-2 rounded-md border border-destructive/40 bg-destructive/10 p-2.5 text-xs leading-relaxed text-foreground">
+            <p>
+              Every place listed above will be repointed to a “media removed” placeholder, and
+              those pages will be rebuilt straight away.
+            </p>
+
+            <p className="flex items-center gap-2">
+              {/* The actual file, so nobody has to imagine what will appear. */}
+              <img
+                src="/images/media_removed.png"
+                alt=""
+                className="h-8 w-auto shrink-0 rounded border border-border bg-background object-contain"
+              />
+              <span className="text-muted-fg">This is what goes in their place.</span>
+            </p>
+
+            <p>
+              Fix each page properly afterwards. This cannot be undone, and the placeholder is a
+              marker rather than a repair.
+            </p>
+          </div>
 
           {canOverride ? null : (
             <p className="text-xs leading-relaxed text-muted-fg">

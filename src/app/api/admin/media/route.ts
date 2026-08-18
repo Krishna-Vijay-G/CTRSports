@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import {
   canBrowseFolder,
@@ -8,7 +9,8 @@ import {
 } from "@/lib/mediaPaths";
 import { guardAnySite } from "@/lib/server/access";
 import { getSession } from "@/lib/server/auth";
-import { isVideoUrl, posterKeyFor } from "@/lib/media";
+import { MEDIA_REMOVED_URL, isVideoUrl, posterKeyFor } from "@/lib/media";
+import { replaceRefs } from "@/lib/server/mediaRefs";
 import { findUsage } from "@/lib/server/mediaUsage";
 import { deleteObjects, isS3Configured, listMedia } from "@/lib/server/s3";
 
@@ -169,8 +171,33 @@ export async function DELETE(request: Request) {
      */
     const posters = keys.filter(isVideoUrl).map(posterKeyFor);
 
+    /*
+     * The references go FIRST, and the order is the whole point.
+     *
+     * Rewrite then delete means a failure in the middle leaves an object in the
+     * bucket that nothing points at — an orphan, which costs a few kilobytes and
+     * nothing else. Delete then rewrite would mean a failure leaves a live page
+     * pointing at a file that is gone, which is the exact state this whole
+     * change exists to prevent.
+     */
+    const repointed = await replaceRefs(keys, MEDIA_REMOVED_URL);
+
     await deleteObjects([...keys, ...posters]);
-    return NextResponse.json({ ok: true, deleted: keys.length });
+
+    /*
+     * Only when something actually changed, and then everything.
+     *
+     * A reference can be in any of twelve columns across both sites, and the
+     * route is holding keys rather than pages — it has no way to name which
+     * addresses just changed. Clearing the whole tree is over-broad and is the
+     * right trade for an act that happens a few times in the life of a site;
+     * the alternative is four queries to rediscover what the rewrite already
+     * knew and did not return. Skipped entirely when nothing was repointed,
+     * which is the ordinary case of deleting a file nobody was using.
+     */
+    if (repointed > 0) revalidatePath("/", "layout");
+
+    return NextResponse.json({ ok: true, deleted: keys.length, repointed });
   } catch (error) {
     console.error("[admin/media] DELETE", error);
     return NextResponse.json({ error: "Could not delete those files." }, { status: 500 });

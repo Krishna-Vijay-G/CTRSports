@@ -40,6 +40,25 @@
 export const POSTER_EXTENSION = "jpg";
 
 /**
+ * What a picture becomes when the file behind it is deleted.
+ *
+ * Deleting used to leave the address in place and the object gone, which is
+ * the worst of both: the page keeps asking for a file that answers 403, and
+ * because every upload carries `max-age=31536000, immutable`, a browser that
+ * had already seen it goes on showing it for up to a year. So the delete looks
+ * like it did nothing, and then months later a picture vanishes off a page
+ * nobody was editing, with no undo and no obvious cause.
+ *
+ * Now the delete repoints every reference here first. It is a real file in
+ * /public, so it always answers; it is site-relative, so it is correct on the
+ * public host and the admin host alike; and it plainly says what happened,
+ * which a broken-image icon does not.
+ *
+ * See `replaceRefs` in src/lib/server/mediaRefs.ts.
+ */
+export const MEDIA_REMOVED_URL = "/images/media_removed.png";
+
+/**
  * Pictures, and the extension each is stored as.
  *
  * ── Accepting is not the same as displaying, and here it usually is ───────
