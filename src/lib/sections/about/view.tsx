@@ -92,7 +92,7 @@ function AboutPhoto({ photo, delay = 0 }: { photo?: LabelledPhoto; delay?: numbe
           aria-hidden
           loading="lazy"
           decoding="async"
-          sound
+          controls
           className="h-full w-full object-cover"
         />
         {photo.label ? (

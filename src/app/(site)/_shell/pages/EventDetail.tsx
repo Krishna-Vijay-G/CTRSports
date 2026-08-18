@@ -215,7 +215,7 @@ export async function EventDetail({ site, slug }: { site: Site; slug: string }) 
                 src={cover}
                 alt=""
                 aria-hidden
-                sound
+                controls
                 className="aspect-[16/7] w-full rounded-card object-cover"
               />
             </Reveal>

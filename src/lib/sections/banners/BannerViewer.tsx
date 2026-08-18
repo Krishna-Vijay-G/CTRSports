@@ -308,7 +308,7 @@ export function BannerViewer({ banner, onClose }: { banner: Banner; onClose: () 
         <Media
           src={banner.image}
           alt={banner.title || "Banner"}
-          sound
+          controls
           draggable={false}
           decoding="async"
           style={{

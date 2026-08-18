@@ -197,7 +197,7 @@ function NextEvent({
             src={cover}
             alt=""
             aria-hidden
-            sound
+            controls
             className="absolute inset-0 -z-10 h-full w-full object-cover"
           />
           {/*

@@ -39,7 +39,7 @@ export function FamilyView({ value: family }: SectionViewProps<Family>) {
           aria-hidden
           loading="lazy"
           decoding="async"
-          sound
+          controls
           className="absolute inset-0 h-full w-full object-cover"
         />
       ) : null}

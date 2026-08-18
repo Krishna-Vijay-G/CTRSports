@@ -65,7 +65,7 @@ export function PostsView({ value: posts }: SectionViewProps<Posts>) {
                     aria-hidden
                     loading="lazy"
                     decoding="async"
-                    sound
+                    controls
                     className="aspect-[16/10] w-full object-cover transition-transform duration-700 group-hover:scale-105"
                   />
                   {post.category ? (

@@ -115,7 +115,7 @@ export function AnnouncementView({
                 decoding="async"
                 // A tile rather than the card's own radius: it sits inside the
                 // padding, so matching the outer corner would read as a mistake.
-                sound
+                controls
                 className="block aspect-[16/10] w-full rounded-panel object-cover"
               />
             ) : null}

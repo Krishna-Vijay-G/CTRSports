@@ -9,6 +9,7 @@ import {
   type Banner,
 } from "@/lib/banners";
 import { isVideoUrl } from "@/lib/media";
+import { cn } from "@/lib/utils";
 import { usePreviewBanner, usePreviewMode } from "@/components/ui/PreviewMode";
 import { BannerPlaybackProvider } from "./BannerPlayback";
 import { BannerViewer, BannerViewerProvider } from "./BannerViewer";
@@ -202,7 +203,16 @@ export function BannerCarousel({
       {/* Dots only when there is somewhere to go. Controlled means the admin is
           driving, and a control that fights the editor is worse than none. */}
       {banners.length > 1 && !controlled ? (
-        <div className="pointer-events-none absolute inset-x-0 bottom-5 z-20 flex justify-center gap-2">
+        <div
+          className={cn(
+            "pointer-events-none absolute inset-x-0 z-20 flex justify-center gap-2 transition-all",
+            // Lifted clear of the player bar, which is only on screen while
+            // somebody is hovering — but the dots are moved for the whole
+            // slide rather than only then, because dots that jump out of the
+            // way as the cursor arrives are dots nobody can click.
+            isVideo ? "bottom-16" : "bottom-5"
+          )}
+        >
           {banners.map((entry, position) => (
             <button
               key={entry.id}

@@ -163,7 +163,7 @@ function Blocks({ nodes }: { nodes: RichNode[] }) {
                     alt={node.attrs.alt}
                     loading="lazy"
                     decoding="async"
-                    sound
+                    controls
                     className="block h-auto w-full rounded-[6px] bg-panel"
                   />
                 </div>

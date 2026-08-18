@@ -141,7 +141,7 @@ function Photo({ banner, className }: { banner: Banner; className?: string }) {
         // The banner is the one slot on the page where a video is the point, so
         // it is the one that offers the sound. The blurred backdrop above is the
         // same file drawn twice and must not offer a second.
-        sound
+        controls
         // The page's LCP element — fetched at high priority, never lazily.
         fetchPriority="high"
         decoding="async"

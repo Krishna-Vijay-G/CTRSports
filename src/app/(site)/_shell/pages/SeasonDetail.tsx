@@ -167,7 +167,7 @@ export async function SeasonDetail({ site, slug }: { site: Site; slug: string })
                 src={season.cover_image}
                 alt=""
                 aria-hidden
-                sound
+                controls
                 className="aspect-[16/7] w-full rounded-card object-cover"
               />
             </Reveal>

@@ -40,7 +40,7 @@ export function ArticleHeader({
             // one that is not lazy. Everything inside the body is.
             loading="eager"
             decoding="async"
-            sound
+            controls
             className="block aspect-[16/9] w-full rounded-[6px] bg-panel object-cover"
           />
         </div>

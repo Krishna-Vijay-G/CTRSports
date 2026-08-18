@@ -43,7 +43,7 @@ export function DeckPages({ deck, className }: { deck: Deck; className?: string 
             alt={pageAlt(deck, page, index)}
             loading={index < 2 ? "eager" : "lazy"}
             decoding="async"
-            sound
+            controls
             className="block h-auto w-full rounded-[6px] bg-panel"
           />
         </div>

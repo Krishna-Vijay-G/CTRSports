@@ -1,5 +1,5 @@
 import { isVideoUrl, posterFor } from "@/lib/media";
-import { SoundToggle } from "./SoundToggle";
+import { VideoControls } from "./VideoControls";
 
 /**
  * A picture, or a video wearing the same clothes.
@@ -25,9 +25,9 @@ import { SoundToggle } from "./SoundToggle";
  * client component would put a component boundary and a hydration cost on every
  * photograph on the site to support a button that most slots do not have.
  *
- * The button is `SoundToggle`, which IS a client component, and it is only
+ * The bar is `VideoControls`, which IS a client component, and it is only
  * rendered for the slots that ask. So a page of twelve pictures ships no
- * JavaScript for them, and a banner with sound ships one small button.
+ * JavaScript for them, and a banner with a video ships one small player.
  *
  * ── Two things that look like details and are not ─────────────────────────
  *
@@ -38,15 +38,15 @@ import { SoundToggle } from "./SoundToggle";
  * because that is what carries `absolute inset-0 object-cover` and decides the
  * shape of the thing; an element between the video and the container those
  * classes are written against would change the layout at every call site.
- * `SoundToggle` is an absolutely positioned SIBLING for the same reason, which
- * is why `sound` is opt-in: it needs the caller's container to be positioned,
- * and every slot that passes it has been checked.
+ * `VideoControls` is an absolutely positioned SIBLING for the same reason,
+ * which is why `controls` is opt-in: it needs the caller's container to be
+ * positioned, and every slot that passes it has been checked.
  */
 export function Media({
   src,
   alt = "",
   className,
-  sound = false,
+  controls = false,
   once = false,
   onPlayedThrough,
   onUnplayable,
@@ -60,13 +60,21 @@ export function Media({
   alt?: string;
   className?: string;
   /**
-   * Offer a speaker button over the video.
+   * Offer player chrome over the video: play, scrub, time left, sound.
    *
-   * Only for slots whose container is positioned and whose video is big enough
-   * that somebody might want to hear it. A speaker button on a partner's mark or
-   * a forty-pixel thumbnail is clutter, not a feature.
+   * It was `sound` and it was one speaker button; the name changed with the
+   * thing. Costs nothing on a slot holding a picture — the branch above
+   * returns before this exists — so it reads as "put controls here IF this
+   * turns out to be a video", which is why it is on every slot big enough to
+   * want them.
+   *
+   * Two requirements, and both have been checked at every call site. The
+   * container must be POSITIONED, because the bar is absolute. And it must be
+   * big enough to hold a bar: a partner's mark or a forty-pixel thumbnail
+   * gets a silent looping video and no chrome, because a scrubber wider than
+   * the crest it sits on is not a feature.
    */
-  sound?: boolean;
+  controls?: boolean;
   /**
    * Play through once and stop on the last frame, instead of looping.
    *
@@ -132,7 +140,7 @@ export function Media({
         onLoadedMetadata={(event) => onDuration?.(event.currentTarget.duration)}
       />
 
-      {sound ? <SoundToggle /> : null}
+      {controls ? <VideoControls /> : null}
     </>
   );
 }

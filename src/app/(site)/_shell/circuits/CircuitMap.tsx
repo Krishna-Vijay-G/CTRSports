@@ -90,7 +90,7 @@ export function CircuitMap({
           src={track.map_url}
           alt={`Circuit layout — ${track.name}`}
           loading="lazy"
-          sound
+          controls
           className="h-full w-full object-contain"
         />
       </span>

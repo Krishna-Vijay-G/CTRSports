@@ -36,7 +36,7 @@ export function GridView({ value: grid }: SectionViewProps<Grid>) {
                 alt={grid.imageAlt}
                 loading="lazy"
                 decoding="async"
-                sound
+                controls
                 className="h-auto w-full transition-transform duration-700 group-hover:scale-[1.03]"
               />
             </figure>
@@ -80,7 +80,7 @@ export function GridView({ value: grid }: SectionViewProps<Grid>) {
                   alt={grid.insetAlt}
                   loading="lazy"
                   decoding="async"
-                  sound
+                  controls
                   className="h-auto w-full"
                 />
               </div>
