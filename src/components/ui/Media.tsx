@@ -134,10 +134,27 @@ export function Media({
         aria-label={alt || undefined}
         aria-hidden={alt ? undefined : true}
         {...(rest as React.VideoHTMLAttributes<HTMLVideoElement>)}
-        // After the spread, so these are the ones that answer.
+        /*
+         * After the spread, so these are the ones that answer.
+         *
+         * All three must be UNDEFINED when nobody asked for them, and the last
+         * one has to be built conditionally to manage it. This file is a server
+         * component: a function reaching a host element from here cannot be
+         * serialised, and React refuses the whole render with "Event handlers
+         * cannot be passed to Client Component props". Written as a plain
+         * inline arrow, that fired on every server-rendered video on the site —
+         * an article cover, a deck page — while the banner escaped it only
+         * because `templates.tsx` is a client component and the handlers there
+         * are real.
+         *
+         * The other two are already undefined unless a caller passes them, so
+         * they need nothing. This one would always have been a function.
+         */
         onEnded={onPlayedThrough}
         onError={onUnplayable}
-        onLoadedMetadata={(event) => onDuration?.(event.currentTarget.duration)}
+        onLoadedMetadata={
+          onDuration ? (event) => onDuration(event.currentTarget.duration) : undefined
+        }
       />
 
       {controls ? <VideoControls /> : null}
