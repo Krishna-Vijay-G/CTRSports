@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { Calendar } from "./model";
 import { eventDateLabel } from "@/lib/raceDates";
 import { eventName } from "@/lib/events";
+import { seasonHref } from "@/lib/seasons";
 import { Field, Note, Panel, Row } from "@/admin/components/Fields";
 import type { SectionPanelProps } from "@/lib/sections/types";
 
@@ -19,9 +20,17 @@ import type { SectionPanelProps } from "@/lib/sections/types";
  *
  * The season is still LISTED here, read-only, because a panel that says nothing
  * about what it will draw is a panel you have to leave to find out.
+ *
+ * The one address it does own is the button under the grid. Left blank it is the
+ * season's own page, which is why the field shows that address as its
+ * placeholder instead of explaining it in a sentence underneath.
  */
 export function CalendarPanel({ value, onChange, ctx }: SectionPanelProps<Calendar>) {
-  const { events, tracks, site } = ctx.records;
+  const { events, tracks, site, season } = ctx.records;
+
+  /* What a blank address resolves to, so the field can show it rather than
+     describe it. Null when nothing is published to point at. */
+  const seasonPage = season ? seasonHref(site, season) : "";
 
   const set = (patch: Partial<Calendar>) => onChange({ ...value, ...patch });
 
@@ -92,6 +101,33 @@ export function CalendarPanel({ value, onChange, ctx }: SectionPanelProps<Calend
             page reads those off the clock — a weekend is past or it is not — so there is nothing
             to decide about them.
           </Note>
+        </div>
+      </Panel>
+
+      <Panel title="Full calendar" hint="the button under the grid">
+        <div className="space-y-3">
+          <Field
+            label="Button"
+            value={value.seasonCtaLabel}
+            onChange={(seasonCtaLabel) => set({ seasonCtaLabel })}
+            maxLength={40}
+            placeholder="Full calendar"
+            hint="Blank leaves the button off."
+          />
+
+          {/* A whole row of its own: it holds a URL, and the placeholder is the
+              address it already resolves to. */}
+          <Field
+            label="Goes to"
+            value={value.seasonCtaHref}
+            onChange={(seasonCtaHref) => set({ seasonCtaHref })}
+            placeholder={seasonPage || "/calendar"}
+            hint={
+              seasonPage
+                ? `Blank goes to ${seasonPage} — this season's own page, which follows it if you rename it. Type any other address to override.`
+                : "No season is published yet, so a blank address has nothing to point at and the button stays off. Type an address to show it anyway."
+            }
+          />
         </div>
       </Panel>
 

@@ -1,4 +1,4 @@
-import { isRecord, text } from "@/lib/normalise";
+import { isRecord, link, text } from "@/lib/normalise";
 import type { SectionModule } from "@/lib/sections/types";
 
 /**
@@ -25,6 +25,10 @@ import type { SectionModule } from "@/lib/sections/types";
  * championship that runs "meetings" rather than "rounds" says so here rather
  * than in a component. Each blank leaves that piece off; nothing falls back to
  * a word.
+ *
+ * And the way out of the band: a button under the grid to the season's own page,
+ * whose address is a field so a championship that keeps its fixtures somewhere
+ * else can point at that instead.
  */
 export type Calendar = {
   label: string;
@@ -39,6 +43,15 @@ export type Calendar = {
   tbcLabel: string;
   /** The link to an event's circuit page. Blank leaves the link off. */
   trackCtaLabel: string;
+  /** The button under the grid. Blank leaves the button off. */
+  seasonCtaLabel: string;
+  /**
+   * Where that button goes. Blank means the season's own page — `/<sport>/
+   * calendar/<slug>` — which is what it should say almost always, and which is
+   * a fallback rather than a stored default so it follows a renamed season
+   * instead of rotting into a 404. Typed, it wins, and may be any address.
+   */
+  seasonCtaHref: string;
 };
 
 export const BLANK_CALENDAR: Calendar = {
@@ -49,6 +62,8 @@ export const BLANK_CALENDAR: Calendar = {
   countdownLabel: "",
   tbcLabel: "",
   trackCtaLabel: "",
+  seasonCtaLabel: "",
+  seasonCtaHref: "",
 };
 
 export const calendar: SectionModule<Calendar> = {
@@ -72,6 +87,8 @@ export const calendar: SectionModule<Calendar> = {
       countdownLabel: text(value.countdownLabel, d.countdownLabel, 40),
       tbcLabel: text(value.tbcLabel, d.tbcLabel, 40),
       trackCtaLabel: text(value.trackCtaLabel, d.trackCtaLabel, 40),
+      seasonCtaLabel: text(value.seasonCtaLabel, d.seasonCtaLabel, 40),
+      seasonCtaHref: link(value.seasonCtaHref, d.seasonCtaHref),
     };
   },
 };

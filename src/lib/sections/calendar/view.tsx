@@ -9,6 +9,7 @@ import {
   eventStart,
   nextEventIndex,
 } from "@/lib/raceDates";
+import { seasonHref } from "@/lib/seasons";
 import { findTrack, trackHref, type Track } from "@/lib/tracks";
 import type { SectionViewProps } from "@/lib/sections/types";
 import type { SiteRef } from "@/lib/sites";
@@ -16,6 +17,7 @@ import type { Calendar } from "./model";
 import { cn } from "@/lib/utils";
 import { Reveal } from "@/components/ui/Reveal";
 import { SectionHeading } from "@/components/ui/SectionHeading";
+import { ActionButton } from "@/components/ui/ActionButton";
 import { Countdown, CountdownLine } from "./Countdown";
 import { PinIcon } from "@/lib/sections/shared/icons";
 import { Media } from "@/components/ui/Media";
@@ -81,6 +83,22 @@ export function CalendarView({ value: calendar, records }: SectionViewProps<Cale
    */
   const title = calendar.title || season?.name || "";
 
+  /*
+   * The way out of the band, to the season's own page.
+   *
+   * The address is a field, but a blank one is the ordinary case rather than an
+   * unfinished one: it resolves against the season this band is ALREADY drawing,
+   * so it follows a rename and rolls over in January with everything else here.
+   * A slug typed once and stored would be pointing at last year by then.
+   *
+   * A typed address wins and may be anywhere — a championship whose fixtures
+   * live on a federation's site should be able to say so. With no season
+   * published there is nothing of ours to link to, and the button goes with it:
+   * a label over an empty href is a button to the top of the page.
+   */
+  const seasonLink = calendar.seasonCtaHref || (season ? seasonHref(site, season) : "");
+  const seasonCta = Boolean(calendar.seasonCtaLabel && seasonLink);
+
   // Null until the browser has read the clock. Nothing below may read it during
   // render; every time-dependent decision on this screen comes from here.
   const [now, setNow] = useState<Date | null>(null);
@@ -99,11 +117,18 @@ export function CalendarView({ value: calendar, records }: SectionViewProps<Cale
   if (events.length === 0) {
     // A heading over an unannounced season is worth keeping — it says the
     // season exists. A heading nobody has written is not a section at all.
-    if (!calendar.label && !title) return null;
+    if (!calendar.label && !title && !seasonCta) return null;
 
     return (
       <section id="calendar" className="shell py-16 sm:py-20">
         <SectionHeading label={calendar.label} title={title} />
+        {seasonCta ? (
+          <SeasonCta
+            href={seasonLink}
+            label={calendar.seasonCtaLabel}
+            className={cn((calendar.label || title) && "mt-8")}
+          />
+        ) : null}
       </section>
     );
   }
@@ -144,7 +169,49 @@ export function CalendarView({ value: calendar, records }: SectionViewProps<Cale
           </li>
         ))}
       </ol>
+
+      {/* Under the grid rather than beside the heading: the heading is centred
+          here, and a button pinned to the end of a centred row reads as a stray.
+          Below the season it is the thing you reach after scanning it, which is
+          when somebody wants the whole calendar. */}
+      {seasonCta ? (
+        <SeasonCta href={seasonLink} label={calendar.seasonCtaLabel} className="mt-10" />
+      ) : null}
     </section>
+  );
+}
+
+/**
+ * The button to the season's page.
+ *
+ * A component rather than two copies because both returns above draw it — an
+ * announced season with no rounds in it yet is exactly when a reader most wants
+ * the page that will hold them.
+ */
+function SeasonCta({
+  href,
+  label,
+  className,
+}: {
+  href: string;
+  label: string;
+  className?: string;
+}) {
+  // Anything that is not one of our own paths opens away from the site, the
+  // same test the posts band's button makes.
+  const away = href.startsWith("http");
+
+  return (
+    <Reveal className={cn("flex justify-center", className)}>
+      <ActionButton
+        href={href}
+        variant="outline"
+        target={away ? "_blank" : undefined}
+        rel={away ? "noreferrer" : undefined}
+      >
+        {label}
+      </ActionButton>
+    </Reveal>
   );
 }
 
