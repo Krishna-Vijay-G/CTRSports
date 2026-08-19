@@ -205,7 +205,10 @@ export function BannerCarousel({
       {banners.length > 1 && !controlled ? (
         <div
           className={cn(
-            "pointer-events-none absolute inset-x-0 z-20 flex justify-center gap-2 transition-all",
+            // Wraps and keeps clear of both edges: the cap is 50 slides, and a
+            // single unwrapped row of that many runs off a phone screen at both
+            // ends, taking the last dots out of reach.
+            "pointer-events-none absolute inset-x-0 z-20 flex flex-wrap justify-center gap-2 px-6 transition-all",
             // Lifted clear of the player bar, which is only on screen while
             // somebody is hovering — but the dots are moved for the whole
             // slide rather than only then, because dots that jump out of the

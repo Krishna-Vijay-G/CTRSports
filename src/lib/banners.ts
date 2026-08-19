@@ -152,10 +152,10 @@ export function fitCrops(fit: BannerFit): boolean {
   return fit === "fill" || fit === "zoom";
 }
 
-export const MAX_BANNERS = 6;
+export const MAX_BANNERS = 50;
 
 /** How long each banner holds before the next one, in milliseconds. */
-export const BANNER_INTERVAL = 6500;
+export const BANNER_INTERVAL = 5000;
 
 /**
  * A banner holding a video runs for as long as the video does, not for

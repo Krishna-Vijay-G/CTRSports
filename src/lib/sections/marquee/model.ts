@@ -4,7 +4,7 @@ import type { SectionModule } from "@/lib/sections/types";
 /** The line of announcements sliding under the banners. */
 export type Marquee = { items: string[] };
 
-export const MAX_MARQUEE_ITEMS = 10;
+export const MAX_MARQUEE_ITEMS = 50;
 
 export const marquee: SectionModule<Marquee> = {
   type: "marquee",
